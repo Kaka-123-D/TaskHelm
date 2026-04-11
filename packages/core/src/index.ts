@@ -22,5 +22,6 @@ export { createWorktree, removeWorktree, listWorktrees } from './workspace/workt
 export type { WorktreeConfig } from './workspace/worktree.js'
 export { DevServerRepository } from './models/dev-server.js'
 export type { CreateDevServerInput } from './models/dev-server.js'
+export { LockRepository } from './models/lock.js'
 export { findAvailablePort, isPortAvailable, allocatePort, releasePort } from './workspace/port.js'
 export type { PortRange } from './workspace/port.js'
