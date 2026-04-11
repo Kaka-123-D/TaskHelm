@@ -3,6 +3,7 @@ import { ProjectRepository, TaskRepository } from '@taskhelm/core'
 import { getDb } from '@/lib/db'
 import { TaskBoard } from '@/components/task-board'
 import { StatusBadge } from '@/components/status-badge'
+import { CreateTaskForm } from '@/components/create-task-form'
 
 interface ProjectPageProps {
   params: Promise<{ slug: string }>
@@ -68,8 +69,9 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
       {/* Task Board */}
       <div className="border border-zinc-800 rounded-lg overflow-hidden">
-        <div className="px-4 py-3 border-b border-zinc-800 bg-zinc-900/40">
+        <div className="px-4 py-3 border-b border-zinc-800 bg-zinc-900/40 flex items-center justify-between">
           <h3 className="text-sm font-medium text-zinc-300">Tasks</h3>
+          <CreateTaskForm projectId={project.id} />
         </div>
         <TaskBoard tasks={tasks} projectSlug={slug} />
       </div>
