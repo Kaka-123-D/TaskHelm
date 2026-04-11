@@ -20,6 +20,9 @@ importers:
       '@taskhelm/core':
         specifier: workspace:*
         version: link:../core
+      '@taskhelm/supervisor':
+        specifier: workspace:*
+        version: link:../supervisor
       chalk:
         specifier: ^5.4.0
         version: 5.6.2
@@ -70,7 +73,13 @@ importers:
       '@taskhelm/core':
         specifier: workspace:*
         version: link:../core
+      better-sqlite3:
+        specifier: ^11.8.0
+        version: 11.10.0
     devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.0
+        version: 7.6.13
       tsx:
         specifier: ^4.19.0
         version: 4.21.0
@@ -86,6 +95,9 @@ importers:
       '@taskhelm/core':
         specifier: workspace:*
         version: link:../core
+      '@taskhelm/supervisor':
+        specifier: workspace:*
+        version: link:../supervisor
       next:
         specifier: ^15.2.0
         version: 15.5.15(@playwright/test@1.59.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)

@@ -3,6 +3,8 @@ import { StatusBadge } from '@/components/status-badge'
 import { AgentRunList } from '@/components/agent-run-list'
 import { ReviewPipeline } from '@/components/review-pipeline'
 import { DevServerControls } from '@/components/dev-server-controls'
+import { WorkspaceControls } from '@/components/workspace-controls'
+import { DispatchAgentForm } from '@/components/dispatch-agent-form'
 
 interface TaskCockpitProps {
   task: Task
@@ -89,31 +91,7 @@ export function TaskCockpit({ task, agentRuns, reviewGates, recentEvents }: Task
 
       {/* Workspace */}
       <Section title="Workspace">
-        <div className="divide-y divide-zinc-800/60">
-          {task.branch_name ? (
-            <MetaRow
-              label="Branch"
-              value={<span className="font-mono text-sm">{task.branch_name}</span>}
-            />
-          ) : (
-            <MetaRow label="Branch" value={<span className="text-zinc-600">not assigned</span>} />
-          )}
-          {task.worktree_path && (
-            <MetaRow
-              label="Worktree"
-              value={<span className="font-mono text-xs text-zinc-400 break-all">{task.worktree_path}</span>}
-            />
-          )}
-          {task.port != null && (
-            <MetaRow label="Port" value={<span className="font-mono">{task.port}</span>} />
-          )}
-          {task.dev_server_state && (
-            <MetaRow
-              label="Dev Server"
-              value={<StatusBadge value={task.dev_server_state} />}
-            />
-          )}
-        </div>
+        <WorkspaceControls task={task} />
       </Section>
 
       {/* Review Pipeline */}
@@ -122,9 +100,15 @@ export function TaskCockpit({ task, agentRuns, reviewGates, recentEvents }: Task
       </Section>
 
       {/* Agent Runs */}
-      <Section title={`Agent Runs (${agentRuns.length})`}>
-        <AgentRunList agentRuns={agentRuns} />
-      </Section>
+      <div className="border border-zinc-800 rounded-lg overflow-hidden">
+        <div className="px-4 py-3 border-b border-zinc-800 bg-zinc-900/40 flex items-center justify-between">
+          <h3 className="text-sm font-medium text-zinc-300">Agent Runs ({agentRuns.length})</h3>
+          <DispatchAgentForm taskId={task.id} />
+        </div>
+        <div className="px-4 py-4">
+          <AgentRunList agentRuns={agentRuns} />
+        </div>
+      </div>
 
       {/* Dev Server Controls */}
       <Section title="Dev Server Controls">

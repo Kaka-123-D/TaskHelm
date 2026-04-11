@@ -1,3 +1,7 @@
+'use client'
+
+import { useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import type { Task } from '@taskhelm/core'
 import { StatusBadge } from '@/components/status-badge'
 
@@ -15,8 +19,47 @@ const STATE_DESCRIPTIONS: Record<string, string> = {
 }
 
 export function DevServerControls({ task }: DevServerControlsProps) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+
   const state = task.dev_server_state
   const port = task.port
+  const isRunning = state === 'running' || state === 'warm'
+
+  const handleStart = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/dev`, { method: 'POST' })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error ?? 'Failed to start dev server')
+      }
+      router.refresh()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [task.id, router])
+
+  const handleStop = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/dev`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error ?? 'Failed to stop dev server')
+      }
+      router.refresh()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [task.id, router])
 
   return (
     <div className="space-y-4">
@@ -26,21 +69,21 @@ export function DevServerControls({ task }: DevServerControlsProps) {
           {state ? (
             <StatusBadge value={state} />
           ) : (
-            <span className="text-sm text-zinc-600">not configured</span>
+            <span className="text-sm text-zinc-600">not started</span>
           )}
         </div>
         {port != null && (
           <div className="flex items-center gap-2">
             <span className="text-sm text-zinc-400">Port:</span>
             <span className="font-mono text-sm text-zinc-300">{port}</span>
-            {state === 'running' && (
+            {isRunning && (
               <a
                 href={`http://localhost:${port}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
               >
-                open ↗
+                open
               </a>
             )}
           </div>
@@ -53,26 +96,38 @@ export function DevServerControls({ task }: DevServerControlsProps) {
         </p>
       )}
 
+      {error && (
+        <div className="p-2 bg-red-900/30 border border-red-800 rounded text-xs text-red-300">
+          {error}
+        </div>
+      )}
+
       <div className="flex gap-2">
-        <button
-          disabled
-          className="px-3 py-1.5 text-xs rounded border border-zinc-700 text-zinc-400 bg-zinc-900 cursor-not-allowed opacity-50"
-          title="Use CLI to control dev server"
-        >
-          Start
-        </button>
-        <button
-          disabled
-          className="px-3 py-1.5 text-xs rounded border border-zinc-700 text-zinc-400 bg-zinc-900 cursor-not-allowed opacity-50"
-          title="Use CLI to control dev server"
-        >
-          Stop
-        </button>
+        {!isRunning ? (
+          <button
+            onClick={handleStart}
+            disabled={loading || !task.worktree_path}
+            className="px-3 py-1.5 text-xs rounded bg-green-600 hover:bg-green-500 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title={!task.worktree_path ? 'Init workspace first' : 'Start dev server'}
+          >
+            {loading ? 'Starting...' : 'Start'}
+          </button>
+        ) : (
+          <button
+            onClick={handleStop}
+            disabled={loading}
+            className="px-3 py-1.5 text-xs rounded border border-red-900 text-red-400 hover:text-red-300 hover:border-red-700 transition-colors disabled:opacity-50"
+          >
+            {loading ? 'Stopping...' : 'Stop'}
+          </button>
+        )}
       </div>
-      <p className="text-xs text-zinc-600">
-        Dev server control is managed via CLI:{' '}
-        <code className="font-mono">taskhelm dev start --task {task.id.slice(0, 8)}</code>
-      </p>
+
+      {!task.worktree_path && !state && (
+        <p className="text-xs text-zinc-600">
+          Initialize workspace first to enable dev server.
+        </p>
+      )}
     </div>
   )
 }

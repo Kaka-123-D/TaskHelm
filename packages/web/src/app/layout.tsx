@@ -18,6 +18,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <a href="/" className="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
               Projects
             </a>
+            <a href="/dev-pool" className="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
+              Dev Server Pool
+            </a>
             <NotificationCenter />
             <div className="mt-auto pt-4 border-t border-zinc-800">
               <ActivityFeed />
