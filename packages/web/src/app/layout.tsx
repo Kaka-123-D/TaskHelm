@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { ActivityFeed } from '@/components/activity-feed'
+import { NotificationCenter } from '@/components/notification-center'
 
 export const metadata: Metadata = {
   title: 'TaskHelm',
@@ -16,6 +18,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <a href="/" className="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
               Projects
             </a>
+            <NotificationCenter />
+            <div className="mt-auto pt-4 border-t border-zinc-800">
+              <ActivityFeed />
+            </div>
           </nav>
           <main className="flex-1 p-6">
             {children}
