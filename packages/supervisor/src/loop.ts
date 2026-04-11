@@ -4,6 +4,7 @@ import type { TaskPhaseValue } from '@taskhelm/core'
 import { getSchedulableJobs } from './scheduler.js'
 import { dispatchJob } from './dispatcher.js'
 import { nextPhase } from './phase-machine.js'
+import { notify } from './notifier.js'
 
 // Phases that require a review gate to be opened when entered
 const REVIEW_PHASE_TO_GATE: Readonly<Record<string, string>> = {
@@ -162,6 +163,24 @@ export function runOneCycle(db: Database.Database): CycleResult {
       })
       eventsProcessed++
 
+      // Notify: agent run failed
+      notify(db, {
+        task_id: run.task_id,
+        level: 'warning',
+        channel: 'desktop',
+        title: `Agent run failed (${run.kind})`,
+        body: errorMessage,
+      })
+
+      // Notify: task blocked
+      notify(db, {
+        task_id: run.task_id,
+        level: 'error',
+        channel: 'desktop',
+        title: 'Task blocked',
+        body: errorMessage,
+      })
+
       transitionedTaskIds.add(run.task_id)
     }
   }
@@ -188,6 +207,15 @@ export function runOneCycle(db: Database.Database): CycleResult {
       event_type: 'task.done',
     })
     eventsProcessed++
+
+    // Notify: task completed
+    notify(db, {
+      task_id: row.id,
+      level: 'success',
+      channel: 'desktop',
+      title: 'Task completed',
+      body: 'All phases passed — task is done.',
+    })
   }
 
   // Step 3: Dispatch new jobs for tasks that were idle before this cycle.
