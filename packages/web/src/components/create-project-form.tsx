@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { FolderPicker } from '@/components/folder-picker'
 
 interface FormState {
   readonly name: string
@@ -48,6 +49,19 @@ export function CreateProjectForm() {
         slug: prev.slug === '' || prev.slug === toSlug(prev.name)
           ? toSlug(name)
           : prev.slug,
+      }))
+    },
+    []
+  )
+
+  const handleFolderSelect = useCallback(
+    (folderPath: string) => {
+      const folderName = folderPath.split('/').pop() ?? ''
+      setForm(prev => ({
+        ...prev,
+        localRepoRoot: folderPath,
+        name: prev.name === '' ? folderName : prev.name,
+        slug: prev.slug === '' ? toSlug(folderName) : prev.slug,
       }))
     },
     []
@@ -120,9 +134,12 @@ export function CreateProjectForm() {
         )}
 
         <div className="space-y-3">
+          <label className="block">
+            <span className="text-xs text-zinc-400 mb-1 block">Repository Folder *</span>
+            <FolderPicker value={form.localRepoRoot} onChange={handleFolderSelect} />
+          </label>
           <Field label="Name *" value={form.name} onChange={autoSlug} placeholder="My Project" />
           <Field label="Slug *" value={form.slug} onChange={updateField('slug')} placeholder="my-project" />
-          <Field label="Repo Path *" value={form.localRepoRoot} onChange={updateField('localRepoRoot')} placeholder="/path/to/repo" />
           <Field label="Description" value={form.description} onChange={updateField('description')} placeholder="Optional description" />
           <Field label="Default Branch" value={form.defaultBranch} onChange={updateField('defaultBranch')} placeholder="main" />
           <Field label="Dev Command" value={form.devCommand} onChange={updateField('devCommand')} placeholder="npm run dev" />
