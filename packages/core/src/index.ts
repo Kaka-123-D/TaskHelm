@@ -20,3 +20,7 @@ export { formatBranchName, createBranch, branchExists } from './workspace/branch
 export type { BranchConfig } from './workspace/branch.js'
 export { createWorktree, removeWorktree, listWorktrees } from './workspace/worktree.js'
 export type { WorktreeConfig } from './workspace/worktree.js'
+export { DevServerRepository } from './models/dev-server.js'
+export type { CreateDevServerInput } from './models/dev-server.js'
+export { findAvailablePort, isPortAvailable, allocatePort, releasePort } from './workspace/port.js'
+export type { PortRange } from './workspace/port.js'
