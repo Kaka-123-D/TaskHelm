@@ -1,67 +1,108 @@
 # TaskHelm
 
-TaskHelm is an autonomous AI engineering manager for solo operators.
+Autonomous AI engineering manager for solo operators.
 
-It is designed for the real workflow of one technical person running many projects and many tasks in parallel:
+TaskHelm is a local control plane for parallel software execution — managing projects, tasks, branches, worktrees, agents, review pipelines, and dev servers from a single interface.
 
-- one project
-- many tasks
-- one branch
-- one worktree
-- one or more agents
-- one review pipeline
-- one ops snapshot
+## Quick Start
 
-TaskHelm is not just a task tracker and not just an agent wrapper.
-It is a local control plane for parallel software execution:
+```bash
+# Clone and install
+git clone https://github.com/your-org/taskhelm.git
+cd taskhelm
+pnpm install
+pnpm run build
 
-- create and manage projects
-- create and manage task workspaces
-- orchestrate implementer and reviewer agents
-- track runtime state and progress
-- manage pooled dev servers
-- keep human-readable context in Markdown
+# Create a project
+taskhelm project create --name "My App" --slug my-app --repo /path/to/repo
 
-TaskHelm is designed to work standalone, but work best with [SpecDown](https://specdown.app).
+# Create a task
+taskhelm task create --project my-app --title "Add auth" --goal "Implement JWT auth"
 
-## Positioning
+# Start the task (creates branch + worktree)
+taskhelm task start <task-id>
 
-TaskHelm sits at the intersection of:
+# View task status
+taskhelm task show <task-id>
 
-- AI engineering manager
-- solo CTO cockpit
-- project-aware task execution control plane
+# Start the web dashboard
+pnpm --filter @taskhelm/web run dev
+```
 
-The primary user is a single technical operator who wants manager-grade leverage without building a whole team first.
+## What It Does
 
-## Product Principles
+- **Projects & Tasks** — create projects, break work into tasks with full lifecycle tracking
+- **Workspace Isolation** — each task gets its own branch, worktree, and allocated port
+- **Agent Orchestration** — dispatch implementer and reviewer agents per task phase
+- **Review Pipeline** — 3-gate review: spec compliance, code quality, runtime verification
+- **Dev Server Pool** — manage pooled dev servers with max concurrency and health checks
+- **Supervisor Daemon** — event-driven loop that advances task phases, dispatches agents, emits notifications
+- **Dual Interface** — CLI and web dashboard are equal first-class surfaces
 
-- Task-centric over chat-centric
-- Runtime state must survive session loss
-- Markdown remains first-class for human context
-- The system should proactively report, not wait for manual polling
-- Work standalone; become better with SpecDown
-- CLI and web dashboard are equal citizens
-- Projects are the top-level operational boundary
+## Architecture
 
-## V1 Boundary
+```
+┌─────────┐  ┌───────────┐
+│   CLI   │  │ Dashboard  │
+└────┬────┘  └─────┬─────┘
+     │             │
+     └──────┬──────┘
+            │
+     ┌──────┴──────┐
+     │  Supervisor  │  ← event loop, scheduler, dispatcher
+     ├──────────────┤
+     │  SQLite DB   │  ← runtime state (WAL mode)
+     ├──────────────┤
+     │  Disk Capsules│  ← Markdown/YAML task memory
+     └──────────────┘
+```
 
-TaskHelm v1 is single-user first.
+**Packages:**
 
-It may autonomously:
+| Package | Description |
+|---------|-------------|
+| `@taskhelm/core` | Domain model, SQLite repositories, workspace utilities, capsule I/O |
+| `@taskhelm/supervisor` | Supervisor loop, phase machine, scheduler, dispatcher, notifications |
+| `@taskhelm/cli` | CLI commands (project, task, workspace, dev, agent, specdown) |
+| `@taskhelm/web` | Next.js dashboard with real-time SSE updates |
 
-- create branch and worktree
-- manage local runtime for a task
-- dispatch implementer and reviewer agents
-- update task docs and runtime state
-- run local dev/test/smoke commands
+## Task Lifecycle
 
-It will not autonomously:
+```
+draft → ready → running → reviewing → done
+                  ↓                     ↑
+               blocked ────────────────┘
+```
 
-- push remote branches
-- merge code
-- create PRs or MRs
-- mutate external ticket systems by default
+**Phases within `running`:**
+
+context → planning → implementation → spec_review → code_review → runtime_verification → final_summary
+
+## V1 Autonomy Boundary
+
+**Allowed:** create branch/worktree, dispatch agents, edit code, run local dev/test commands, run review pipeline, update task artifacts.
+
+**Not allowed by default:** push branches, merge, create PR/MR, mutate external ticket systems.
+
+## SpecDown Integration
+
+TaskHelm works standalone but integrates optionally with [SpecDown](https://specdown.app):
+
+```bash
+taskhelm specdown link my-project
+taskhelm specdown pull-context my-project
+taskhelm specdown push-task <task-id> --artifact review.md
+```
+
+## Development
+
+```bash
+pnpm run typecheck   # Typecheck all packages
+pnpm run test        # Run all tests
+pnpm run build       # Build all packages
+```
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for full development guide.
 
 ## Document Map
 
@@ -79,10 +120,6 @@ It will not autonomously:
 - [SpecDown Technical Integration](./docs/12-specdown-integration-tech-spec.md)
 - [Session Context Dump](./docs/13-session-context-dump.md)
 
-## Working Thesis
+## License
 
-If coding agents are workers, TaskHelm is the manager.
-
-If worktrees are the factory floor, TaskHelm is the control tower.
-
-If tasks are the work units, projects are the command zones.
+[MIT](./LICENSE)
