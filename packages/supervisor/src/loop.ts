@@ -1,8 +1,71 @@
 import type Database from 'better-sqlite3'
-import { TaskRepository, EventRepository } from '@taskhelm/core'
+import { TaskRepository, EventRepository, ReviewGateRepository } from '@taskhelm/core'
+import type { TaskPhaseValue } from '@taskhelm/core'
 import { getSchedulableJobs } from './scheduler.js'
 import { dispatchJob } from './dispatcher.js'
 import { nextPhase } from './phase-machine.js'
+
+// Phases that require a review gate to be opened when entered
+const REVIEW_PHASE_TO_GATE: Readonly<Record<string, string>> = {
+  spec_review: 'spec_compliance',
+  code_review: 'code_quality',
+  runtime_verification: 'runtime_verification',
+}
+
+// Agent run kinds that correspond to review phases
+const REVIEW_KINDS = new Set(['spec_review', 'code_review', 'runtime_verify'])
+
+/**
+ * Ensures a review gate exists and is open for the given task+phase.
+ * If a gate already exists (e.g. idempotent re-run), it is left alone.
+ * Returns the gate id that was created or already existed.
+ */
+function ensureReviewGateOpen(
+  db: Database.Database,
+  taskId: string,
+  phase: TaskPhaseValue
+): void {
+  const gateType = REVIEW_PHASE_TO_GATE[phase]
+  if (!gateType) return
+
+  const gateRepo = new ReviewGateRepository(db)
+  const existing = gateRepo.findByTaskId(taskId).find((g) => g.gate_type === gateType)
+
+  if (existing) {
+    // If it was previously failed or pending, re-open it for a new attempt
+    if (existing.status === 'pending' || existing.status === 'failed') {
+      gateRepo.open(existing.id)
+    }
+    return
+  }
+
+  const gate = gateRepo.create({ task_id: taskId, gate_type: gateType })
+  gateRepo.open(gate.id)
+}
+
+/**
+ * If the agent run kind is a review kind, close the corresponding open gate.
+ * Pass `passed=true` on completion, `passed=false` on failure.
+ */
+function closeReviewGate(
+  db: Database.Database,
+  taskId: string,
+  runKind: string,
+  passed: boolean
+): void {
+  if (!REVIEW_KINDS.has(runKind)) return
+
+  const gateRepo = new ReviewGateRepository(db)
+  const gates = gateRepo.findByTaskId(taskId)
+  const openGate = gates.find((g) => g.status === 'open')
+  if (!openGate) return
+
+  if (passed) {
+    gateRepo.pass(openGate.id)
+  } else {
+    gateRepo.fail(openGate.id)
+  }
+}
 
 export interface CycleResult {
   readonly jobsDispatched: number
@@ -12,6 +75,7 @@ export interface CycleResult {
 type TerminalRunRow = {
   id: string
   task_id: string
+  kind: string
   status: string
   error_message: string | null
 }
@@ -39,7 +103,7 @@ export function runOneCycle(db: Database.Database): CycleResult {
   // Step 1: Process completed/failed agent runs BEFORE scheduling new jobs.
   const terminalRuns = db
     .prepare(
-      `SELECT ar.id, ar.task_id, ar.status, ar.error_message
+      `SELECT ar.id, ar.task_id, ar.kind, ar.status, ar.error_message
        FROM agent_runs ar
        INNER JOIN tasks t ON t.id = ar.task_id
        WHERE t.status = 'running'
@@ -53,6 +117,9 @@ export function runOneCycle(db: Database.Database): CycleResult {
       const task = taskRepo.findById(run.task_id)
       if (task === null) continue
 
+      // Close (pass) any open review gate for this run's kind
+      closeReviewGate(db, task.id, run.kind, true)
+
       const next = nextPhase(task.phase)
 
       // Clear current_agent_run_id
@@ -62,6 +129,9 @@ export function runOneCycle(db: Database.Database): CycleResult {
 
       if (next !== null) {
         taskRepo.updatePhase(task.id, next)
+
+        // Open review gate if the new phase requires one
+        ensureReviewGateOpen(db, task.id, next)
 
         eventRepo.append({
           entity_type: 'task',
@@ -76,6 +146,9 @@ export function runOneCycle(db: Database.Database): CycleResult {
       transitionedTaskIds.add(task.id)
     } else if (run.status === 'failed') {
       const errorMessage = run.error_message ?? 'Agent run failed'
+
+      // Close (fail) any open review gate for this run's kind
+      closeReviewGate(db, run.task_id, run.kind, false)
 
       db.prepare(
         `UPDATE tasks SET status = 'blocked', latest_blocker = ?, current_agent_run_id = NULL, updated_at = ? WHERE id = ?`
