@@ -1,0 +1,19 @@
+{
+  "name": "@taskhelm/supervisor",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "@taskhelm/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "tsx": "^4.19.0"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "taskhelm",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "build": "turbo build",
+    "test": "turbo test",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "dev": "turbo dev"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  }
+}
