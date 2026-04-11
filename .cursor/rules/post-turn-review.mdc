@@ -1,0 +1,13 @@
+---
+description: Run code review after each implementation turn
+globs: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
+alwaysApply: true
+---
+
+# Post-Turn Code Review
+
+After completing each implementation turn:
+
+1. Review all changed files for: immutability violations, type safety, error handling, security issues, file size
+2. Fix CRITICAL and HIGH issues before moving on
+3. Report review summary
