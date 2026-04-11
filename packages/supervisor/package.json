@@ -9,9 +9,11 @@
     "dev": "tsx watch src/index.ts"
   },
   "dependencies": {
-    "@taskhelm/core": "workspace:*"
+    "@taskhelm/core": "workspace:*",
+    "better-sqlite3": "^11.8.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0",
     "tsx": "^4.19.0"
