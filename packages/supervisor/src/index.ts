@@ -1,5 +1,6 @@
 import { createDatabase, runMigrations } from '@taskhelm/core'
 import { runOneCycle } from './loop.js'
+import { recoverOnStartup } from './recovery.js'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { mkdirSync } from 'node:fs'
@@ -11,6 +12,13 @@ export function startSupervisor(dbPath?: string): NodeJS.Timeout {
   mkdirSync(join(homedir(), '.taskhelm'), { recursive: true })
   const db = createDatabase(resolvedPath)
   runMigrations(db)
+
+  // Repair any state left over from a previous crash before the first cycle
+  try {
+    recoverOnStartup(db)
+  } catch (error) {
+    console.error('[supervisor] recovery error:', error)
+  }
 
   const interval = setInterval(() => {
     try {
@@ -32,6 +40,8 @@ export { getSchedulableJobs } from './scheduler.js'
 export { dispatchJob } from './dispatcher.js'
 export { startDevServer, stopDevServer, checkServerHealth, getPoolStatus } from './dev-pool.js'
 export type { StartServerOptions } from './dev-pool.js'
+export { recoverOnStartup } from './recovery.js'
+export type { RecoveryResult } from './recovery.js'
 
 // If run directly
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'))) {
