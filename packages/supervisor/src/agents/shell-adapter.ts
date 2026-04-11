@@ -31,33 +31,35 @@ export class ShellAgentAdapter implements AgentAdapter {
         stdio: ['ignore', 'pipe', 'pipe'],
       })
 
-      child.stdout.pipe(logStream)
-      child.stderr.pipe(logStream)
+      child.stdout.pipe(logStream, { end: false })
+      child.stderr.pipe(logStream, { end: false })
 
       child.on('error', (err) => {
-        logStream.end()
-        resolve({
-          success: false,
-          outputRef: logFile,
-          errorMessage: err.message,
+        logStream.end(() => {
+          resolve({
+            success: false,
+            outputRef: logFile,
+            errorMessage: err.message,
+          })
         })
       })
 
       child.on('close', (code) => {
-        logStream.end()
-        if (code === 0) {
-          resolve({
-            success: true,
-            outputRef: logFile,
-            errorMessage: null,
-          })
-        } else {
-          resolve({
-            success: false,
-            outputRef: logFile,
-            errorMessage: `Process exited with code ${code}`,
-          })
-        }
+        logStream.end(() => {
+          if (code === 0) {
+            resolve({
+              success: true,
+              outputRef: logFile,
+              errorMessage: null,
+            })
+          } else {
+            resolve({
+              success: false,
+              outputRef: logFile,
+              errorMessage: `Process exited with code ${code}`,
+            })
+          }
+        })
       })
     })
   }
