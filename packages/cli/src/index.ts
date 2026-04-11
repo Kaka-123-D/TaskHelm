@@ -1,6 +1,7 @@
 import { Command } from 'commander'
 import { registerProjectCommands } from './commands/project.js'
 import { registerTaskCommands } from './commands/task.js'
+import { registerWorkspaceCommands } from './commands/workspace.js'
 
 export const program = new Command()
   .name('taskhelm')
@@ -9,3 +10,4 @@ export const program = new Command()
 
 registerProjectCommands(program)
 registerTaskCommands(program)
+registerWorkspaceCommands(program)

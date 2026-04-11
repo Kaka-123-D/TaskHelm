@@ -19,8 +19,8 @@ export interface UpdateTaskInput {
   readonly source_type?: string
   readonly source_ref?: string
   readonly priority?: number
-  readonly branch_name?: string
-  readonly worktree_path?: string
+  readonly branch_name?: string | null
+  readonly worktree_path?: string | null
   readonly port?: number
   readonly dev_server_state?: string
   readonly current_agent_run_id?: string
