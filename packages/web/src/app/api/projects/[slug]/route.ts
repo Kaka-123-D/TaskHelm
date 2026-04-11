@@ -48,3 +48,21 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 })
   }
 }
+
+export async function DELETE(_request: Request, { params }: Params) {
+  try {
+    const { slug } = await params
+    const db = getDb()
+    const projectRepo = new ProjectRepository(db)
+
+    const project = projectRepo.findBySlug(slug)
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    projectRepo.delete(project.id)
+    return NextResponse.json({ deleted: true })
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 400 })
+  }
+}

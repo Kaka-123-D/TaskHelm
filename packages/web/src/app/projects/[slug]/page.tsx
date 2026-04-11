@@ -4,6 +4,7 @@ import { getDb } from '@/lib/db'
 import { TaskBoard } from '@/components/task-board'
 import { StatusBadge } from '@/components/status-badge'
 import { CreateTaskForm } from '@/components/create-task-form'
+import { ProjectActions } from '@/components/project-actions'
 
 interface ProjectPageProps {
   params: Promise<{ slug: string }>
@@ -35,7 +36,10 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             )}
             <div className="font-mono text-xs text-zinc-500">{project.local_repo_root}</div>
           </div>
-          <StatusBadge value={project.specdown_mode} />
+          <div className="flex items-center gap-3">
+            <StatusBadge value={project.specdown_mode} />
+            <ProjectActions project={project} />
+          </div>
         </div>
 
         {/* Project Meta */}

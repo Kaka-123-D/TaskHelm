@@ -9,6 +9,7 @@ import {
 } from '@taskhelm/core'
 import { getDb } from '@/lib/db'
 import { TaskCockpit } from '@/components/task-cockpit'
+import { TaskActions } from '@/components/task-actions'
 
 interface TaskPageProps {
   params: Promise<{ slug: string; taskId: string }>
@@ -50,11 +51,14 @@ export default async function TaskPage({ params }: TaskPageProps) {
       </nav>
 
       {/* Page Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold">{task.title}</h2>
-        {task.key && (
-          <span className="text-sm text-zinc-500 font-mono mt-1 inline-block">{task.key}</span>
-        )}
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold">{task.title}</h2>
+          {task.key && (
+            <span className="text-sm text-zinc-500 font-mono mt-1 inline-block">{task.key}</span>
+          )}
+        </div>
+        <TaskActions task={task} projectSlug={slug} />
       </div>
 
       {/* Cockpit */}
