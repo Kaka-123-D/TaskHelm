@@ -2,6 +2,9 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { GlassModal } from '@/components/design-system/glass-modal'
+import { GlassInput } from '@/components/design-system/glass-input'
+import { GlassButton } from '@/components/design-system/glass-button'
 import { FolderPicker } from '@/components/folder-picker'
 
 interface FormState {
@@ -26,6 +29,10 @@ const INITIAL_STATE: FormState = {
   testCommand: '',
 }
 
+function toSlug(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+}
+
 export function CreateProjectForm() {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<FormState>(INITIAL_STATE)
@@ -34,168 +41,105 @@ export function CreateProjectForm() {
   const router = useRouter()
 
   const updateField = useCallback(
-    (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) => {
-      setForm(prev => ({ ...prev, [field]: e.target.value }))
+    (field: keyof FormState, value: string) => {
+      setForm(prev => ({ ...prev, [field]: value }))
     },
     []
   )
 
-  const autoSlug = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const name = e.target.value
-      setForm(prev => ({
-        ...prev,
-        name,
-        slug: prev.slug === '' || prev.slug === toSlug(prev.name)
-          ? toSlug(name)
-          : prev.slug,
-      }))
-    },
-    []
-  )
+  const autoSlug = useCallback((name: string) => {
+    setForm(prev => ({
+      ...prev,
+      name,
+      slug: prev.slug === '' || prev.slug === toSlug(prev.name) ? toSlug(name) : prev.slug,
+    }))
+  }, [])
 
-  const handleFolderSelect = useCallback(
-    (folderPath: string) => {
-      const folderName = folderPath.split('/').pop() ?? ''
-      setForm(prev => ({
-        ...prev,
-        localRepoRoot: folderPath,
-        name: prev.name === '' ? folderName : prev.name,
-        slug: prev.slug === '' ? toSlug(folderName) : prev.slug,
-      }))
-    },
-    []
-  )
+  const handleFolderSelect = useCallback((folderPath: string) => {
+    const folderName = folderPath.split('/').pop() ?? ''
+    setForm(prev => ({
+      ...prev,
+      localRepoRoot: folderPath,
+      name: prev.name === '' ? folderName : prev.name,
+      slug: prev.slug === '' ? toSlug(folderName) : prev.slug,
+    }))
+  }, [])
 
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault()
-      setError(null)
-      setSubmitting(true)
-
-      try {
-        const body: Record<string, string | undefined> = {
-          name: form.name,
-          slug: form.slug,
-          local_repo_root: form.localRepoRoot,
-        }
-        if (form.description) body.description = form.description
-        if (form.defaultBranch) body.default_branch = form.defaultBranch
-        if (form.devCommand) body.dev_command = form.devCommand
-        if (form.installCommand) body.install_command = form.installCommand
-        if (form.testCommand) body.test_command = form.testCommand
-
-        const res = await fetch('/api/projects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        })
-
-        if (!res.ok) {
-          const data = await res.json()
-          throw new Error(data.error ?? 'Failed to create project')
-        }
-
-        setForm(INITIAL_STATE)
-        setOpen(false)
-        router.refresh()
-      } catch (err) {
-        setError((err as Error).message)
-      } finally {
-        setSubmitting(false)
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setSubmitting(true)
+    try {
+      const body: Record<string, string | undefined> = {
+        name: form.name,
+        slug: form.slug,
+        local_repo_root: form.localRepoRoot,
       }
-    },
-    [form, router]
-  )
+      if (form.description) body.description = form.description
+      if (form.defaultBranch) body.default_branch = form.defaultBranch
+      if (form.devCommand) body.dev_command = form.devCommand
+      if (form.installCommand) body.install_command = form.installCommand
+      if (form.testCommand) body.test_command = form.testCommand
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors"
-      >
-        + New Project
-      </button>
-    )
-  }
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error ?? 'Failed to create project')
+      }
+      setForm(INITIAL_STATE)
+      setOpen(false)
+      router.refresh()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSubmitting(false)
+    }
+  }, [form, router])
+
+  const handleClose = useCallback(() => {
+    setOpen(false)
+    setForm(INITIAL_STATE)
+    setError(null)
+  }, [])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 w-full max-w-lg shadow-2xl"
-      >
-        <h3 className="text-lg font-semibold mb-4">Create Project</h3>
+    <>
+      <GlassButton onClick={() => setOpen(true)}>+ New Project</GlassButton>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-900/30 border border-red-800 rounded text-sm text-red-300">
-            {error}
+      <GlassModal open={open} onClose={handleClose} title="Create Project">
+        <form onSubmit={handleSubmit}>
+          {error && (
+            <div className="mb-4 p-3 rounded-[var(--glass-radius-sm)] text-sm" style={{ background: 'var(--danger-bg)', color: 'var(--danger-hover)' }}>
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <div>
+              <span className="block text-xs text-[var(--text-muted)] mb-1.5">Repository Folder *</span>
+              <FolderPicker value={form.localRepoRoot} onChange={handleFolderSelect} />
+            </div>
+            <GlassInput label="Name *" value={form.name} onChange={e => autoSlug(e.target.value)} placeholder="My Project" />
+            <GlassInput label="Slug *" value={form.slug} onChange={e => updateField('slug', e.target.value)} placeholder="my-project" />
+            <GlassInput label="Description" value={form.description} onChange={e => updateField('description', e.target.value)} placeholder="Optional description" />
+            <GlassInput label="Default Branch" value={form.defaultBranch} onChange={e => updateField('defaultBranch', e.target.value)} placeholder="main" />
+            <GlassInput label="Dev Command" value={form.devCommand} onChange={e => updateField('devCommand', e.target.value)} placeholder="npm run dev" />
+            <GlassInput label="Install Command" value={form.installCommand} onChange={e => updateField('installCommand', e.target.value)} placeholder="npm install" />
+            <GlassInput label="Test Command" value={form.testCommand} onChange={e => updateField('testCommand', e.target.value)} placeholder="npm test" />
           </div>
-        )}
 
-        <div className="space-y-3">
-          <label className="block">
-            <span className="text-xs text-zinc-400 mb-1 block">Repository Folder *</span>
-            <FolderPicker value={form.localRepoRoot} onChange={handleFolderSelect} />
-          </label>
-          <Field label="Name *" value={form.name} onChange={autoSlug} placeholder="My Project" />
-          <Field label="Slug *" value={form.slug} onChange={updateField('slug')} placeholder="my-project" />
-          <Field label="Description" value={form.description} onChange={updateField('description')} placeholder="Optional description" />
-          <Field label="Default Branch" value={form.defaultBranch} onChange={updateField('defaultBranch')} placeholder="main" />
-          <Field label="Dev Command" value={form.devCommand} onChange={updateField('devCommand')} placeholder="npm run dev" />
-          <Field label="Install Command" value={form.installCommand} onChange={updateField('installCommand')} placeholder="npm install" />
-          <Field label="Test Command" value={form.testCommand} onChange={updateField('testCommand')} placeholder="npm test" />
-        </div>
-
-        <div className="flex justify-end gap-3 mt-6">
-          <button
-            type="button"
-            onClick={() => { setOpen(false); setForm(INITIAL_STATE); setError(null) }}
-            className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={submitting || !form.name || !form.slug || !form.localRepoRoot}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            {submitting ? 'Creating...' : 'Create Project'}
-          </button>
-        </div>
-      </form>
-    </div>
+          <div className="flex justify-end gap-3 mt-6">
+            <GlassButton type="button" variant="ghost" onClick={handleClose}>Cancel</GlassButton>
+            <GlassButton type="submit" loading={submitting} disabled={!form.name || !form.slug || !form.localRepoRoot}>
+              Create Project
+            </GlassButton>
+          </div>
+        </form>
+      </GlassModal>
+    </>
   )
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-}: {
-  label: string
-  value: string
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
-  placeholder: string
-}) {
-  return (
-    <label className="block">
-      <span className="text-xs text-zinc-400 mb-1 block">{label}</span>
-      <input
-        type="text"
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-blue-500 transition-colors"
-      />
-    </label>
-  )
-}
-
-function toSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
 }
