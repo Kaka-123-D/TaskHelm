@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import { ActivityFeed } from '@/components/activity-feed'
-import { NotificationCenter } from '@/components/notification-center'
+import { GlassSidebar } from '@/components/glass-sidebar'
+import { ProjectRepository } from '@taskhelm/core'
+import { getDb } from '@/lib/db'
 
 export const metadata: Metadata = {
   title: 'TaskHelm',
@@ -9,24 +10,17 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const db = getDb()
+  const projectRepo = new ProjectRepository(db)
+  const projects = projectRepo.findAll()
+  const recentProjects = projects.slice(0, 5).map(p => ({ name: p.name, slug: p.slug }))
+
   return (
     <html lang="en">
-      <body className="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
+      <body className="min-h-screen antialiased">
         <div className="flex min-h-screen">
-          <nav className="w-64 border-r border-zinc-800 p-4 flex flex-col gap-4">
-            <h1 className="text-xl font-bold tracking-tight">TaskHelm</h1>
-            <a href="/" className="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
-              Projects
-            </a>
-            <a href="/dev-pool" className="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
-              Dev Server Pool
-            </a>
-            <NotificationCenter />
-            <div className="mt-auto pt-4 border-t border-zinc-800">
-              <ActivityFeed />
-            </div>
-          </nav>
-          <main className="flex-1 p-6">
+          <GlassSidebar recentProjects={recentProjects} />
+          <main className="flex-1 p-8 overflow-auto">
             {children}
           </main>
         </div>
