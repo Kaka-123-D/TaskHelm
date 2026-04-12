@@ -2,8 +2,8 @@ import type { Task, AgentRun, ReviewGate, AppEvent } from '@taskhelm/core'
 import { StatusBadge } from '@/components/status-badge'
 import { AgentRunList } from '@/components/agent-run-list'
 import { ReviewPipeline } from '@/components/review-pipeline'
-import { DevServerControls } from '@/components/dev-server-controls'
-import { WorkspaceControls } from '@/components/workspace-controls'
+import { DevServerPanel } from '@/components/dev-server-panel'
+import { WorkspacePanel } from '@/components/workspace-panel'
 import { DispatchAgentForm } from '@/components/dispatch-agent-form'
 
 interface TaskCockpitProps {
@@ -91,7 +91,7 @@ export function TaskCockpit({ task, agentRuns, reviewGates, recentEvents }: Task
 
       {/* Workspace */}
       <Section title="Workspace">
-        <WorkspaceControls task={task} />
+        <WorkspacePanel task={task} />
       </Section>
 
       {/* Review Pipeline */}
@@ -112,7 +112,7 @@ export function TaskCockpit({ task, agentRuns, reviewGates, recentEvents }: Task
 
       {/* Dev Server Controls */}
       <Section title="Dev Server Controls">
-        <DevServerControls task={task} />
+        <DevServerPanel task={task} />
       </Section>
 
       {/* Recent Events */}
