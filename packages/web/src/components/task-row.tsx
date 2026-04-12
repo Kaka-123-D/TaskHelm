@@ -30,10 +30,10 @@ export function TaskRow({ task, projectSlug }: TaskRowProps) {
         )}
       </td>
       <td className="px-3 py-2.5">
-        <StatusBadge value={task.status} variant="status" />
+        <StatusBadge value={task.status} />
       </td>
       <td className="px-3 py-2.5">
-        <StatusBadge value={task.phase} variant="phase" />
+        <StatusBadge value={task.phase} />
       </td>
       <td className="px-3 py-2.5">
         {task.branch_name ? (

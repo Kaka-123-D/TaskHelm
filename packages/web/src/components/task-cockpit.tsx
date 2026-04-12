@@ -50,11 +50,11 @@ export function TaskCockpit({ task, agentRuns, reviewGates, recentEvents }: Task
           )}
           <MetaRow
             label="Status"
-            value={<StatusBadge value={task.status} variant="status" />}
+            value={<StatusBadge value={task.status} />}
           />
           <MetaRow
             label="Phase"
-            value={<StatusBadge value={task.phase} variant="phase" />}
+            value={<StatusBadge value={task.phase} />}
           />
           <MetaRow label="Priority" value={<span className="font-mono">{task.priority}</span>} />
           {task.source_type && (

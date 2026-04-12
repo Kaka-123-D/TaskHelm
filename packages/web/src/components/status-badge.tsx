@@ -1,34 +1,31 @@
 interface StatusBadgeProps {
-  value: string
-  variant?: 'status' | 'phase' | 'review'
+  readonly value: string
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: 'bg-zinc-800 text-zinc-400',
-  ready: 'bg-blue-900/30 text-blue-400',
-  running: 'bg-green-900/30 text-green-400',
-  reviewing: 'bg-yellow-900/30 text-yellow-400',
-  blocked: 'bg-red-900/30 text-red-400',
-  done: 'bg-emerald-900/30 text-emerald-400',
-  archived: 'bg-zinc-800 text-zinc-500',
-  pending: 'bg-zinc-800 text-zinc-400',
-  open: 'bg-blue-900/30 text-blue-400',
-  passed: 'bg-emerald-900/30 text-emerald-400',
-  failed: 'bg-red-900/30 text-red-400',
-  // phases
-  context: 'bg-zinc-800 text-zinc-400',
-  planning: 'bg-blue-900/30 text-blue-400',
-  implementation: 'bg-violet-900/30 text-violet-400',
-  spec_review: 'bg-yellow-900/30 text-yellow-400',
-  code_review: 'bg-orange-900/30 text-orange-400',
-  runtime_verification: 'bg-cyan-900/30 text-cyan-400',
-  final_summary: 'bg-emerald-900/30 text-emerald-400',
+const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
+  draft: { bg: 'var(--status-draft-bg)', text: 'var(--status-draft)' },
+  ready: { bg: 'var(--status-ready-bg)', text: 'var(--status-ready)' },
+  running: { bg: 'var(--status-running-bg)', text: 'var(--status-running)' },
+  reviewing: { bg: 'var(--status-reviewing-bg)', text: 'var(--status-reviewing)' },
+  blocked: { bg: 'var(--status-blocked-bg)', text: 'var(--status-blocked)' },
+  done: { bg: 'var(--status-done-bg)', text: 'var(--status-done)' },
+  archived: { bg: 'var(--status-archived-bg)', text: 'var(--status-archived)' },
+  warm: { bg: 'var(--status-running-bg)', text: 'var(--status-running)' },
+  sleeping: { bg: 'var(--status-draft-bg)', text: 'var(--status-draft)' },
+  starting: { bg: 'var(--status-ready-bg)', text: 'var(--status-ready)' },
+  failed: { bg: 'var(--status-blocked-bg)', text: 'var(--status-blocked)' },
+  stopped: { bg: 'var(--status-draft-bg)', text: 'var(--status-draft)' },
 }
+
+const FALLBACK = { bg: 'var(--status-draft-bg)', text: 'var(--status-draft)' }
 
 export function StatusBadge({ value }: StatusBadgeProps) {
-  const color = STATUS_COLORS[value] ?? 'bg-zinc-800 text-zinc-400'
+  const style = STATUS_STYLES[value] ?? FALLBACK
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${color}`}>
+    <span
+      className="text-xs px-2.5 py-0.5 rounded-full whitespace-nowrap font-medium"
+      style={{ background: style.bg, color: style.text }}
+    >
       {value.replace(/_/g, ' ')}
     </span>
   )

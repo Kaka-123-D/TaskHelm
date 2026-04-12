@@ -44,7 +44,7 @@ export function ReviewPipeline({ gates }: ReviewPipelineProps) {
               <span className="text-xs font-medium text-zinc-300 text-center">
                 {GATE_LABELS[gateType]}
               </span>
-              <StatusBadge value={status} variant="review" />
+              <StatusBadge value={status} />
               {gate?.closed_at && (
                 <span className="text-xs text-zinc-600 font-mono">
                   {new Date(gate.closed_at).toLocaleDateString()}
