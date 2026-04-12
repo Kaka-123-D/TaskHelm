@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { GlassButton } from '@/components/design-system/glass-button'
+import { GlassModal } from '@/components/design-system/glass-modal'
 
 interface DirEntry {
   readonly name: string
@@ -49,9 +51,7 @@ export function FolderPicker({ value, onChange }: FolderPickerProps) {
   }, [])
 
   useEffect(() => {
-    if (open) {
-      browse(value || undefined)
-    }
+    if (open) browse(value || undefined)
   }, [open, value, browse])
 
   const handleSelect = useCallback(() => {
@@ -59,83 +59,67 @@ export function FolderPicker({ value, onChange }: FolderPickerProps) {
     setOpen(false)
   }, [browsePath, onChange])
 
-  if (!open) {
-    return (
+  return (
+    <>
       <div className="flex gap-2">
         <input
           type="text"
           value={value}
           readOnly
           placeholder="Click Browse to select a folder"
-          className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 placeholder-zinc-600"
+          className="flex-1 px-3 py-2 rounded-[var(--glass-radius-sm)] bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)]"
         />
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="px-3 py-2 bg-zinc-700 hover:bg-zinc-600 text-sm text-zinc-200 rounded-lg transition-colors whitespace-nowrap"
-        >
+        <GlassButton type="button" variant="secondary" onClick={() => setOpen(true)} className="text-xs px-3 py-2">
           Browse
-        </button>
+        </GlassButton>
       </div>
-    )
-  }
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 w-full max-w-lg shadow-2xl">
-        <h3 className="text-lg font-semibold mb-3">Select Repository Folder</h3>
-
-        {/* Current path */}
+      <GlassModal open={open} onClose={() => setOpen(false)} title="Select Repository Folder">
+        {/* Path input */}
         <div className="flex items-center gap-2 mb-3">
           <input
             type="text"
             value={browsePath}
-            onChange={(e) => setBrowsePath(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') browse(browsePath) }}
-            className="flex-1 px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono text-zinc-200 focus:outline-none focus:border-blue-500"
+            onChange={e => setBrowsePath(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') browse(browsePath) }}
+            className="flex-1 px-3 py-1.5 rounded-[var(--glass-radius-sm)] bg-[var(--surface)] border border-[var(--border)] text-xs font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]"
           />
-          <button
-            type="button"
-            onClick={() => browse(browsePath)}
-            className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-xs text-zinc-200 rounded transition-colors"
-          >
+          <GlassButton type="button" variant="secondary" onClick={() => browse(browsePath)} className="text-xs px-3 py-1.5">
             Go
-          </button>
+          </GlassButton>
         </div>
 
         {/* Git indicator */}
         {data?.isGitRepo && (
-          <div className="mb-3 px-3 py-2 bg-green-900/20 border border-green-800/40 rounded text-xs text-green-400 flex items-center gap-2">
-            <span>Git repository detected</span>
+          <div className="mb-3 px-3 py-2 rounded-[var(--glass-radius-sm)] text-xs flex items-center gap-2" style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)', color: 'var(--status-done)' }}>
+            Git repository detected
           </div>
         )}
 
         {error && (
-          <div className="mb-3 p-2 bg-red-900/30 border border-red-800 rounded text-xs text-red-300">
+          <div className="mb-3 p-2 rounded-[var(--glass-radius-sm)] text-xs" style={{ background: 'var(--danger-bg)', color: 'var(--danger-hover)' }}>
             {error}
           </div>
         )}
 
         {/* Directory listing */}
-        <div className="border border-zinc-700 rounded-lg overflow-hidden mb-4 max-h-64 overflow-y-auto">
-          {/* Parent directory */}
+        <div className="rounded-[var(--glass-radius-sm)] border overflow-hidden mb-4 max-h-64 overflow-y-auto" style={{ borderColor: 'var(--border)' }}>
           {data && data.current !== data.parent && (
             <button
               type="button"
               onClick={() => browse(data.parent)}
-              className="w-full px-3 py-2 text-left text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors border-b border-zinc-800 flex items-center gap-2"
+              className="w-full px-3 py-2 text-left text-sm text-[var(--text-muted)] hover:bg-[var(--surface-hover)] transition-colors flex items-center gap-2"
+              style={{ borderBottom: '1px solid var(--border)' }}
             >
-              <span className="text-zinc-600">..</span>
-              <span className="text-xs text-zinc-600">(parent)</span>
+              <span>..</span>
+              <span className="text-xs text-[var(--text-muted)]">(parent)</span>
             </button>
           )}
 
-          {loading && (
-            <div className="px-3 py-6 text-center text-sm text-zinc-500">Loading...</div>
-          )}
+          {loading && <div className="px-3 py-6 text-center text-sm text-[var(--text-muted)]">Loading...</div>}
 
           {!loading && data?.dirs.length === 0 && (
-            <div className="px-3 py-6 text-center text-sm text-zinc-500">No subdirectories</div>
+            <div className="px-3 py-6 text-center text-sm text-[var(--text-muted)]">No subdirectories</div>
           )}
 
           {!loading && data?.dirs.map(dir => (
@@ -143,11 +127,12 @@ export function FolderPicker({ value, onChange }: FolderPickerProps) {
               key={dir.path}
               type="button"
               onClick={() => browse(dir.path)}
-              className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-b-0 flex items-center gap-2"
+              className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-hover)] transition-colors flex items-center gap-2"
+              style={{ borderBottom: '1px solid var(--border)' }}
             >
-              <span className="text-zinc-300">{dir.name}</span>
+              <span className="text-[var(--text-primary)]">{dir.name}</span>
               {dir.isGitRepo && (
-                <span className="text-[10px] px-1.5 py-0.5 bg-green-900/30 text-green-400 rounded">git</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(52,211,153,0.15)', color: 'var(--status-done)' }}>git</span>
               )}
             </button>
           ))}
@@ -155,22 +140,10 @@ export function FolderPicker({ value, onChange }: FolderPickerProps) {
 
         {/* Actions */}
         <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSelect}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            Select This Folder
-          </button>
+          <GlassButton type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</GlassButton>
+          <GlassButton type="button" onClick={handleSelect}>Select This Folder</GlassButton>
         </div>
-      </div>
-    </div>
+      </GlassModal>
+    </>
   )
 }

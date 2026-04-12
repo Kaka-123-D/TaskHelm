@@ -50,7 +50,7 @@ export default async function TaskPage({ params }: TaskPageProps) {
           {task.port != null && <PortBadge port={task.port} />}
         </div>
         <div className="flex items-center gap-2">
-          <EditTaskForm task={task} />
+          <EditTaskForm task={task} projectSlug={slug} />
           <DeleteConfirm
             label="Delete"
             confirmText={`Delete task "${task.title}"? This cannot be undone.`}

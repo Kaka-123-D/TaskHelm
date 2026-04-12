@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { GlassModal } from '@/components/design-system/glass-modal'
+import { GlassButton } from '@/components/design-system/glass-button'
 
 interface DeleteConfirmProps {
   readonly label: string
@@ -22,38 +24,19 @@ export function DeleteConfirm({ label, confirmText, onConfirm }: DeleteConfirmPr
     }
   }, [onConfirm])
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="px-3 py-1.5 text-sm text-red-400 hover:text-red-300 border border-red-900 hover:border-red-700 rounded-lg transition-colors"
-      >
-        {label}
-      </button>
-    )
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
-        <h3 className="text-lg font-semibold mb-2">Confirm Delete</h3>
-        <p className="text-sm text-zinc-400 mb-6">{confirmText}</p>
+    <>
+      <GlassButton variant="danger" onClick={() => setOpen(true)} className="text-xs px-3 py-1.5">
+        {label}
+      </GlassButton>
+
+      <GlassModal open={open} onClose={() => setOpen(false)} title="Confirm Delete" maxWidth="max-w-sm">
+        <p className="text-sm text-[var(--text-secondary)] mb-6">{confirmText}</p>
         <div className="flex justify-end gap-3">
-          <button
-            onClick={() => setOpen(false)}
-            className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={deleting}
-            className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            {deleting ? 'Deleting...' : 'Delete'}
-          </button>
+          <GlassButton variant="ghost" onClick={() => setOpen(false)}>Cancel</GlassButton>
+          <GlassButton variant="danger" onClick={handleConfirm} loading={deleting}>Delete</GlassButton>
         </div>
-      </div>
-    </div>
+      </GlassModal>
+    </>
   )
 }
