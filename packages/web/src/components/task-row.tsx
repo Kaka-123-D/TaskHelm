@@ -1,75 +1,45 @@
+'use client'
+
 import type { Task } from '@taskhelm/core'
 import Link from 'next/link'
+import { motion } from 'motion/react'
+import { StatusDot } from '@/components/design-system/status-dot'
 import { StatusBadge } from '@/components/status-badge'
+import { PortBadge } from '@/components/design-system/port-badge'
 
 interface TaskRowProps {
-  task: Task
-  projectSlug: string
+  readonly task: Task
+  readonly projectSlug: string
 }
 
 export function TaskRow({ task, projectSlug }: TaskRowProps) {
+  const isDone = task.status === 'done' || task.status === 'archived'
   return (
-    <tr className="border-b border-zinc-800 hover:bg-zinc-900/40 transition-colors">
-      <td className="px-3 py-2.5">
-        <Link
-          href={`/projects/${projectSlug}/tasks/${task.id}`}
-          className="font-mono text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: -20, height: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      <Link href={`/projects/${projectSlug}/tasks/${task.id}`}>
+        <div
+          className="flex items-center gap-3 px-4 py-3 rounded-[var(--glass-radius-sm)] border transition-colors hover:bg-[var(--surface-hover)]"
+          style={{
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
+          }}
         >
-          {task.id.slice(0, 8)}
-        </Link>
-      </td>
-      <td className="px-3 py-2.5 max-w-[240px]">
-        <Link
-          href={`/projects/${projectSlug}/tasks/${task.id}`}
-          className="text-sm font-medium text-zinc-100 hover:text-white transition-colors line-clamp-1"
-        >
-          {task.title}
-        </Link>
-        {task.key && (
-          <span className="text-xs text-zinc-500 font-mono ml-1">[{task.key}]</span>
-        )}
-      </td>
-      <td className="px-3 py-2.5">
-        <StatusBadge value={task.status} />
-      </td>
-      <td className="px-3 py-2.5">
-        <StatusBadge value={task.phase} />
-      </td>
-      <td className="px-3 py-2.5">
-        {task.branch_name ? (
-          <span className="font-mono text-xs text-zinc-300 truncate max-w-[140px] block">
-            {task.branch_name}
+          <StatusDot status={task.status} />
+          <span
+            className={`text-sm flex-1 ${isDone ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text-primary)]'}`}
+          >
+            {task.title}
           </span>
-        ) : (
-          <span className="text-xs text-zinc-600">—</span>
-        )}
-      </td>
-      <td className="px-3 py-2.5">
-        {task.port != null ? (
-          <span className="font-mono text-xs text-zinc-300">{task.port}</span>
-        ) : (
-          <span className="text-xs text-zinc-600">—</span>
-        )}
-      </td>
-      <td className="px-3 py-2.5">
-        {task.dev_server_state ? (
-          <StatusBadge value={task.dev_server_state} />
-        ) : (
-          <span className="text-xs text-zinc-600">—</span>
-        )}
-      </td>
-      <td className="px-3 py-2.5 text-xs text-zinc-500 font-mono">
-        {task.priority}
-      </td>
-      <td className="px-3 py-2.5">
-        {task.latest_blocker ? (
-          <span className="text-xs text-red-400 line-clamp-1 max-w-[160px] block" title={task.latest_blocker}>
-            {task.latest_blocker}
-          </span>
-        ) : (
-          <span className="text-xs text-zinc-600">—</span>
-        )}
-      </td>
-    </tr>
+          <StatusBadge value={task.status} />
+          {task.port != null && <PortBadge port={task.port} />}
+        </div>
+      </Link>
+    </motion.div>
   )
 }

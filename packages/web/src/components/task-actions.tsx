@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import type { Task } from '@taskhelm/core'
 import { EditTaskForm } from '@/components/edit-task-form'
 import { DeleteConfirm } from '@/components/delete-confirm'
-import { TaskStatusSelect } from '@/components/task-status-select'
 
 interface TaskActionsProps {
   readonly task: Task
@@ -27,7 +26,6 @@ export function TaskActions({ task, projectSlug }: TaskActionsProps) {
 
   return (
     <div className="flex items-center gap-2">
-      <TaskStatusSelect taskId={task.id} currentStatus={task.status} />
       <EditTaskForm task={task} />
       <DeleteConfirm
         label="Delete"
