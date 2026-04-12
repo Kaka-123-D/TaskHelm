@@ -1,1 +1,8 @@
 @import "tailwindcss";
+@import "../styles/glass-tokens.css";
+
+body {
+  background: linear-gradient(135deg, var(--bg-base) 0%, var(--bg-deep) 100%);
+  min-height: 100vh;
+  color: var(--text-primary);
+}

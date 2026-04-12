@@ -1,0 +1,54 @@
+:root {
+  /* Backgrounds */
+  --bg-base: #0c0a1a;
+  --bg-deep: #1a1333;
+
+  /* Surfaces */
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-hover: rgba(255, 255, 255, 0.07);
+  --surface-active: rgba(255, 255, 255, 0.1);
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(255, 255, 255, 0.12);
+
+  /* Primary */
+  --primary: #818cf8;
+  --primary-hover: #a5b4fc;
+  --primary-muted: rgba(99, 102, 241, 0.15);
+  --primary-glow: rgba(129, 140, 248, 0.4);
+
+  /* Text */
+  --text-primary: #e2e0ff;
+  --text-secondary: #8b85b0;
+  --text-muted: #6b6194;
+
+  /* Status */
+  --status-draft: #4b5563;
+  --status-ready: #f59e0b;
+  --status-running: #818cf8;
+  --status-reviewing: #f59e0b;
+  --status-blocked: #ef4444;
+  --status-done: #34d399;
+  --status-archived: #6b7280;
+
+  /* Status backgrounds */
+  --status-draft-bg: rgba(75, 85, 99, 0.15);
+  --status-ready-bg: rgba(245, 158, 11, 0.15);
+  --status-running-bg: rgba(99, 102, 241, 0.15);
+  --status-reviewing-bg: rgba(245, 158, 11, 0.15);
+  --status-blocked-bg: rgba(239, 68, 68, 0.15);
+  --status-done-bg: rgba(52, 211, 153, 0.15);
+  --status-archived-bg: rgba(107, 114, 128, 0.15);
+
+  /* Danger */
+  --danger: #ef4444;
+  --danger-hover: #fca5a5;
+  --danger-bg: rgba(239, 68, 68, 0.15);
+
+  /* Glass effect */
+  --glass-blur: 12px;
+  --glass-radius: 12px;
+  --glass-radius-sm: 8px;
+  --glass-radius-lg: 16px;
+}
