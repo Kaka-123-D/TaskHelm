@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { TaskRepository, AgentRunRepository, ReviewGateRepository } from '@taskhelm/core'
+import { TaskRepository } from '@taskhelm/core'
 import { getDb } from '@/lib/db'
 
 type Params = { params: Promise<{ taskId: string }> }
@@ -9,28 +9,14 @@ export async function GET(_request: Request, { params }: Params) {
     const { taskId } = await params
     const db = getDb()
     const taskRepo = new TaskRepository(db)
-    const agentRunRepo = new AgentRunRepository(db)
-    const reviewGateRepo = new ReviewGateRepository(db)
 
     const task = taskRepo.findById(taskId)
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
     }
 
-    const reviewGates = reviewGateRepo.findByTaskId(taskId)
-    const agentRuns = agentRunRepo.findByTaskId(taskId)
-    const activeAgentRun = task.current_agent_run_id
-      ? agentRunRepo.findById(task.current_agent_run_id)
-      : null
-
-    return NextResponse.json({
-      ...task,
-      reviewGates,
-      agentRuns,
-      activeAgentRun,
-    })
+    return NextResponse.json(task)
   } catch (error) {
-    console.error('GET /api/tasks/[taskId] failed:', error)
     return NextResponse.json({ error: 'Failed to fetch task' }, { status: 500 })
   }
 }
