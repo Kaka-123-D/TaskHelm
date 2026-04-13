@@ -80,7 +80,7 @@ export function EditProjectForm({ project }: EditProjectFormProps) {
       <GlassModal open={open} onClose={() => setOpen(false)} title="Edit Project">
         <form onSubmit={handleSubmit}>
           {error && (
-            <div className="mb-4 p-3 rounded-[var(--glass-radius-sm)] text-sm" style={{ background: 'var(--danger-bg)', color: 'var(--danger-hover)' }}>
+            <div className="mb-4 rounded-[var(--glass-radius-sm)] border p-3 text-sm" style={{ background: 'var(--danger-bg)', color: 'var(--danger-hover)', borderColor: 'rgba(204, 80, 56, 0.18)' }}>
               {error}
             </div>
           )}

@@ -48,33 +48,43 @@ export function TaskDetailPanels({ task, project }: TaskDetailPanelsProps) {
   const specdownUrl = specdownRef ? `/${specdownRef}` : null
 
   return (
-    <div className="flex gap-6" style={{ minHeight: '400px' }}>
-      {/* Left Panel: Context Files */}
-      <div className="flex-1 flex flex-col gap-3">
-        <h4
-          className="text-[10px] font-medium uppercase tracking-wider"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          Context Files
-        </h4>
-
-        {loading ? (
-          <p className="text-sm text-[var(--text-muted)]">Loading...</p>
-        ) : (
-          <>
-            <ContextFileList
-              files={files}
-              selectedFile={selectedFile}
-              onSelect={setSelectedFile}
-              specdownUrl={specdownUrl}
-            />
-            <ContextFilePreview filename={selectedFile} content={selectedContent} />
-          </>
-        )}
+    <div className="task-detail-grid" style={{ minHeight: '400px' }}>
+      <div className="task-pane">
+        <div className="task-pane-header">
+          <div>
+            <div className="task-pane-label">Context Files</div>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">Browse the task capsule and preview implementation context in place.</p>
+          </div>
+          {specdownUrl && (
+            <a
+              href={specdownUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border px-3 py-1.5 text-xs font-semibold text-[var(--accent-ink)]"
+              style={{ borderColor: 'rgba(47, 109, 246, 0.12)', background: 'var(--accent-muted)' }}
+            >
+              Open SpecDown
+            </a>
+          )}
+        </div>
+        <div className="task-pane-body flex flex-col gap-3">
+          {loading ? (
+            <p className="text-sm text-[var(--text-muted)]">Loading...</p>
+          ) : (
+            <>
+              <ContextFileList
+                files={files}
+                selectedFile={selectedFile}
+                onSelect={setSelectedFile}
+                specdownUrl={specdownUrl}
+              />
+              <ContextFilePreview filename={selectedFile} content={selectedContent} />
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Right Panel: Workspace + Dev Server */}
-      <div className="w-[280px] shrink-0 flex flex-col gap-4">
+      <div className="flex flex-col gap-4">
         <WorkspacePanel task={task} />
         <DevServerPanel task={task} />
       </div>

@@ -16,10 +16,9 @@ export function GlassInput({ label, className = '', id, ...props }: GlassInputPr
       <input
         id={inputId}
         className={`
-          w-full px-3 py-2 rounded-[var(--glass-radius-sm)]
-          bg-[var(--surface)] border border-[var(--border)]
+          w-full rounded-[var(--glass-radius-sm)] border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5
           text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)]
-          focus:outline-none focus:border-[var(--primary)]
+          focus:border-[var(--accent)] focus:outline-none
           transition-colors
           ${className}
         `}

@@ -25,28 +25,28 @@ export function ContextFileList({ files, selectedFile, onSelect, specdownUrl }: 
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="context-file-list">
       {files.map(file => {
         const isSelected = file.name === selectedFile
         return (
           <motion.button
             key={file.name}
             onClick={() => onSelect(file.name)}
-            className="flex items-center gap-2.5 px-3 py-2.5 rounded-[var(--glass-radius-sm)] border text-left transition-colors"
+            className="flex items-center gap-2.5 rounded-[var(--glass-radius-sm)] border px-3 py-2.5 text-left transition-colors"
             style={{
-              background: isSelected ? 'var(--surface-hover)' : 'var(--surface)',
+              background: isSelected ? 'var(--surface-hover)' : 'rgba(255,255,255,0.5)',
               borderColor: isSelected ? 'var(--border-hover)' : 'var(--border)',
             }}
             whileTap={{ scale: 0.98 }}
           >
-            <span className="text-[var(--primary)] text-sm">&#128196;</span>
-            <span className="text-sm text-[var(--text-primary)] flex-1">{file.name}</span>
+            <span className="text-[var(--accent)] text-sm">&#128196;</span>
+            <span className="flex-1 text-sm font-medium text-[var(--text-primary)]">{file.name}</span>
             {specdownUrl && (
               <a
                 href={specdownUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-[var(--primary)] hover:text-[var(--primary-hover)] underline transition-colors"
+                className="text-xs font-semibold text-[var(--accent-ink)] underline transition-colors"
                 onClick={e => e.stopPropagation()}
               >
                 Open in SpecDown

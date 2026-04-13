@@ -18,10 +18,14 @@ interface GlassButtonProps extends SafeButtonProps {
 }
 
 const VARIANT_CLASSES: Record<Variant, string> = {
-  primary: 'bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white',
-  secondary: 'bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border)] hover:border-[var(--border-hover)] text-[var(--text-primary)]',
-  ghost: 'hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-  danger: 'bg-[var(--danger-bg)] hover:bg-[rgba(239,68,68,0.25)] border border-[rgba(239,68,68,0.3)] text-[var(--danger-hover)]',
+  primary:
+    'border border-[rgba(245,166,35,0.28)] bg-[var(--primary)] text-[var(--primary-ink)] shadow-[0_10px_22px_rgba(245,166,35,0.22)] hover:bg-[var(--primary-hover)]',
+  secondary:
+    'border border-[var(--border)] bg-[rgba(255,255,255,0.7)] text-[var(--text-primary)] hover:border-[var(--border-hover)] hover:bg-[var(--surface)]',
+  ghost:
+    'border border-transparent bg-transparent text-[var(--text-secondary)] hover:border-[var(--border)] hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)]',
+  danger:
+    'border border-[rgba(204,80,56,0.18)] bg-[var(--danger-bg)] text-[var(--danger-hover)] hover:bg-[#ffd7d0]',
 }
 
 export function GlassButton({
@@ -35,7 +39,7 @@ export function GlassButton({
   return (
     <motion.button
       className={`
-        px-4 py-2 rounded-[var(--glass-radius-sm)] text-sm font-medium
+        inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[var(--glass-radius-sm)] text-sm font-semibold
         transition-colors disabled:opacity-50 disabled:cursor-not-allowed
         ${VARIANT_CLASSES[variant]}
         ${className}

@@ -16,24 +16,26 @@ interface FilterPillsProps {
 
 export function FilterPills({ options, value, onChange }: FilterPillsProps) {
   return (
-    <div className="flex gap-1.5 flex-wrap">
+    <div className="flex flex-wrap gap-2">
       {options.map(option => {
         const isActive = option.value === value
         return (
           <button
             key={option.value}
             onClick={() => onChange(option.value)}
-            className="relative px-3 py-1 rounded-full text-xs font-medium transition-colors"
+            className="relative rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
             style={{
-              color: isActive ? 'var(--primary-hover)' : 'var(--text-muted)',
+              color: isActive ? 'var(--accent-ink)' : 'var(--text-secondary)',
+              borderColor: isActive ? 'rgba(47, 109, 246, 0.15)' : 'var(--border)',
+              background: isActive ? 'transparent' : 'rgba(255,255,255,0.46)',
             }}
           >
             {isActive && (
               <motion.span
                 layoutId="active-filter-pill"
                 className="absolute inset-0 rounded-full"
-                style={{ background: 'var(--primary-muted)', border: '1px solid rgba(99,102,241,0.2)' }}
-                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                style={{ background: 'var(--accent-muted)', border: '1px solid rgba(47,109,246,0.16)' }}
+                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
               />
             )}
             <span className="relative z-10">

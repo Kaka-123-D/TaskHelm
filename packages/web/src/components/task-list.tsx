@@ -33,13 +33,16 @@ export function TaskList({ tasks, projectSlug }: TaskListProps) {
   }))
 
   return (
-    <div>
-      <div className="mb-4">
+    <div className="task-list-shell">
+      <div className="task-list-toolbar">
         <FilterPills options={filterOptions} value={filter} onChange={setFilter} />
+        <span className="text-sm text-[var(--text-secondary)]">
+          {filteredTasks.length} visible {filteredTasks.length === 1 ? 'task' : 'tasks'}
+        </span>
       </div>
 
       {filteredTasks.length === 0 ? (
-        <div className="text-center py-12">
+        <div className="task-list-empty">
           <p className="text-sm text-[var(--text-muted)]">
             {filter === 'all' ? 'No tasks yet. Create your first task!' : `No ${filter} tasks.`}
           </p>

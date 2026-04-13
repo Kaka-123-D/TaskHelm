@@ -23,8 +23,8 @@ export function StatusBadge({ value }: StatusBadgeProps) {
   const style = STATUS_STYLES[value] ?? FALLBACK
   return (
     <span
-      className="text-xs px-2.5 py-0.5 rounded-full whitespace-nowrap font-medium"
-      style={{ background: style.bg, color: style.text }}
+      className="inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-[0.74rem] font-semibold"
+      style={{ background: style.bg, color: style.text, borderColor: 'rgba(46, 38, 27, 0.08)' }}
     >
       {value.replace(/_/g, ' ')}
     </span>

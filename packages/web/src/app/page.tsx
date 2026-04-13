@@ -21,14 +21,35 @@ export default function HomePage() {
 
   return (
     <PageTransition>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Projects</h2>
-          <span className="text-sm text-[var(--text-muted)]">{projects.length} project(s)</span>
+      <div data-slot="projects-page-shell" className="projects-page-shell">
+        <div className="projects-page-header">
+          <div>
+            <span className="projects-page-eyebrow">Workspace view</span>
+            <h1>Projects</h1>
+            <p className="projects-page-description">
+              Track your local repos, jump into active work, and keep every engineering workspace in one bright control room.
+            </p>
+          </div>
+          <div className="projects-page-actions">
+            <div className="projects-page-stat">
+              <span className="projects-page-stat-label">Tracked repos</span>
+              <span className="projects-page-stat-value">{projects.length}</span>
+            </div>
+            <CreateProjectForm />
+          </div>
         </div>
-        <CreateProjectForm />
+
+        <div className="projects-page-toolbar">
+          <p className="projects-page-toolbar-copy">
+            Card grid manager with workspace shell styling inspired by PostHog, adapted for TaskHelm.
+          </p>
+          <span className="projects-page-toolbar-badge">
+            {projects.length} {projects.length === 1 ? 'project' : 'projects'}
+          </span>
+        </div>
+
+        <ProjectList projects={projectsWithCounts} />
       </div>
-      <ProjectList projects={projectsWithCounts} />
     </PageTransition>
   )
 }

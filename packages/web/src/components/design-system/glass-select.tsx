@@ -15,17 +15,16 @@ export function GlassSelect({ label, options, className = '', id, ...props }: Gl
   return (
     <div>
       {label && (
-        <label htmlFor={selectId} className="block text-xs text-[var(--text-muted)] mb-1.5">
+        <label htmlFor={selectId} className="mb-1.5 block text-xs text-[var(--text-muted)]">
           {label}
         </label>
       )}
       <select
         id={selectId}
         className={`
-          w-full px-3 py-2 rounded-[var(--glass-radius-sm)]
-          bg-[var(--surface)] border border-[var(--border)]
+          w-full rounded-[var(--glass-radius-sm)] border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5
           text-sm text-[var(--text-primary)]
-          focus:outline-none focus:border-[var(--primary)]
+          focus:border-[var(--accent)] focus:outline-none
           transition-colors
           ${className}
         `}

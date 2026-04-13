@@ -17,12 +17,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en">
-      <body className="min-h-screen antialiased">
-        <div className="flex min-h-screen">
-          <GlassSidebar recentProjects={recentProjects} />
-          <main className="flex-1 p-8 overflow-auto">
-            {children}
-          </main>
+      <body className="app-body min-h-screen antialiased">
+        <div className="app-workbench">
+          <div className="app-window">
+            <header className="app-chrome">
+              <div className="app-chrome-controls" aria-hidden="true">
+                <span className="app-chrome-dot" data-tone="warm" />
+                <span className="app-chrome-dot" data-tone="blue" />
+                <span className="app-chrome-dot" data-tone="neutral" />
+              </div>
+              <div className="app-chrome-title">taskhelm.workspace</div>
+              <div className="app-chrome-status">Local workbench</div>
+            </header>
+
+            <div className="app-shell">
+              <GlassSidebar recentProjects={recentProjects} />
+              <main className="app-main">{children}</main>
+            </div>
+          </div>
         </div>
       </body>
     </html>

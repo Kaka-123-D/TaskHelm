@@ -17,16 +17,16 @@ interface ProjectListProps {
 export function ProjectList({ projects }: ProjectListProps) {
   if (projects.length === 0) {
     return (
-      <div className="text-center py-20">
-        <p className="text-lg mb-2 text-[var(--text-secondary)]">No projects yet</p>
-        <p className="text-sm text-[var(--text-muted)]">Click &quot;+ New Project&quot; above to get started.</p>
+      <div className="projects-grid rounded-[1.5rem] border border-[var(--border)] bg-[rgba(255,255,255,0.56)] px-6 py-16 text-center shadow-[var(--shadow-card)]">
+        <p className="mb-2 text-lg font-semibold text-[var(--text-primary)]">No projects yet</p>
+        <p className="text-sm text-[var(--text-secondary)]">Use the orange action button above to create your first tracked repo.</p>
       </div>
     )
   }
 
   return (
     <motion.div
-      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+      className="projects-grid grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 xl:grid-cols-3"
       initial="hidden"
       animate="show"
       variants={{
@@ -36,6 +36,8 @@ export function ProjectList({ projects }: ProjectListProps) {
     >
       {projects.map(({ project, taskCount, runningCount }) => (
         <motion.div
+          className="h-full"
+          data-slot="project-card-cell"
           key={project.id}
           variants={{
             hidden: { opacity: 0, y: 12 },

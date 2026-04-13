@@ -54,16 +54,10 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
   }, [task.id, router])
 
   return (
-    <div
-      className="rounded-[var(--glass-radius)] border p-4"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-    >
-      <h4
-        className="text-[10px] font-medium uppercase tracking-wider mb-3"
-        style={{ color: 'var(--text-muted)' }}
-      >
-        Dev Server
-      </h4>
+    <div className="utility-panel">
+      <div className="utility-panel-header">
+        <h4 className="task-pane-label">Dev Server</h4>
+      </div>
 
       <div className="flex items-center gap-2 mb-3">
         {state ? (
@@ -84,11 +78,7 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
         )}
       </div>
 
-      {error && (
-        <div className="mb-3 p-2 rounded-[var(--glass-radius-sm)] text-xs" style={{ background: 'var(--danger-bg)', color: 'var(--danger-hover)' }}>
-          {error}
-        </div>
-      )}
+      {error && <div className="utility-panel-error">{error}</div>}
 
       <div className="flex gap-2">
         {!isRunning ? (
@@ -111,8 +101,8 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
                 href={`http://localhost:${port}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center px-3 py-1.5 rounded-[var(--glass-radius-sm)] text-xs font-medium transition-colors"
-                style={{ background: 'var(--primary-muted)', color: 'var(--primary)' }}
+                className="inline-flex items-center rounded-[var(--glass-radius-sm)] border px-3 py-1.5 text-xs font-semibold transition-colors"
+                style={{ background: 'var(--accent-muted)', color: 'var(--accent-ink)', borderColor: 'rgba(47, 109, 246, 0.12)' }}
               >
                 Open
               </a>
@@ -122,7 +112,7 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
       </div>
 
       {!task.worktree_path && !state && (
-        <p className="text-xs text-[var(--text-muted)] mt-2">
+        <p className="mt-2 text-xs text-[var(--text-muted)]">
           Initialize workspace first to enable dev server.
         </p>
       )}

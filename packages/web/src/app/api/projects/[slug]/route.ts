@@ -4,6 +4,12 @@ import { getDb } from '@/lib/db'
 
 type Params = { params: Promise<{ slug: string }> }
 
+function deleteByIds(db: ReturnType<typeof getDb>, table: string, column: string, ids: readonly string[]) {
+  if (ids.length === 0) return
+  const placeholders = ids.map(() => '?').join(', ')
+  db.prepare(`DELETE FROM ${table} WHERE ${column} IN (${placeholders})`).run(...ids)
+}
+
 export async function GET(_request: Request, { params }: Params) {
   try {
     const { slug } = await params
@@ -60,7 +66,30 @@ export async function DELETE(_request: Request, { params }: Params) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    projectRepo.delete(project.id)
+    const deleteProjectCascade = db.transaction((projectId: string) => {
+      const taskIds = (
+        db.prepare('SELECT id FROM tasks WHERE project_id = ?').all(projectId) as Array<{ id: string }>
+      ).map(row => row.id)
+
+      deleteByIds(db, 'agent_runs', 'task_id', taskIds)
+      deleteByIds(db, 'review_gates', 'task_id', taskIds)
+
+      if (taskIds.length > 0) {
+        deleteByIds(db, 'notifications', 'task_id', taskIds)
+        const taskPlaceholders = taskIds.map(() => '?').join(', ')
+        db.prepare(
+          `DELETE FROM events WHERE entity_type = 'task' AND entity_id IN (${taskPlaceholders})`,
+        ).run(...taskIds)
+      }
+
+      db.prepare('DELETE FROM dev_servers WHERE project_id = ?').run(projectId)
+      db.prepare('DELETE FROM notifications WHERE project_id = ?').run(projectId)
+      db.prepare("DELETE FROM events WHERE entity_type = 'project' AND entity_id = ?").run(projectId)
+      db.prepare('DELETE FROM tasks WHERE project_id = ?').run(projectId)
+      db.prepare('DELETE FROM projects WHERE id = ?').run(projectId)
+    })
+
+    deleteProjectCascade(project.id)
     return NextResponse.json({ deleted: true })
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 })

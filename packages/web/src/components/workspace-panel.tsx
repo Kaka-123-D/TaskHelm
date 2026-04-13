@@ -51,37 +51,27 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
   }, [task.id, router])
 
   return (
-    <div
-      className="rounded-[var(--glass-radius)] border p-4"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-    >
-      <h4
-        className="text-[10px] font-medium uppercase tracking-wider mb-3"
-        style={{ color: 'var(--text-muted)' }}
-      >
-        Workspace
-      </h4>
+    <div className="utility-panel">
+      <div className="utility-panel-header">
+        <h4 className="task-pane-label">Workspace</h4>
+      </div>
 
       {hasWorkspace ? (
         <div className="space-y-2">
           <div>
-            <span className="text-xs text-[var(--text-muted)]">Branch</span>
-            <div className="font-mono text-sm text-[var(--text-primary)]">{task.branch_name}</div>
+            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Branch</span>
+            <div className="mt-1 font-mono text-sm text-[var(--text-primary)]">{task.branch_name}</div>
           </div>
           <div>
-            <span className="text-xs text-[var(--text-muted)]">Worktree</span>
-            <div className="font-mono text-xs text-[var(--text-secondary)] break-all">{task.worktree_path}</div>
+            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Worktree</span>
+            <div className="mt-1 break-all font-mono text-xs text-[var(--text-secondary)]">{task.worktree_path}</div>
           </div>
         </div>
       ) : (
-        <p className="text-sm text-[var(--text-muted)] mb-3">No workspace initialized.</p>
+        <p className="utility-panel-copy">No workspace initialized yet. Create one when the task is ready for active implementation.</p>
       )}
 
-      {error && (
-        <div className="mt-3 p-2 rounded-[var(--glass-radius-sm)] text-xs" style={{ background: 'var(--danger-bg)', color: 'var(--danger-hover)' }}>
-          {error}
-        </div>
-      )}
+      {error && <div className="utility-panel-error">{error}</div>}
 
       <div className="mt-3">
         {!hasWorkspace ? (

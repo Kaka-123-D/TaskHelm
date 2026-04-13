@@ -108,19 +108,21 @@ export function CreateProjectForm() {
 
   return (
     <>
-      <GlassButton onClick={() => setOpen(true)}>+ New Project</GlassButton>
+      <GlassButton onClick={() => setOpen(true)} className="min-w-[11rem]">
+        + New Project
+      </GlassButton>
 
       <GlassModal open={open} onClose={handleClose} title="Create Project">
         <form onSubmit={handleSubmit}>
           {error && (
-            <div className="mb-4 p-3 rounded-[var(--glass-radius-sm)] text-sm" style={{ background: 'var(--danger-bg)', color: 'var(--danger-hover)' }}>
+            <div className="mb-4 rounded-[var(--glass-radius-sm)] border p-3 text-sm" style={{ background: 'var(--danger-bg)', color: 'var(--danger-hover)', borderColor: 'rgba(204, 80, 56, 0.18)' }}>
               {error}
             </div>
           )}
 
           <div className="space-y-3">
             <div>
-              <span className="block text-xs text-[var(--text-muted)] mb-1.5">Repository Folder *</span>
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Repository Folder *</span>
               <FolderPicker value={form.localRepoRoot} onChange={handleFolderSelect} />
             </div>
             <GlassInput label="Name *" value={form.name} onChange={e => autoSlug(e.target.value)} placeholder="My Project" />
@@ -132,7 +134,7 @@ export function CreateProjectForm() {
             <GlassInput label="Test Command" value={form.testCommand} onChange={e => updateField('testCommand', e.target.value)} placeholder="npm test" />
           </div>
 
-          <div className="flex justify-end gap-3 mt-6">
+          <div className="mt-6 flex justify-end gap-3">
             <GlassButton type="button" variant="ghost" onClick={handleClose}>Cancel</GlassButton>
             <GlassButton type="submit" loading={submitting} disabled={!form.name || !form.slug || !form.localRepoRoot}>
               Create Project

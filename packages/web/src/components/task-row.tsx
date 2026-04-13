@@ -23,21 +23,18 @@ export function TaskRow({ task, projectSlug }: TaskRowProps) {
       transition={{ duration: 0.2 }}
     >
       <Link href={`/projects/${projectSlug}/tasks/${task.id}`}>
-        <div
-          className="flex items-center gap-3 px-4 py-3 rounded-[var(--glass-radius-sm)] border transition-colors hover:bg-[var(--surface-hover)]"
-          style={{
-            background: 'var(--surface)',
-            borderColor: 'var(--border)',
-          }}
-        >
+        <div className="task-row-surface flex flex-wrap items-start gap-3 transition-colors">
           <StatusDot status={task.status} />
-          <span
-            className={`text-sm flex-1 ${isDone ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text-primary)]'}`}
-          >
-            {task.title}
-          </span>
-          <StatusBadge value={task.status} />
-          {task.port != null && <PortBadge port={task.port} />}
+          <div className="min-w-0 flex-1">
+            <div className={`text-sm font-semibold ${isDone ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text-primary)]'}`}>
+              {task.title}
+            </div>
+            {task.goal && <p className="task-row-goal line-clamp-2">{task.goal}</p>}
+          </div>
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <StatusBadge value={task.status} />
+            {task.port != null && <PortBadge port={task.port} />}
+          </div>
         </div>
       </Link>
     </motion.div>

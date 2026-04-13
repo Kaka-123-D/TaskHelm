@@ -15,12 +15,12 @@ export function GlassCard({ children, className = '', hover = true, onClick }: G
     <motion.div
       className={`
         rounded-[var(--glass-radius)] border border-[var(--border)]
-        bg-[var(--surface)] backdrop-blur-[var(--glass-blur)]
+        bg-[var(--surface)] shadow-[var(--shadow-card)]
         ${hover ? 'cursor-pointer' : ''}
         ${className}
       `}
-      whileHover={hover ? { scale: 1.02, y: -2 } : undefined}
-      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+      whileHover={hover ? { scale: 1.01, y: -3 } : undefined}
+      transition={{ type: 'spring', stiffness: 420, damping: 30 }}
       onClick={onClick}
     >
       {children}

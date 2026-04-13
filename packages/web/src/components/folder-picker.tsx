@@ -67,7 +67,7 @@ export function FolderPicker({ value, onChange }: FolderPickerProps) {
           value={value}
           readOnly
           placeholder="Click Browse to select a folder"
-          className="flex-1 px-3 py-2 rounded-[var(--glass-radius-sm)] bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+          className="flex-1 rounded-[var(--glass-radius-sm)] border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)]"
         />
         <GlassButton type="button" variant="secondary" onClick={() => setOpen(true)} className="text-xs px-3 py-2">
           Browse
@@ -82,7 +82,7 @@ export function FolderPicker({ value, onChange }: FolderPickerProps) {
             value={browsePath}
             onChange={e => setBrowsePath(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') browse(browsePath) }}
-            className="flex-1 px-3 py-1.5 rounded-[var(--glass-radius-sm)] bg-[var(--surface)] border border-[var(--border)] text-xs font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]"
+            className="flex-1 rounded-[var(--glass-radius-sm)] border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2 text-xs font-mono text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
           />
           <GlassButton type="button" variant="secondary" onClick={() => browse(browsePath)} className="text-xs px-3 py-1.5">
             Go
@@ -91,19 +91,19 @@ export function FolderPicker({ value, onChange }: FolderPickerProps) {
 
         {/* Git indicator */}
         {data?.isGitRepo && (
-          <div className="mb-3 px-3 py-2 rounded-[var(--glass-radius-sm)] text-xs flex items-center gap-2" style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)', color: 'var(--status-done)' }}>
+          <div className="mb-3 flex items-center gap-2 rounded-[var(--glass-radius-sm)] border px-3 py-2 text-xs" style={{ background: 'var(--status-done-bg)', borderColor: 'rgba(45, 155, 106, 0.16)', color: 'var(--status-done)' }}>
             Git repository detected
           </div>
         )}
 
         {error && (
-          <div className="mb-3 p-2 rounded-[var(--glass-radius-sm)] text-xs" style={{ background: 'var(--danger-bg)', color: 'var(--danger-hover)' }}>
+          <div className="mb-3 rounded-[var(--glass-radius-sm)] border p-2 text-xs" style={{ background: 'var(--danger-bg)', color: 'var(--danger-hover)', borderColor: 'rgba(204, 80, 56, 0.18)' }}>
             {error}
           </div>
         )}
 
         {/* Directory listing */}
-        <div className="rounded-[var(--glass-radius-sm)] border overflow-hidden mb-4 max-h-64 overflow-y-auto" style={{ borderColor: 'var(--border)' }}>
+        <div className="mb-4 max-h-64 overflow-y-auto overflow-hidden rounded-[var(--glass-radius-sm)] border" style={{ borderColor: 'var(--border)' }}>
           {data && data.current !== data.parent && (
             <button
               type="button"

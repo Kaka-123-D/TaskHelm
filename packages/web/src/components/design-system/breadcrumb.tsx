@@ -11,21 +11,21 @@ interface BreadcrumbProps {
 
 export function Breadcrumb({ segments }: BreadcrumbProps) {
   return (
-    <nav className="flex items-center gap-2 text-sm mb-6">
+    <nav className="workbench-breadcrumb">
       {segments.map((segment, i) => {
         const isLast = i === segments.length - 1
         return (
-          <span key={i} className="flex items-center gap-2">
-            {i > 0 && <span className="text-[var(--text-muted)]">/</span>}
+          <span key={i} className="workbench-breadcrumb-segment">
+            {i > 0 && <span className="workbench-breadcrumb-divider">/</span>}
             {segment.href && !isLast ? (
               <Link
                 href={segment.href}
-                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                className="workbench-breadcrumb-link"
               >
                 {segment.label}
               </Link>
             ) : (
-              <span className={isLast ? 'text-[var(--primary)]' : 'text-[var(--text-muted)]'}>
+              <span className={isLast ? 'workbench-breadcrumb-current' : 'workbench-breadcrumb-link'}>
                 {segment.label}
               </span>
             )}
