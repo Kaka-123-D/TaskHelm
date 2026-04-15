@@ -17,10 +17,13 @@ interface WorkspaceSettingsResponse {
   readonly settings: {
     readonly workspaceName: string
     readonly workspaceBranch: string
+    readonly baseBranch?: string
+    readonly autoPullBaseBranch?: boolean
     readonly preferredPort: number | null
     readonly subrepoBranches: readonly { repoPath: string; branch: string }[]
   }
   readonly detectedSubrepos: readonly string[]
+  readonly availableBaseBranches?: readonly string[]
   readonly availableExistingWorktrees: readonly ExistingWorktreeOption[]
 }
 
@@ -34,6 +37,10 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
   const [settingsLoading, setSettingsLoading] = useState(true)
   const [workspaceName, setWorkspaceName] = useState(task.workspace_name ?? '')
   const [workspaceBranch, setWorkspaceBranch] = useState(task.workspace_branch ?? '')
+  const [baseBranch, setBaseBranch] = useState('')
+  const [availableBaseBranches, setAvailableBaseBranches] = useState<readonly string[]>([])
+  const [autoPullBaseBranch, setAutoPullBaseBranch] = useState(true)
+  const [recoverableBaseBranchError, setRecoverableBaseBranchError] = useState<string | null>(null)
   const [subrepoBranches, setSubrepoBranches] = useState<Record<string, string>>({})
   const [detectedSubrepos, setDetectedSubrepos] = useState<readonly string[]>([])
   const [availableExistingWorktrees, setAvailableExistingWorktrees] = useState<
@@ -58,6 +65,9 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
 
         setWorkspaceName(payload.settings.workspaceName)
         setWorkspaceBranch(payload.settings.workspaceBranch)
+        setBaseBranch(payload.settings.baseBranch ?? '')
+        setAutoPullBaseBranch(payload.settings.autoPullBaseBranch ?? true)
+        setAvailableBaseBranches(payload.availableBaseBranches ?? [])
         setDetectedSubrepos(payload.detectedSubrepos)
         setAvailableExistingWorktrees(payload.availableExistingWorktrees)
         setSubrepoBranches(
@@ -85,15 +95,18 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
     return {
       workspaceName,
       workspaceBranch,
+      baseBranch,
+      autoPullBaseBranch,
       subrepoBranches: detectedSubrepos
         .map(repoPath => ({ repoPath, branch: subrepoBranches[repoPath]?.trim() ?? '' }))
         .filter(entry => entry.branch.length > 0),
     }
-  }, [detectedSubrepos, subrepoBranches, workspaceBranch, workspaceName])
+  }, [autoPullBaseBranch, baseBranch, detectedSubrepos, subrepoBranches, workspaceBranch, workspaceName])
 
   const handleSave = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setRecoverableBaseBranchError(null)
     try {
       const res = await fetch(`/api/tasks/${task.id}/workspace`, {
         method: 'PATCH',
@@ -115,6 +128,7 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
   const handleInit = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setRecoverableBaseBranchError(null)
     try {
       const res = await fetch(`/api/tasks/${task.id}/workspace`, {
         method: 'POST',
@@ -126,6 +140,9 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
       })
       if (!res.ok) {
         const data = await res.json()
+        if (data.canForceRefresh) {
+          setRecoverableBaseBranchError(data.error ?? 'Failed to prepare the selected base branch')
+        }
         throw new Error(data.error ?? 'Failed to init workspace')
       }
       router.refresh()
@@ -139,6 +156,7 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
   const handleCleanup = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setRecoverableBaseBranchError(null)
     try {
       const res = await fetch(`/api/tasks/${task.id}/workspace`, { method: 'DELETE' })
       if (!res.ok) {
@@ -168,6 +186,32 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
     [availableExistingWorktrees],
   )
 
+  const handleRetryWithForceRefresh = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/workspace`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...buildWorkspacePayload(),
+          existingWorktreePath: selectedExistingWorktreePath || undefined,
+          forceRefreshBaseBranch: true,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error ?? 'Failed to init workspace after force refresh')
+      }
+      setRecoverableBaseBranchError(null)
+      router.refresh()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [buildWorkspacePayload, router, selectedExistingWorktreePath, task.id])
+
   return (
     <WorkspacePanelView
       task={task}
@@ -176,16 +220,23 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
       error={error}
       workspaceName={workspaceName}
       workspaceBranch={workspaceBranch}
+      baseBranch={baseBranch}
+      availableBaseBranches={availableBaseBranches}
+      autoPullBaseBranch={autoPullBaseBranch}
+      recoverableBaseBranchError={recoverableBaseBranchError}
       subrepoBranches={subrepoBranches}
       detectedSubrepos={detectedSubrepos}
       availableExistingWorktrees={availableExistingWorktrees}
       selectedExistingWorktreePath={selectedExistingWorktreePath}
       onWorkspaceNameChange={setWorkspaceName}
       onWorkspaceBranchChange={setWorkspaceBranch}
+      onBaseBranchChange={setBaseBranch}
+      onAutoPullBaseBranchChange={setAutoPullBaseBranch}
       onSubrepoBranchChange={(repoPath, branch) =>
         setSubrepoBranches(prev => ({ ...prev, [repoPath]: branch }))
       }
       onSelectedExistingWorktreeChange={handleSelectExistingWorktree}
+      onRetryWithForceRefresh={handleRetryWithForceRefresh}
       onSave={handleSave}
       onInitOrAttach={handleInit}
       onCleanup={handleCleanup}
@@ -200,14 +251,21 @@ interface WorkspacePanelViewProps {
   readonly error: string | null
   readonly workspaceName: string
   readonly workspaceBranch: string
+  readonly baseBranch: string
+  readonly availableBaseBranches: readonly string[]
+  readonly autoPullBaseBranch: boolean
+  readonly recoverableBaseBranchError: string | null
   readonly subrepoBranches: Readonly<Record<string, string>>
   readonly detectedSubrepos: readonly string[]
   readonly availableExistingWorktrees: readonly ExistingWorktreeOption[]
   readonly selectedExistingWorktreePath: string
   readonly onWorkspaceNameChange: (value: string) => void
   readonly onWorkspaceBranchChange: (value: string) => void
+  readonly onBaseBranchChange: (value: string) => void
+  readonly onAutoPullBaseBranchChange: (value: boolean) => void
   readonly onSubrepoBranchChange: (repoPath: string, branch: string) => void
   readonly onSelectedExistingWorktreeChange: (worktreePath: string) => void
+  readonly onRetryWithForceRefresh: () => void
   readonly onSave: () => void
   readonly onInitOrAttach: () => void
   readonly onCleanup: () => void
@@ -220,14 +278,21 @@ export function WorkspacePanelView({
   error,
   workspaceName,
   workspaceBranch,
+  baseBranch,
+  availableBaseBranches,
+  autoPullBaseBranch,
+  recoverableBaseBranchError,
   subrepoBranches,
   detectedSubrepos,
   availableExistingWorktrees,
   selectedExistingWorktreePath,
   onWorkspaceNameChange,
   onWorkspaceBranchChange,
+  onBaseBranchChange,
+  onAutoPullBaseBranchChange,
   onSubrepoBranchChange,
   onSelectedExistingWorktreeChange,
+  onRetryWithForceRefresh,
   onSave,
   onInitOrAttach,
   onCleanup,
@@ -290,6 +355,20 @@ export function WorkspacePanelView({
             onChange={event => onWorkspaceBranchChange(event.target.value)}
             placeholder="feature/alpha-ui"
           />
+          <GlassSelect
+            label="Base Branch"
+            value={baseBranch}
+            onChange={event => onBaseBranchChange(event.target.value)}
+            options={availableBaseBranches.map(branch => ({ value: branch, label: branch }))}
+          />
+          <label className="workspace-toggle-row">
+            <input
+              type="checkbox"
+              checked={autoPullBaseBranch}
+              onChange={event => onAutoPullBaseBranchChange(event.target.checked)}
+            />
+            <span>Auto-pull latest from base branch</span>
+          </label>
 
           {hasAvailableExistingWorktrees ? (
             <GlassSelect
@@ -328,6 +407,16 @@ export function WorkspacePanelView({
       </div>
 
       {error && <div className="utility-panel-error">{error}</div>}
+      {recoverableBaseBranchError ? (
+        <div className="utility-panel-error">
+          <p>{recoverableBaseBranchError}</p>
+          <div className="mt-2">
+            <GlassButton variant="secondary" onClick={onRetryWithForceRefresh} className="text-xs px-3 py-1.5">
+              Force Refresh Base Branch
+            </GlassButton>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-3 flex flex-wrap gap-2">
         <GlassButton variant="secondary" onClick={onSave} loading={loading} className="text-xs px-3 py-1.5">

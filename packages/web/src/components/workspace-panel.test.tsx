@@ -89,6 +89,10 @@ describe('WorkspacePanelView', () => {
         error={null}
         workspaceName=""
         workspaceBranch=""
+        baseBranch="main"
+        availableBaseBranches={['main', 'develop']}
+        autoPullBaseBranch
+        recoverableBaseBranchError={null}
         subrepoBranches={{}}
         detectedSubrepos={[]}
         availableExistingWorktrees={[
@@ -101,8 +105,11 @@ describe('WorkspacePanelView', () => {
         selectedExistingWorktreePath="/repo/.worktrees/feature-free"
         onWorkspaceNameChange={() => {}}
         onWorkspaceBranchChange={() => {}}
+        onBaseBranchChange={() => {}}
+        onAutoPullBaseBranchChange={() => {}}
         onSubrepoBranchChange={() => {}}
         onSelectedExistingWorktreeChange={() => {}}
+        onRetryWithForceRefresh={() => {}}
         onSave={() => {}}
         onInitOrAttach={() => {}}
         onCleanup={() => {}}
@@ -124,14 +131,21 @@ describe('WorkspacePanelView', () => {
         error={null}
         workspaceName=""
         workspaceBranch=""
+        baseBranch="main"
+        availableBaseBranches={['main', 'develop']}
+        autoPullBaseBranch
+        recoverableBaseBranchError={null}
         subrepoBranches={{}}
         detectedSubrepos={[]}
         availableExistingWorktrees={[]}
         selectedExistingWorktreePath=""
         onWorkspaceNameChange={() => {}}
         onWorkspaceBranchChange={() => {}}
+        onBaseBranchChange={() => {}}
+        onAutoPullBaseBranchChange={() => {}}
         onSubrepoBranchChange={() => {}}
         onSelectedExistingWorktreeChange={() => {}}
+        onRetryWithForceRefresh={() => {}}
         onSave={() => {}}
         onInitOrAttach={() => {}}
         onCleanup={() => {}}
@@ -140,5 +154,75 @@ describe('WorkspacePanelView', () => {
 
     expect(markup).not.toContain('Attach Existing Worktree')
     expect(markup).toContain('Init Workspace')
+  })
+
+  it('renders base branch controls and auto-pull toggle', async () => {
+    const { WorkspacePanelView } = await import('./workspace-panel')
+    const markup = renderToStaticMarkup(
+      <WorkspacePanelView
+        task={makeTask()}
+        loading={false}
+        settingsLoading={false}
+        error={null}
+        workspaceName="alpha-ui"
+        workspaceBranch="feature/alpha-ui"
+        baseBranch="main"
+        availableBaseBranches={['main', 'develop']}
+        autoPullBaseBranch
+        recoverableBaseBranchError={null}
+        subrepoBranches={{}}
+        detectedSubrepos={['packages/ui']}
+        availableExistingWorktrees={[]}
+        selectedExistingWorktreePath=""
+        onWorkspaceNameChange={() => {}}
+        onWorkspaceBranchChange={() => {}}
+        onBaseBranchChange={() => {}}
+        onAutoPullBaseBranchChange={() => {}}
+        onSubrepoBranchChange={() => {}}
+        onSelectedExistingWorktreeChange={() => {}}
+        onRetryWithForceRefresh={() => {}}
+        onSave={() => {}}
+        onInitOrAttach={() => {}}
+        onCleanup={() => {}}
+      />,
+    )
+
+    expect(markup).toContain('Base Branch')
+    expect(markup).toContain('Auto-pull latest from base branch')
+  })
+
+  it('renders a force-refresh recovery action for recoverable base branch errors', async () => {
+    const { WorkspacePanelView } = await import('./workspace-panel')
+    const markup = renderToStaticMarkup(
+      <WorkspacePanelView
+        task={makeTask()}
+        loading={false}
+        settingsLoading={false}
+        error={null}
+        workspaceName="alpha-ui"
+        workspaceBranch="feature/alpha-ui"
+        baseBranch="main"
+        availableBaseBranches={['main']}
+        autoPullBaseBranch
+        recoverableBaseBranchError={'Failed to pull "main" before creating the workspace branch.'}
+        subrepoBranches={{}}
+        detectedSubrepos={[]}
+        availableExistingWorktrees={[]}
+        selectedExistingWorktreePath=""
+        onWorkspaceNameChange={() => {}}
+        onWorkspaceBranchChange={() => {}}
+        onBaseBranchChange={() => {}}
+        onAutoPullBaseBranchChange={() => {}}
+        onSubrepoBranchChange={() => {}}
+        onSelectedExistingWorktreeChange={() => {}}
+        onRetryWithForceRefresh={() => {}}
+        onSave={() => {}}
+        onInitOrAttach={() => {}}
+        onCleanup={() => {}}
+      />,
+    )
+
+    expect(markup).toContain('Force Refresh Base Branch')
+    expect(markup).toContain('Failed to pull')
   })
 })
