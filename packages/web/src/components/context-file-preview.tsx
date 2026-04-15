@@ -70,6 +70,13 @@ function MarkdownPreview({
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          ul: ({ children }) => (
+            <ul className="context-preview-list context-preview-list--unordered">{children}</ul>
+          ),
+          ol: ({ children }) => (
+            <ol className="context-preview-list context-preview-list--ordered">{children}</ol>
+          ),
+          li: ({ children }) => <li className="context-preview-list-item">{children}</li>,
           a: ({ href, children, ...props }) => (
             <a
               {...props}
