@@ -77,19 +77,12 @@ Final conclusion:
 
 This hybrid model is now the intended architecture.
 
-## SpecDown Relationship
+## Local-First Context
 
 Important nuance:
 
-- SpecDown should not be a hard dependency for OSS adoption
-- but the overall ecosystem should clearly make SpecDown the best companion
-
-Final product strategy:
-
-- TaskHelm works standalone
-- TaskHelm works best with SpecDown
-
-SpecDown is intended as the best spec and context companion layer, not the runtime orchestrator.
+- no external service should be a hard dependency for OSS adoption
+- TaskHelm must remain useful as a standalone local control plane
 
 ## Why Not Use External Frameworks as Core
 
@@ -99,7 +92,7 @@ Reason:
 
 - tighter control
 - clearer OSS identity
-- easier backlink and product synergy with SpecDown
+- simpler local-first product story
 
 External systems may still inform design, but the core should be self-authored.
 
@@ -171,6 +164,6 @@ This session produced:
 - project-aware model
 - initial architecture docs
 - technical specs for v1
-- explicit SpecDown companion strategy
+- explicit local-first context strategy
 
 This is the intended baseline for the next session.

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { execSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {
@@ -9,14 +10,200 @@ import {
   createBranch,
   branchExists,
   createWorktree,
+  listWorktrees,
   removeWorktree,
 } from '@taskhelm/core'
 import { getDb } from '@/lib/db'
+import { discoverSubrepos } from '@/lib/workspace/subrepo-discovery'
+import {
+  normalizeWorkspaceSubrepoBranches,
+  parseWorkspaceSubrepoBranches,
+  serializeWorkspaceSubrepoBranches,
+  workspaceNameExistsInProject,
+} from '@/lib/workspace/runtime-settings'
+import { checkoutOrCreateBranch } from '@/lib/workspace/git-branch'
 
 type Params = { params: Promise<{ taskId: string }> }
 
+interface WorkspaceRequestBody {
+  readonly workspaceName?: string
+  readonly workspaceBranch?: string
+  readonly subrepoBranches?: readonly { repoPath: string; branch: string }[]
+  readonly existingWorktreePath?: string
+}
+
+function trimOrEmpty(value: string | null | undefined): string {
+  return value?.trim() ?? ''
+}
+
+function normalizeWorkspacePayload(
+  task: ReturnType<TaskRepository['findById']>,
+  detectedSubrepos: readonly string[],
+  body: WorkspaceRequestBody,
+) {
+  const workspaceName = trimOrEmpty(body.workspaceName) || trimOrEmpty(task?.workspace_name)
+  const workspaceBranch = trimOrEmpty(body.workspaceBranch) || trimOrEmpty(task?.workspace_branch)
+  const subrepoBranches = normalizeWorkspaceSubrepoBranches(
+    Array.isArray(body.subrepoBranches)
+      ? body.subrepoBranches
+      : parseWorkspaceSubrepoBranches(task?.workspace_subrepo_branches_json),
+    detectedSubrepos,
+  )
+
+  return {
+    workspaceName,
+    workspaceBranch,
+    subrepoBranches,
+  }
+}
+
+interface ExistingWorktreeOption {
+  readonly path: string
+  readonly name: string
+  readonly branch: string
+}
+
+function canonicalPath(targetPath: string): string {
+  return fs.existsSync(targetPath) ? fs.realpathSync.native(targetPath) : path.resolve(targetPath)
+}
+
+function isWithinDir(rootDir: string, candidatePath: string): boolean {
+  const relativePath = path.relative(canonicalPath(rootDir), canonicalPath(candidatePath))
+  return relativePath.length > 0 && !relativePath.startsWith('..') && !path.isAbsolute(relativePath)
+}
+
+function readWorktreeBranch(worktreePath: string): string {
+  return execSync('git branch --show-current', {
+    cwd: worktreePath,
+    stdio: 'pipe',
+  })
+    .toString()
+    .trim()
+}
+
+function getAvailableExistingWorktrees(
+  taskRepo: TaskRepository,
+  projectId: string,
+  currentTaskId: string,
+  repoRoot: string,
+  worktreeRootDir: string,
+): readonly ExistingWorktreeOption[] {
+  const assignedPaths = new Set(
+    taskRepo
+      .findByProjectId(projectId)
+      .filter(task => task.id !== currentTaskId && task.worktree_path)
+      .map(task => canonicalPath(task.worktree_path!)),
+  )
+
+  return listWorktrees(repoRoot)
+    .map(worktreePath => canonicalPath(worktreePath))
+    .filter(worktreePath => fs.existsSync(worktreePath))
+    .filter(worktreePath => isWithinDir(worktreeRootDir, worktreePath))
+    .filter(worktreePath => !assignedPaths.has(worktreePath))
+    .map(worktreePath => ({
+      path: worktreePath,
+      name: path.basename(worktreePath),
+      branch: readWorktreeBranch(worktreePath),
+    }))
+}
+
+export async function GET(_request: Request, { params }: Params) {
+  try {
+    const { taskId } = await params
+    const db = getDb()
+    const taskRepo = new TaskRepository(db)
+    const projectRepo = new ProjectRepository(db)
+    const task = taskRepo.findById(taskId)
+
+    if (!task) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    }
+
+    const project = projectRepo.findById(task.project_id)
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    const worktreeRootDir = project.worktree_root ?? path.join(project.local_repo_root, '.worktrees')
+
+    return NextResponse.json({
+      settings: {
+        workspaceName: task.workspace_name ?? '',
+        workspaceBranch: task.workspace_branch ?? '',
+        preferredPort: task.preferred_port,
+        subrepoBranches: parseWorkspaceSubrepoBranches(task.workspace_subrepo_branches_json),
+      },
+      detectedSubrepos: discoverSubrepos(project.local_repo_root),
+      availableExistingWorktrees: getAvailableExistingWorktrees(
+        taskRepo,
+        project.id,
+        task.id,
+        project.local_repo_root,
+        worktreeRootDir,
+      ),
+    })
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 400 })
+  }
+}
+
+export async function PATCH(request: Request, { params }: Params) {
+  try {
+    const { taskId } = await params
+    const db = getDb()
+    const taskRepo = new TaskRepository(db)
+    const projectRepo = new ProjectRepository(db)
+    const task = taskRepo.findById(taskId)
+
+    if (!task) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    }
+
+    const project = projectRepo.findById(task.project_id)
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    const detectedSubrepos = discoverSubrepos(project.local_repo_root)
+    const body = (await request.json()) as WorkspaceRequestBody
+    const normalized = normalizeWorkspacePayload(task, detectedSubrepos, body)
+
+    if (!normalized.workspaceName) {
+      return NextResponse.json({ error: 'Workspace name is required' }, { status: 400 })
+    }
+
+    if (
+      workspaceNameExistsInProject(
+        taskRepo.findByProjectId(project.id),
+        normalized.workspaceName,
+        task.id,
+      )
+    ) {
+      return NextResponse.json({ error: 'Workspace name already exists in this project' }, { status: 400 })
+    }
+
+    const updatedTask = taskRepo.update(task.id, {
+      workspace_name: normalized.workspaceName,
+      workspace_branch: normalized.workspaceBranch || null,
+      workspace_subrepo_branches_json: serializeWorkspaceSubrepoBranches(normalized.subrepoBranches),
+    })
+
+    return NextResponse.json({
+      settings: {
+        workspaceName: updatedTask.workspace_name ?? '',
+        workspaceBranch: updatedTask.workspace_branch ?? '',
+        preferredPort: updatedTask.preferred_port,
+        subrepoBranches: parseWorkspaceSubrepoBranches(updatedTask.workspace_subrepo_branches_json),
+      },
+      detectedSubrepos,
+    })
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 400 })
+  }
+}
+
 /** POST = workspace init */
-export async function POST(_request: Request, { params }: Params) {
+export async function POST(request: Request, { params }: Params) {
   try {
     const { taskId } = await params
     const db = getDb()
@@ -36,27 +223,77 @@ export async function POST(_request: Request, { params }: Params) {
     const repoRoot = project.local_repo_root
     const pattern = project.branch_naming_pattern ?? 'task/{id}'
     const worktreeRootDir = project.worktree_root ?? path.join(repoRoot, '.worktrees')
-
-    const branchName = formatBranchName(pattern, { id: task.id, key: task.key })
-
-    if (!branchExists(repoRoot, branchName)) {
-      createBranch(repoRoot, branchName)
-    }
-
-    if (!fs.existsSync(worktreeRootDir)) {
-      fs.mkdirSync(worktreeRootDir, { recursive: true })
-    }
-
-    const worktreePath = createWorktree({
+    const body = (await request.json()) as WorkspaceRequestBody
+    const detectedSubrepos = discoverSubrepos(repoRoot)
+    const normalized = normalizeWorkspacePayload(task, detectedSubrepos, body)
+    const availableExistingWorktrees = getAvailableExistingWorktrees(
+      taskRepo,
+      project.id,
+      task.id,
       repoRoot,
-      worktreeRoot: worktreeRootDir,
-      branchName,
-    })
+      worktreeRootDir,
+    )
+    const requestedExistingWorktreePath = trimOrEmpty(body.existingWorktreePath)
+    const selectedExistingWorktree =
+      requestedExistingWorktreePath
+        ? availableExistingWorktrees.find(
+            worktree => worktree.path === canonicalPath(requestedExistingWorktreePath),
+          )
+        : null
+    const workspaceName = normalized.workspaceName || selectedExistingWorktree?.name || ''
+    const branchName =
+      selectedExistingWorktree?.branch ||
+      normalized.workspaceBranch ||
+      formatBranchName(pattern, { id: task.id, key: task.key })
+    const subrepoBranches = normalized.subrepoBranches
+
+    if (!workspaceName) {
+      return NextResponse.json({ error: 'Workspace name is required' }, { status: 400 })
+    }
+
+    if (workspaceNameExistsInProject(taskRepo.findByProjectId(project.id), workspaceName, task.id)) {
+      return NextResponse.json({ error: 'Workspace name already exists in this project' }, { status: 400 })
+    }
+
+    if (task.worktree_path && fs.existsSync(task.worktree_path)) {
+      return NextResponse.json({ error: 'Workspace already initialized for this task' }, { status: 400 })
+    }
+
+    if (requestedExistingWorktreePath && !selectedExistingWorktree) {
+      return NextResponse.json({ error: 'Selected worktree is not available' }, { status: 400 })
+    }
+
+    const worktreePath =
+      selectedExistingWorktree?.path ??
+      (() => {
+        if (!branchExists(repoRoot, branchName)) {
+          createBranch(repoRoot, branchName)
+        }
+
+        if (!fs.existsSync(worktreeRootDir)) {
+          fs.mkdirSync(worktreeRootDir, { recursive: true })
+        }
+
+        return createWorktree({
+          repoRoot,
+          worktreeRoot: worktreeRootDir,
+          branchName,
+        })
+      })()
 
     const updatedTask = taskRepo.update(task.id, {
+      workspace_name: workspaceName,
+      workspace_branch: branchName,
+      workspace_subrepo_branches_json: serializeWorkspaceSubrepoBranches(subrepoBranches),
       branch_name: branchName,
       worktree_path: worktreePath,
     })
+
+    if (!selectedExistingWorktree) {
+      for (const subrepo of subrepoBranches) {
+        checkoutOrCreateBranch(path.join(repoRoot, subrepo.repoPath), subrepo.branch)
+      }
+    }
 
     writeCapsule({
       baseDir: repoRoot,
@@ -66,8 +303,11 @@ export async function POST(_request: Request, { params }: Params) {
     })
 
     return NextResponse.json({
+      workspaceName,
       branchName,
       worktreePath,
+      subrepoBranches,
+      attachedExistingWorktree: selectedExistingWorktree != null,
       task: updatedTask,
     }, { status: 201 })
   } catch (error) {
@@ -100,6 +340,8 @@ export async function DELETE(_request: Request, { params }: Params) {
     taskRepo.update(task.id, {
       branch_name: null,
       worktree_path: null,
+      port: null,
+      dev_server_state: 'stopped',
     })
 
     return NextResponse.json({ cleaned: true })

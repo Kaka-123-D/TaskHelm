@@ -26,7 +26,7 @@ export async function GET(_request: Request, { params }: Params) {
     const result = {
       ...project,
       taskCount: tasks.length,
-      activeTaskCount: tasks.filter(t => t.status === 'running').length,
+      activeTaskCount: tasks.filter(t => t.port != null).length,
     }
 
     return NextResponse.json(result)

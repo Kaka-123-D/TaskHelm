@@ -1,27 +1,5 @@
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
-export const TaskStatus = {
-  draft: 'draft',
-  ready: 'ready',
-  running: 'running',
-  reviewing: 'reviewing',
-  blocked: 'blocked',
-  done: 'done',
-  archived: 'archived',
-} as const
-export type TaskStatusValue = (typeof TaskStatus)[keyof typeof TaskStatus]
-
-export const TaskPhase = {
-  context: 'context',
-  planning: 'planning',
-  implementation: 'implementation',
-  spec_review: 'spec_review',
-  code_review: 'code_review',
-  runtime_verification: 'runtime_verification',
-  final_summary: 'final_summary',
-} as const
-export type TaskPhaseValue = (typeof TaskPhase)[keyof typeof TaskPhase]
-
 export const AgentRunKind = {
   implementer: 'implementer',
   spec_review: 'spec_review',
@@ -64,13 +42,6 @@ export const DevServerStatus = {
 } as const
 export type DevServerStatusValue = (typeof DevServerStatus)[keyof typeof DevServerStatus]
 
-export const SpecdownMode = {
-  disabled: 'disabled',
-  linked: 'linked',
-  preferred: 'preferred',
-} as const
-export type SpecdownModeValue = (typeof SpecdownMode)[keyof typeof SpecdownMode]
-
 export const NotificationLevel = {
   info: 'info',
   warning: 'warning',
@@ -94,8 +65,6 @@ export interface Project {
   readonly install_command: string | null
   readonly test_command: string | null
   readonly max_active_dev_servers: number
-  readonly specdown_mode: SpecdownModeValue
-  readonly specdown_project_ref: string | null
   readonly created_at: string
   readonly updated_at: string
 }
@@ -108,13 +77,19 @@ export interface Task {
   readonly goal: string | null
   readonly source_type: string | null
   readonly source_ref: string | null
-  readonly status: TaskStatusValue
-  readonly phase: TaskPhaseValue
   readonly priority: number
   readonly branch_name: string | null
+  readonly workspace_name: string | null
+  readonly workspace_branch: string | null
+  readonly workspace_subrepo_branches_json: string | null
+  readonly preferred_port: number | null
   readonly worktree_path: string | null
   readonly port: number | null
   readonly dev_server_state: DevServerStatusValue | null
+  readonly context_vault_root_path: string | null
+  readonly context_vault_sources_json: string | null
+  readonly context_vault_files_json: string | null
+  readonly context_vault_selected_file: string | null
   readonly current_agent_run_id: string | null
   readonly latest_blocker: string | null
   readonly created_at: string

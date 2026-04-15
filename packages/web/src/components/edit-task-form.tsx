@@ -13,16 +13,6 @@ interface EditTaskFormProps {
   readonly projectSlug: string
 }
 
-const STATUS_OPTIONS = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'ready', label: 'Ready' },
-  { value: 'running', label: 'Running' },
-  { value: 'reviewing', label: 'Reviewing' },
-  { value: 'blocked', label: 'Blocked' },
-  { value: 'done', label: 'Done' },
-  { value: 'archived', label: 'Archived' },
-]
-
 const PRIORITY_OPTIONS = [
   { value: '1', label: 'Critical' },
   { value: '2', label: 'High' },
@@ -34,7 +24,6 @@ const PRIORITY_OPTIONS = [
 interface FormState {
   readonly title: string
   readonly goal: string
-  readonly status: string
   readonly priority: string
 }
 
@@ -43,7 +32,6 @@ export function EditTaskForm({ task, projectSlug: _projectSlug }: EditTaskFormPr
   const [form, setForm] = useState<FormState>({
     title: task.title,
     goal: task.goal ?? '',
-    status: task.status,
     priority: String(task.priority),
   })
   const [error, setError] = useState<string | null>(null)
@@ -68,7 +56,6 @@ export function EditTaskForm({ task, projectSlug: _projectSlug }: EditTaskFormPr
         body: JSON.stringify({
           title: form.title,
           goal: form.goal || null,
-          status: form.status,
           priority: parseInt(form.priority, 10),
         }),
       })
@@ -101,7 +88,6 @@ export function EditTaskForm({ task, projectSlug: _projectSlug }: EditTaskFormPr
           <div className="space-y-3">
             <GlassInput label="Title" value={form.title} onChange={e => updateField('title', e.target.value)} placeholder="Task title" />
             <GlassInput label="Goal" value={form.goal} onChange={e => updateField('goal', e.target.value)} placeholder="Task goal" />
-            <GlassSelect label="Status" options={STATUS_OPTIONS} value={form.status} onChange={e => updateField('status', e.target.value)} />
             <GlassSelect label="Priority" options={PRIORITY_OPTIONS} value={form.priority} onChange={e => updateField('priority', e.target.value)} />
           </div>
           <div className="flex justify-end gap-3 mt-6">

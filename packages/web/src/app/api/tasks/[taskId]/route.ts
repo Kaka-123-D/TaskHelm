@@ -34,10 +34,6 @@ export async function PATCH(request: Request, { params }: Params) {
 
     const body = await request.json()
 
-    if (body.status !== undefined) {
-      taskRepo.updateStatus(taskId, body.status)
-    }
-
     const updated = taskRepo.update(taskId, body)
     return NextResponse.json(updated)
   } catch (error) {

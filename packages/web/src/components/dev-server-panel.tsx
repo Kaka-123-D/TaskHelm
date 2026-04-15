@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Task } from '@taskhelm/core'
 import { GlassButton } from '@/components/design-system/glass-button'
+import { GlassInput } from '@/components/design-system/glass-input'
 import { StatusDot } from '@/components/design-system/status-dot'
 
 interface DevServerPanelProps {
@@ -17,13 +18,45 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
 
   const state = task.dev_server_state
   const port = task.port
+  const [preferredPort, setPreferredPort] = useState(
+    task.preferred_port != null ? String(task.preferred_port) : '',
+  )
   const isRunning = state === 'running' || state === 'warm'
+
+  const handleSavePreferredPort = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          preferred_port: preferredPort.trim() ? Number(preferredPort) : null,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error ?? 'Failed to save preferred port')
+      }
+      router.refresh()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [preferredPort, router, task.id])
 
   const handleStart = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/tasks/${task.id}/dev`, { method: 'POST' })
+      const res = await fetch(`/api/tasks/${task.id}/dev`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          preferredPort: preferredPort.trim() ? Number(preferredPort) : null,
+        }),
+      })
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error ?? 'Failed to start dev server')
@@ -34,7 +67,7 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
     } finally {
       setLoading(false)
     }
-  }, [task.id, router])
+  }, [preferredPort, router, task.id])
 
   const handleStop = useCallback(async () => {
     setLoading(true)
@@ -80,7 +113,25 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
 
       {error && <div className="utility-panel-error">{error}</div>}
 
-      <div className="flex gap-2">
+      <div className="mb-3">
+        <GlassInput
+          label="Preferred Port"
+          inputMode="numeric"
+          value={preferredPort}
+          onChange={event => setPreferredPort(event.target.value.replace(/[^\d]/g, ''))}
+          placeholder="3001"
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <GlassButton
+          variant="secondary"
+          onClick={handleSavePreferredPort}
+          loading={loading}
+          className="text-xs px-3 py-1.5"
+        >
+          Save Port
+        </GlassButton>
         {!isRunning ? (
           <GlassButton
             variant="primary"

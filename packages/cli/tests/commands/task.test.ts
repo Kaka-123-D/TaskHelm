@@ -79,8 +79,7 @@ describe('Task CLI commands', () => {
       expect(task.id).toBeTruthy()
       expect(task.title).toBe('My First Task')
       expect(task.project_id).toBe(project.id)
-      expect(task.status).toBe('draft')
-      expect(task.phase).toBe('context')
+      expect(task.priority).toBe(0)
     })
 
     it('creates a task with all optional fields', () => {
@@ -151,21 +150,16 @@ describe('Task CLI commands', () => {
       expect(otherTasks[0].title).toBe('Other Task')
     })
 
-    it('filters tasks by status', () => {
+    it('returns all tasks without legacy status filtering', () => {
       const taskRepo = new TaskRepository(db)
 
       const draft = taskRepo.create({ project_id: project.id, title: 'Draft Task' })
-      const running = taskRepo.create({ project_id: project.id, title: 'Running Task' })
-      taskRepo.updateStatus(running.id, 'running')
+      const runtime = taskRepo.create({ project_id: project.id, title: 'Runtime Task' })
+      taskRepo.update(runtime.id, { port: 3100, dev_server_state: 'running' })
 
       const allTasks = taskRepo.findByProjectId(project.id)
-      const runningTasks = allTasks.filter((t) => t.status === 'running')
-      expect(runningTasks.length).toBe(1)
-      expect(runningTasks[0].id).toBe(running.id)
-
-      const draftTasks = allTasks.filter((t) => t.status === 'draft')
-      expect(draftTasks.length).toBe(1)
-      expect(draftTasks[0].id).toBe(draft.id)
+      expect(allTasks).toHaveLength(2)
+      expect(allTasks.map((task) => task.id).sort()).toEqual([draft.id, runtime.id].sort())
     })
   })
 

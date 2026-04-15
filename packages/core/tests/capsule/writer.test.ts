@@ -19,8 +19,6 @@ const baseProject: Project = {
   install_command: null,
   test_command: null,
   max_active_dev_servers: 1,
-  specdown_mode: 'disabled',
-  specdown_project_ref: null,
   created_at: '2026-04-11T10:00:00.000Z',
   updated_at: '2026-04-11T10:00:00.000Z',
 }
@@ -33,13 +31,15 @@ const baseTask: Task = {
   goal: 'Add X functionality',
   source_type: 'github_issue',
   source_ref: 'https://github.com/org/repo/issues/1',
-  status: 'ready',
-  phase: 'planning',
   priority: 3,
   branch_name: 'feature/task-abc123',
   worktree_path: '/home/user/worktrees/task-abc123',
   port: 3001,
   dev_server_state: null,
+  context_vault_root_path: null,
+  context_vault_sources_json: null,
+  context_vault_files_json: null,
+  context_vault_selected_file: null,
   current_agent_run_id: null,
   latest_blocker: null,
   created_at: '2026-04-11T10:00:00.000Z',
@@ -100,8 +100,8 @@ describe('writeCapsule', () => {
     expect(parsed.id).toBe(baseTask.id)
     expect(parsed.project_slug).toBe('my-project')
     expect(parsed.title).toBe(baseTask.title)
-    expect(parsed.status).toBe(baseTask.status)
-    expect(parsed.phase).toBe(baseTask.phase)
+    expect(parsed.status).toBeUndefined()
+    expect(parsed.phase).toBeUndefined()
     expect(parsed.priority).toBe(baseTask.priority)
     expect(parsed.branch_name).toBe(baseTask.branch_name)
     expect(parsed.worktree_path).toBe(baseTask.worktree_path)

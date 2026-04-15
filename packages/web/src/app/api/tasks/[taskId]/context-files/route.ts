@@ -3,6 +3,7 @@ import { ProjectRepository, TaskRepository } from '@taskhelm/core'
 import { getDb } from '@/lib/db'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { resolveContextVault } from '@/lib/context-vault/persisted-vault'
 
 type Params = { params: Promise<{ taskId: string }> }
 
@@ -23,6 +24,19 @@ export async function GET(_request: Request, { params }: Params) {
     const project = projectRepo.findById(task.project_id)
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    const persistedVault = resolveContextVault(task)
+    if (persistedVault.files.length > 0) {
+      return NextResponse.json({
+        capsuleDir: persistedVault.rootPath,
+        files: persistedVault.files.map(file => ({
+          name: file.relativePath,
+          path: file.absolutePath,
+          exists: true,
+          content: file.content,
+        })),
+      })
     }
 
     const capsuleDir = path.join(
@@ -47,8 +61,6 @@ export async function GET(_request: Request, { params }: Params) {
     return NextResponse.json({
       capsuleDir,
       files,
-      specdownUsername: project.specdown_project_ref?.split('/')[0] ?? null,
-      specdownSlug: project.specdown_project_ref?.split('/')[1] ?? null,
     })
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 })

@@ -41,8 +41,7 @@ function isPidAlive(pid: number): boolean {
  *    Mark them as 'failed' with error "Supervisor restarted".
  *
  * 3. For tasks whose current_agent_run_id points to a now-failed run,
- *    clear current_agent_run_id and set status back to 'running' so the
- *    scheduler picks them up on the next cycle.
+ *    clear current_agent_run_id and preserve the latest blocker message.
  */
 export function recoverOnStartup(db: Database.Database): RecoveryResult {
   const now = new Date().toISOString()
@@ -89,7 +88,7 @@ export function recoverOnStartup(db: Database.Database): RecoveryResult {
     repairedRuns++
   }
 
-  // Step 3: For tasks pointing to a now-failed run, reset so scheduler can re-dispatch
+  // Step 3: For tasks pointing to a now-failed run, clear the run pointer.
   if (repairedRunIds.size > 0) {
     const placeholders = Array.from(repairedRunIds)
       .map(() => '?')
@@ -97,7 +96,7 @@ export function recoverOnStartup(db: Database.Database): RecoveryResult {
 
     db.prepare(
       `UPDATE tasks
-       SET status = 'running', current_agent_run_id = NULL, updated_at = ?
+       SET current_agent_run_id = NULL, latest_blocker = COALESCE(latest_blocker, 'Supervisor restarted'), updated_at = ?
        WHERE current_agent_run_id IN (${placeholders})`
     ).run(now, ...Array.from(repairedRunIds))
   }

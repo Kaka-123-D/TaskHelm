@@ -1,39 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import {
-  TaskStatus,
-  TaskPhase,
   AgentRunKind,
   AgentRunStatus,
   ReviewGateType,
   ReviewGateStatus,
   DevServerStatus,
-  SpecdownMode,
   NotificationLevel,
 } from '../src/types'
-
-describe('TaskStatus', () => {
-  it('has all expected values', () => {
-    expect(TaskStatus.draft).toBe('draft')
-    expect(TaskStatus.ready).toBe('ready')
-    expect(TaskStatus.running).toBe('running')
-    expect(TaskStatus.reviewing).toBe('reviewing')
-    expect(TaskStatus.blocked).toBe('blocked')
-    expect(TaskStatus.done).toBe('done')
-    expect(TaskStatus.archived).toBe('archived')
-  })
-})
-
-describe('TaskPhase', () => {
-  it('has all expected values', () => {
-    expect(TaskPhase.context).toBe('context')
-    expect(TaskPhase.planning).toBe('planning')
-    expect(TaskPhase.implementation).toBe('implementation')
-    expect(TaskPhase.spec_review).toBe('spec_review')
-    expect(TaskPhase.code_review).toBe('code_review')
-    expect(TaskPhase.runtime_verification).toBe('runtime_verification')
-    expect(TaskPhase.final_summary).toBe('final_summary')
-  })
-})
 
 describe('AgentRunKind', () => {
   it('has all expected values', () => {
@@ -79,14 +52,6 @@ describe('DevServerStatus', () => {
     expect(DevServerStatus.running).toBe('running')
     expect(DevServerStatus.failed).toBe('failed')
     expect(DevServerStatus.stopped).toBe('stopped')
-  })
-})
-
-describe('SpecdownMode', () => {
-  it('has all expected values', () => {
-    expect(SpecdownMode.disabled).toBe('disabled')
-    expect(SpecdownMode.linked).toBe('linked')
-    expect(SpecdownMode.preferred).toBe('preferred')
   })
 })
 

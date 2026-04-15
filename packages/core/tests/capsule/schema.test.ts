@@ -10,17 +10,10 @@ const validCompleteCapsule = {
     type: 'github_issue',
     ref: 'https://github.com/org/repo/issues/42',
   },
-  status: 'ready' as const,
-  phase: 'planning' as const,
   priority: 5,
   branch_name: 'feature/task-001-implement-x',
   worktree_path: '/home/user/worktrees/task-001',
   port: 3001,
-  specdown: {
-    mode: 'linked' as const,
-    project_ref: 'spec-project',
-    doc_refs: ['docs/spec.md', 'docs/api.md'],
-  },
   reviews: {
     spec_compliance: 'pending' as const,
     code_quality: 'open' as const,
@@ -33,8 +26,6 @@ const validMinimalCapsule = {
   id: 'task-002',
   project_slug: 'simple-project',
   title: 'Fix bug',
-  status: 'draft' as const,
-  phase: 'context' as const,
   updated_at: '2026-04-11T10:00:00.000Z',
 }
 
@@ -46,8 +37,8 @@ describe('TaskCapsuleSchema', () => {
       if (result.success) {
         expect(result.data.id).toBe('task-001')
         expect(result.data.title).toBe('Implement feature X')
-        expect(result.data.status).toBe('ready')
-        expect(result.data.phase).toBe('planning')
+        expect(result.data).not.toHaveProperty('status')
+        expect(result.data).not.toHaveProperty('phase')
       }
     })
 
@@ -68,54 +59,11 @@ describe('TaskCapsuleSchema', () => {
       }
     })
 
-    it('applies default doc_refs of [] when specdown provided without doc_refs', () => {
-      const capsule = {
-        ...validMinimalCapsule,
-        specdown: {
-          mode: 'disabled' as const,
-        },
-      }
-      const result = TaskCapsuleSchema.safeParse(capsule)
-      expect(result.success).toBe(true)
-      if (result.success) {
-        expect(result.data.specdown?.doc_refs).toEqual([])
-      }
-    })
-
-    it('accepts all valid status values', () => {
-      const statuses = ['draft', 'ready', 'running', 'reviewing', 'blocked', 'done', 'archived'] as const
-      for (const status of statuses) {
-        const result = TaskCapsuleSchema.safeParse({ ...validMinimalCapsule, status })
-        expect(result.success).toBe(true)
-      }
-    })
-
-    it('accepts all valid phase values', () => {
-      const phases = [
-        'context',
-        'planning',
-        'implementation',
-        'spec_review',
-        'code_review',
-        'runtime_verification',
-        'final_summary',
-      ] as const
-      for (const phase of phases) {
-        const result = TaskCapsuleSchema.safeParse({ ...validMinimalCapsule, phase })
-        expect(result.success).toBe(true)
-      }
-    })
   })
 
   describe('invalid capsules', () => {
-    it('rejects an invalid status value', () => {
-      const capsule = { ...validMinimalCapsule, status: 'invalid_status' }
-      const result = TaskCapsuleSchema.safeParse(capsule)
-      expect(result.success).toBe(false)
-    })
-
-    it('rejects an invalid phase value', () => {
-      const capsule = { ...validMinimalCapsule, phase: 'invalid_phase' }
+    it('rejects an invalid priority value', () => {
+      const capsule = { ...validMinimalCapsule, priority: 'invalid_priority' }
       const result = TaskCapsuleSchema.safeParse(capsule)
       expect(result.success).toBe(false)
     })
@@ -134,18 +82,6 @@ describe('TaskCapsuleSchema', () => {
 
     it('rejects when title is missing', () => {
       const { title: _title, ...capsule } = validMinimalCapsule
-      const result = TaskCapsuleSchema.safeParse(capsule)
-      expect(result.success).toBe(false)
-    })
-
-    it('rejects when status is missing', () => {
-      const { status: _status, ...capsule } = validMinimalCapsule
-      const result = TaskCapsuleSchema.safeParse(capsule)
-      expect(result.success).toBe(false)
-    })
-
-    it('rejects when phase is missing', () => {
-      const { phase: _phase, ...capsule } = validMinimalCapsule
       const result = TaskCapsuleSchema.safeParse(capsule)
       expect(result.success).toBe(false)
     })

@@ -2,12 +2,12 @@ import { notFound } from 'next/navigation'
 import { ProjectRepository, TaskRepository } from '@taskhelm/core'
 import { getDb } from '@/lib/db'
 import { Breadcrumb } from '@/components/design-system/breadcrumb'
-import { StatusBadge } from '@/components/status-badge'
 import { PortBadge } from '@/components/design-system/port-badge'
 import { TaskDetailPanels } from '@/components/task-detail-panels'
 import { EditTaskForm } from '@/components/edit-task-form'
 import { DeleteConfirm } from '@/components/delete-confirm'
 import { PageTransition } from '@/components/page-transition'
+import { getTaskPriorityLabel } from '@/lib/tasks/priority-label'
 
 interface TaskPageProps {
   params: Promise<{ slug: string; taskId: string }>
@@ -25,6 +25,17 @@ export default async function TaskPage({ params }: TaskPageProps) {
 
   const task = taskRepo.findById(taskId)
   if (!task || task.project_id !== project.id) notFound()
+  const worktreeName =
+    task.workspace_name ??
+    task.worktree_path?.split(/[/\\\\]/).filter(Boolean).at(-1) ??
+    'Not initialized'
+  const branchLabel = task.branch_name ?? task.workspace_branch ?? 'Not initialized'
+  const portLabel =
+    task.port != null
+      ? `:${task.port}`
+      : task.preferred_port != null
+        ? `:${task.preferred_port} saved`
+        : 'Not assigned'
 
   const resolvedTaskId = task.id
 
@@ -53,13 +64,13 @@ export default async function TaskPage({ params }: TaskPageProps) {
               </p>
             </div>
             <div className="workbench-hero-actions">
-              <StatusBadge value={task.status} />
               {task.port != null && <PortBadge port={task.port} />}
               <EditTaskForm task={task} projectSlug={slug} />
               <DeleteConfirm
                 label="Delete"
                 confirmText={`Delete task "${task.title}"? This cannot be undone.`}
                 onConfirm={handleDelete}
+                redirectHref={`/projects/${slug}`}
               />
             </div>
           </div>
@@ -71,11 +82,19 @@ export default async function TaskPage({ params }: TaskPageProps) {
             </div>
             <div className="workbench-meta-card">
               <div className="workbench-meta-label">Priority</div>
-              <div className="workbench-meta-value">{task.priority}</div>
+              <div className="workbench-meta-value">{getTaskPriorityLabel(task.priority)}</div>
             </div>
             <div className="workbench-meta-card">
-              <div className="workbench-meta-label">Workspace</div>
-              <div className="workbench-meta-value">{task.worktree_path ? 'Ready' : 'Not initialized'}</div>
+              <div className="workbench-meta-label">Branch</div>
+              <div className="workbench-meta-value">{branchLabel}</div>
+            </div>
+            <div className="workbench-meta-card">
+              <div className="workbench-meta-label">Worktree</div>
+              <div className="workbench-meta-value">{worktreeName}</div>
+            </div>
+            <div className="workbench-meta-card">
+              <div className="workbench-meta-label">Port</div>
+              <div className="workbench-meta-value">{portLabel}</div>
             </div>
             <div className="workbench-meta-card">
               <div className="workbench-meta-label">Dev state</div>
@@ -84,15 +103,12 @@ export default async function TaskPage({ params }: TaskPageProps) {
           </div>
         </section>
 
-        <section className="workbench-section-shell">
-          <div className="workbench-section-header">
-            <div>
-              <div className="workbench-section-title">Execution Surface</div>
-              <p className="workbench-section-copy">Read context, preview artifacts, and manage workspace/runtime from one workbench.</p>
-            </div>
-          </div>
-          <TaskDetailPanels task={task} project={project} />
-        </section>
+        <div className="task-detail-section">
+          <TaskDetailPanels
+            task={task}
+            project={project}
+          />
+        </div>
       </div>
     </PageTransition>
   )

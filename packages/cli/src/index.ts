@@ -4,7 +4,6 @@ import { registerTaskCommands } from './commands/task.js'
 import { registerWorkspaceCommands } from './commands/workspace.js'
 import { registerDevCommands } from './commands/dev.js'
 import { registerAgentCommands } from './commands/agent.js'
-import { registerSpecdownCommands } from './commands/specdown.js'
 
 export const program = new Command()
   .name('taskhelm')
@@ -16,4 +15,3 @@ registerTaskCommands(program)
 registerWorkspaceCommands(program)
 registerDevCommands(program)
 registerAgentCommands(program)
-registerSpecdownCommands(program)

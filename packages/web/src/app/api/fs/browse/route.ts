@@ -3,11 +3,18 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as os from 'node:os'
 import { execSync } from 'node:child_process'
+import { classifyContextVaultFile, supportedContextVaultFile } from '@/lib/context-vault/file-preview'
 
 interface DirEntry {
   readonly name: string
   readonly path: string
   readonly isGitRepo: boolean
+}
+
+interface FileEntry {
+  readonly name: string
+  readonly path: string
+  readonly category: string
 }
 
 export async function GET(request: Request) {
@@ -38,6 +45,14 @@ export async function GET(request: Request) {
           isGitRepo: fs.existsSync(path.join(fullPath, '.git')),
         }
       })
+    const files: FileEntry[] = entries
+      .filter(e => e.isFile() && !e.name.startsWith('.') && supportedContextVaultFile(e.name))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(e => ({
+        name: e.name,
+        path: path.join(resolved, e.name),
+        category: classifyContextVaultFile(e.name).category,
+      }))
 
     const isGitRepo = fs.existsSync(path.join(resolved, '.git'))
 
@@ -59,6 +74,7 @@ export async function GET(request: Request) {
       isGitRepo,
       gitRoot,
       dirs,
+      files,
     })
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 })

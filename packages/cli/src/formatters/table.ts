@@ -6,7 +6,7 @@ export function formatProjectsTable(
   taskCounts: ReadonlyMap<string, number>
 ): string {
   const table = new Table({
-    head: ['slug', 'name', 'repo_root', 'tasks', 'specdown_mode'],
+    head: ['slug', 'name', 'repo_root', 'tasks'],
   })
 
   for (const p of projects) {
@@ -15,7 +15,6 @@ export function formatProjectsTable(
       p.name,
       p.local_repo_root,
       String(taskCounts.get(p.id) ?? 0),
-      p.specdown_mode,
     ])
   }
 
@@ -39,7 +38,6 @@ export function formatProjectDetail(
     ['dev_command', project.dev_command ?? ''],
     ['install_command', project.install_command ?? ''],
     ['test_command', project.test_command ?? ''],
-    ['specdown_mode', project.specdown_mode],
     ['tasks', String(taskCount)],
     ['active_tasks', String(activeCount)],
     ['created_at', project.created_at],
@@ -55,7 +53,7 @@ export function formatProjectDetail(
 
 export function formatTasksTable(tasks: readonly Task[]): string {
   const table = new Table({
-    head: ['id', 'key', 'title', 'status', 'phase', 'branch', 'port'],
+    head: ['id', 'key', 'title', 'priority', 'branch', 'port'],
   })
 
   for (const t of tasks) {
@@ -63,8 +61,7 @@ export function formatTasksTable(tasks: readonly Task[]): string {
       t.id.slice(0, 8),
       t.key ?? '',
       t.title,
-      t.status,
-      t.phase,
+      String(t.priority),
       t.branch_name ?? '',
       t.port != null ? String(t.port) : '',
     ])
@@ -86,8 +83,6 @@ export function formatTaskDetail(
     ['key', task.key ?? ''],
     ['title', task.title],
     ['goal', task.goal ?? ''],
-    ['status', task.status],
-    ['phase', task.phase],
     ['priority', String(task.priority)],
     ['branch_name', task.branch_name ?? ''],
     ['worktree_path', task.worktree_path ?? ''],

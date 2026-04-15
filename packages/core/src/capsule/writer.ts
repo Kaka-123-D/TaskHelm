@@ -31,8 +31,6 @@ function buildCapsuleData(task: Task, projectSlug: string): Record<string, unkno
     id: task.id,
     project_slug: projectSlug,
     title: task.title,
-    status: task.status,
-    phase: task.phase,
     priority: task.priority,
     updated_at: task.updated_at,
   }

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { useCallback, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { GlassModal } from '@/components/design-system/glass-modal'
 import { GlassButton } from '@/components/design-system/glass-button'
 
@@ -10,9 +11,11 @@ interface DeleteConfirmProps {
   readonly confirmText: string
   readonly onConfirm: () => Promise<void>
   readonly renderTrigger?: (props: { open: () => void; deleting: boolean }) => ReactNode
+  readonly redirectHref?: string
 }
 
-export function DeleteConfirm({ label, confirmText, onConfirm, renderTrigger }: DeleteConfirmProps) {
+export function DeleteConfirm({ label, confirmText, onConfirm, renderTrigger, redirectHref }: DeleteConfirmProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -28,12 +31,15 @@ export function DeleteConfirm({ label, confirmText, onConfirm, renderTrigger }: 
       await onConfirm()
       setError(null)
       setOpen(false)
+      if (redirectHref) {
+        router.push(redirectHref)
+      }
     } catch (err) {
       setError((err as Error).message)
     } finally {
       setDeleting(false)
     }
-  }, [onConfirm])
+  }, [onConfirm, redirectHref, router])
 
   const handleClose = useCallback(() => {
     setOpen(false)

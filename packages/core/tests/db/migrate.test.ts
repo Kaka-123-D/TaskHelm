@@ -68,9 +68,65 @@ describe('runMigrations', () => {
     runMigrations(db)
 
     const rows = db.prepare('SELECT filename FROM _migrations ORDER BY filename').all() as Array<{ filename: string }>
-    expect(rows.length).toBe(8)
+    expect(rows.length).toBe(12)
     expect(rows[0].filename).toMatch(/001_projects/)
-    expect(rows[7].filename).toMatch(/008_events/)
+    expect(rows[8].filename).toMatch(/009_/)
+    expect(rows[9].filename).toMatch(/010_local_context_schema_cleanup/)
+    expect(rows[10].filename).toMatch(/011_task_runtime_preferences/)
+    expect(rows[11].filename).toMatch(/012_remove_task_status_and_phase/)
+    db.close()
+  })
+
+  it('removes remote-link columns while keeping local context vault fields', () => {
+    const db = createDatabase(TEST_DB_PATH)
+    runMigrations(db)
+
+    const projectColumns = db.prepare("PRAGMA table_info(projects)").all() as Array<{ name: string }>
+    const taskColumns = db.prepare("PRAGMA table_info(tasks)").all() as Array<{ name: string }>
+
+    expect(projectColumns.map((column) => column.name)).toEqual([
+      'id',
+      'slug',
+      'name',
+      'description',
+      'local_repo_root',
+      'default_branch',
+      'branch_naming_pattern',
+      'worktree_root',
+      'dev_command',
+      'install_command',
+      'test_command',
+      'max_active_dev_servers',
+      'created_at',
+      'updated_at',
+    ])
+
+    expect(taskColumns.map((column) => column.name)).toEqual([
+      'id',
+      'project_id',
+      'key',
+      'title',
+      'goal',
+      'source_type',
+      'source_ref',
+      'priority',
+      'branch_name',
+      'worktree_path',
+      'port',
+      'dev_server_state',
+      'context_vault_root_path',
+      'context_vault_sources_json',
+      'context_vault_files_json',
+      'context_vault_selected_file',
+      'current_agent_run_id',
+      'latest_blocker',
+      'created_at',
+      'updated_at',
+      'workspace_name',
+      'workspace_branch',
+      'workspace_subrepo_branches_json',
+      'preferred_port',
+    ])
     db.close()
   })
 

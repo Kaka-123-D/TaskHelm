@@ -79,14 +79,14 @@ Deliverables:
 - event subscriptions in supervisor
 - finish and blocker alerts
 
-## Phase 6: SpecDown Companion
+## Phase 6: Local Context Vault
 
 Deliverables:
 
-- optional project binding to SpecDown
-- pull project context from SpecDown CLI or MCP
-- push task artifacts to SpecDown
-- task-level links back to SpecDown docs
+- link task context to local folders or supported local files
+- keep previews refreshed from disk while the task detail page stays open
+- support markdown, text/code, and image previews from one workbench
+- keep context selection persisted per task
 
 ## MVP Definition
 
@@ -113,6 +113,6 @@ An MVP is reached when a user can:
 
 Ship the local-first core first.
 
-Do not wait for perfect SpecDown integration before opening the repo.
+Do not wait for perfect peripheral integrations before opening the repo.
 
-The open-source project should be useful on day one, then become more compelling when SpecDown integration lands.
+The open-source project should be useful on day one as a self-contained local control plane.

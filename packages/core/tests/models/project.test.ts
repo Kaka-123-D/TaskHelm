@@ -39,7 +39,6 @@ describe('ProjectRepository', () => {
       expect(project.local_repo_root).toBe('/home/user/my-project')
       expect(project.description).toBeNull()
       expect(project.max_active_dev_servers).toBe(1)
-      expect(project.specdown_mode).toBe('disabled')
       expect(project.created_at).toBeTruthy()
       expect(project.updated_at).toBeTruthy()
 
@@ -68,8 +67,6 @@ describe('ProjectRepository', () => {
         install_command: 'pnpm install',
         test_command: 'pnpm test',
         max_active_dev_servers: 3,
-        specdown_mode: 'linked',
-        specdown_project_ref: 'proj-123',
       })
 
       expect(project.description).toBe('A full project')
@@ -80,8 +77,6 @@ describe('ProjectRepository', () => {
       expect(project.install_command).toBe('pnpm install')
       expect(project.test_command).toBe('pnpm test')
       expect(project.max_active_dev_servers).toBe(3)
-      expect(project.specdown_mode).toBe('linked')
-      expect(project.specdown_project_ref).toBe('proj-123')
     })
   })
 

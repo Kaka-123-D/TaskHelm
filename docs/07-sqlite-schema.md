@@ -24,8 +24,6 @@ Suggested columns:
 - `install_command TEXT`
 - `test_command TEXT`
 - `max_active_dev_servers INTEGER DEFAULT 1`
-- `specdown_mode TEXT NOT NULL DEFAULT 'disabled'`
-- `specdown_project_ref TEXT`
 - `created_at TEXT NOT NULL`
 - `updated_at TEXT NOT NULL`
 

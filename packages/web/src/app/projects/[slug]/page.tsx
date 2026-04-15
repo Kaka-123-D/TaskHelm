@@ -21,8 +21,6 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   if (!project) notFound()
 
   const tasks = taskRepo.findByProjectId(project.id)
-  const runningCount = tasks.filter(task => task.status === 'running').length
-  const readyCount = tasks.filter(task => task.status === 'ready').length
 
   return (
     <PageTransition>
@@ -59,12 +57,12 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
               <div className="workbench-meta-value">{tasks.length}</div>
             </div>
             <div className="workbench-meta-card">
-              <div className="workbench-meta-label">Running</div>
-              <div className="workbench-meta-value">{runningCount}</div>
+              <div className="workbench-meta-label">Workspaces</div>
+              <div className="workbench-meta-value">{tasks.filter(task => task.worktree_path).length}</div>
             </div>
             <div className="workbench-meta-card">
-              <div className="workbench-meta-label">Ready</div>
-              <div className="workbench-meta-value">{readyCount}</div>
+              <div className="workbench-meta-label">Dev ports</div>
+              <div className="workbench-meta-value">{tasks.filter(task => task.port != null).length}</div>
             </div>
           </div>
         </section>
@@ -73,7 +71,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           <div className="workbench-section-header">
             <div>
               <div className="workbench-section-title">Task Rail</div>
-              <p className="workbench-section-copy">Filter active work, inspect status quickly, and jump directly into task execution.</p>
+              <p className="workbench-section-copy">Browse task priorities, runtime metadata, and jump directly into task execution.</p>
             </div>
           </div>
           <TaskList tasks={tasks} projectSlug={slug} />

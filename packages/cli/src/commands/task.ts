@@ -7,7 +7,6 @@ import {
   AgentRunRepository,
   writeCapsule,
 } from '@taskhelm/core'
-import type { TaskStatusValue } from '@taskhelm/core'
 import { getDb } from '../db.js'
 import { formatJson } from '../formatters/json.js'
 import { formatTasksTable, formatTaskDetail } from '../formatters/table.js'
@@ -70,7 +69,6 @@ export function registerTaskCommands(program: Command): void {
     .description('List tasks for a project')
     .requiredOption('--project <slug>', 'Project slug')
     .option('--json', 'Output as JSON')
-    .option('--status <status>', 'Filter by status')
     .action((opts) => {
       const db = getDb()
       try {
@@ -83,11 +81,7 @@ export function registerTaskCommands(program: Command): void {
           process.exit(1)
         }
 
-        let tasks = taskRepo.findByProjectId(project.id)
-
-        if (opts.status) {
-          tasks = tasks.filter((t) => t.status === (opts.status as TaskStatusValue))
-        }
+        const tasks = taskRepo.findByProjectId(project.id)
 
         if (opts.json) {
           console.log(formatJson(tasks))

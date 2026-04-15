@@ -29,8 +29,6 @@ Fields:
 - `install_command`
 - `test_command`
 - `max_active_dev_servers`
-- `specdown_mode`
-- `specdown_project_ref`
 - `created_at`
 - `updated_at`
 
@@ -39,7 +37,6 @@ Project responsibilities:
 - defines repo and runtime policies
 - owns a task namespace
 - owns task board and ops policy
-- optionally binds to a SpecDown project
 
 ### Task
 
@@ -54,13 +51,19 @@ Fields:
 - `goal`
 - `source_type`
 - `source_ref`
-- `status`
-- `phase`
 - `priority`
 - `branch_name`
+- `workspace_name`
+- `workspace_branch`
+- `workspace_subrepo_branches_json`
+- `preferred_port`
 - `worktree_path`
 - `port`
 - `dev_server_state`
+- `context_vault_root_path`
+- `context_vault_sources_json`
+- `context_vault_files_json`
+- `context_vault_selected_file`
 - `current_agent_run_id`
 - `latest_blocker`
 - `created_at`
@@ -143,28 +146,6 @@ Statuses:
 - one `Task` has many `ReviewGate`
 - one `Task` may have zero or one active `DevServer`
 
-## State Model
-
-### Task Status
-
-- `draft`
-- `ready`
-- `running`
-- `reviewing`
-- `blocked`
-- `done`
-- `archived`
-
-### Task Phase
-
-- `context`
-- `planning`
-- `implementation`
-- `spec_review`
-- `code_review`
-- `runtime_verification`
-- `final_summary`
-
 ## Storage Split
 
 Human-facing truth:
@@ -176,7 +157,6 @@ Human-facing truth:
 
 Runtime-facing truth:
 
-- status
 - locks
 - pids
 - ports

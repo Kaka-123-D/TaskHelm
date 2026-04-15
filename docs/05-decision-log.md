@@ -23,10 +23,10 @@
 - projects are top-level containers
 - tasks are the operational units inside projects
 
-## SpecDown Relationship
+## Local-First Context
 
 - standalone by default
-- best experience with SpecDown as companion
+- task context stays readable and editable from the local filesystem
 
 ## Autonomy Boundary for V1
 

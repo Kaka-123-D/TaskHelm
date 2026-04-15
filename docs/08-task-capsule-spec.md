@@ -9,7 +9,7 @@ It must be:
 - readable by humans
 - readable by agents
 - easy to diff in Git
-- easy to sync to SpecDown
+- easy to inspect and diff locally
 
 ## Directory Structure
 
@@ -37,16 +37,10 @@ goal: Allow creator search from category and hashtag entry points
 source:
   type: backlog
   ref: LRC-12424
-status: running
-phase: code_review
 priority: 2
 branch_name: feat/LRC-12424
 worktree_path: /abs/path/.worktrees/feat-LRC-12424
 port: 3003
-specdown:
-  mode: linked
-  project_ref: my-specdown-project
-  doc_refs: []
 reviews:
   spec_compliance: passed
   code_quality: open
@@ -78,7 +72,7 @@ Contains:
 
 Contains:
 
-- current status
+- current runtime snapshot
 - what changed
 - blockers
 - next recommended action

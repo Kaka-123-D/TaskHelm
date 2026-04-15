@@ -14,8 +14,6 @@ export interface CreateProjectInput {
   readonly install_command?: string
   readonly test_command?: string
   readonly max_active_dev_servers?: number
-  readonly specdown_mode?: string
-  readonly specdown_project_ref?: string
 }
 
 export interface UpdateProjectInput {
@@ -28,8 +26,6 @@ export interface UpdateProjectInput {
   readonly install_command?: string
   readonly test_command?: string
   readonly max_active_dev_servers?: number
-  readonly specdown_mode?: string
-  readonly specdown_project_ref?: string
 }
 
 type ProjectRow = {
@@ -45,8 +41,6 @@ type ProjectRow = {
   install_command: string | null
   test_command: string | null
   max_active_dev_servers: number
-  specdown_mode: string
-  specdown_project_ref: string | null
   created_at: string
   updated_at: string
 }
@@ -65,8 +59,6 @@ function rowToProject(row: ProjectRow): Project {
     install_command: row.install_command,
     test_command: row.test_command,
     max_active_dev_servers: row.max_active_dev_servers,
-    specdown_mode: row.specdown_mode as Project['specdown_mode'],
-    specdown_project_ref: row.specdown_project_ref,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }
@@ -85,13 +77,13 @@ export class ProjectRepository {
           id, slug, name, description, local_repo_root,
           default_branch, branch_naming_pattern, worktree_root,
           dev_command, install_command, test_command,
-          max_active_dev_servers, specdown_mode, specdown_project_ref,
+          max_active_dev_servers,
           created_at, updated_at
         ) VALUES (
           @id, @slug, @name, @description, @local_repo_root,
           @default_branch, @branch_naming_pattern, @worktree_root,
           @dev_command, @install_command, @test_command,
-          @max_active_dev_servers, @specdown_mode, @specdown_project_ref,
+          @max_active_dev_servers,
           @created_at, @updated_at
         )`
       )
@@ -108,8 +100,6 @@ export class ProjectRepository {
         install_command: input.install_command ?? null,
         test_command: input.test_command ?? null,
         max_active_dev_servers: input.max_active_dev_servers ?? 1,
-        specdown_mode: input.specdown_mode ?? 'disabled',
-        specdown_project_ref: input.specdown_project_ref ?? null,
         created_at: now,
         updated_at: now,
       })
@@ -159,8 +149,6 @@ export class ProjectRepository {
           install_command = @install_command,
           test_command = @test_command,
           max_active_dev_servers = @max_active_dev_servers,
-          specdown_mode = @specdown_mode,
-          specdown_project_ref = @specdown_project_ref,
           updated_at = @updated_at
         WHERE id = @id`
       )
@@ -185,12 +173,6 @@ export class ProjectRepository {
           input.max_active_dev_servers !== undefined
             ? input.max_active_dev_servers
             : existing.max_active_dev_servers,
-        specdown_mode:
-          input.specdown_mode !== undefined ? input.specdown_mode : existing.specdown_mode,
-        specdown_project_ref:
-          input.specdown_project_ref !== undefined
-            ? input.specdown_project_ref
-            : existing.specdown_project_ref,
         updated_at: now,
       })
 

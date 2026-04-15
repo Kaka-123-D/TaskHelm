@@ -1,4 +1,6 @@
 import React from 'react'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -37,5 +39,15 @@ describe('HomePage shell', () => {
     expect(markup).toContain('class="projects-page-shell"')
     expect(markup).toContain('Workspace view')
     expect(markup).toContain('Tracked repos')
+    expect(markup).toContain('class="projects-page-actions projects-page-actions--stack"')
+    expect(markup).toContain('class="projects-page-stat"')
+    expect(markup).not.toContain('projects-page-stat--inline')
+  })
+
+  it('keeps both page shell width caps fluid in the stylesheet', () => {
+    const globalsCss = fs.readFileSync(path.join(import.meta.dirname, 'globals.css'), 'utf8')
+
+    expect(globalsCss).toContain('.projects-page-shell {\n  max-width: 100%;\n}')
+    expect(globalsCss).toContain('.workbench-page-shell {\n  max-width: 100%;\n}')
   })
 })

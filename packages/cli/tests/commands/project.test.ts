@@ -51,7 +51,6 @@ describe('ProjectRepository via CLI helpers', () => {
       expect(project.slug).toBe('test-project')
       expect(project.local_repo_root).toBe('/tmp/test-project')
       expect(project.description).toBeNull()
-      expect(project.specdown_mode).toBe('disabled')
     })
 
     it('creates a project with all optional fields', () => {
@@ -127,10 +126,10 @@ describe('ProjectRepository via CLI helpers', () => {
       const project = projectRepo.create({ name: 'Active Tasks', slug: 'active-tasks', local_repo_root: '/tmp/active' })
       taskRepo.create({ project_id: project.id, title: 'Draft Task' })
       const running = taskRepo.create({ project_id: project.id, title: 'Running Task' })
-      taskRepo.updateStatus(running.id, 'running')
+      taskRepo.update(running.id, { port: 3001, dev_server_state: 'running' })
 
       const tasks = taskRepo.findByProjectId(project.id)
-      const activeTasks = tasks.filter((t) => t.status === 'running' || t.status === 'reviewing')
+      const activeTasks = tasks.filter((t) => t.port != null)
       expect(activeTasks.length).toBe(1)
     })
   })

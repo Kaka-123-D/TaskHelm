@@ -20,8 +20,6 @@ const baseProject: Project = {
   install_command: null,
   test_command: null,
   max_active_dev_servers: 1,
-  specdown_mode: 'disabled',
-  specdown_project_ref: null,
   created_at: '2026-04-11T10:00:00.000Z',
   updated_at: '2026-04-11T10:00:00.000Z',
 }
@@ -34,13 +32,19 @@ const baseTask: Task = {
   goal: 'Add X functionality',
   source_type: 'github_issue',
   source_ref: 'https://github.com/org/repo/issues/1',
-  status: 'ready',
-  phase: 'planning',
   priority: 3,
   branch_name: 'feature/task-abc123',
+  workspace_name: null,
+  workspace_branch: null,
+  workspace_subrepo_branches_json: null,
+  preferred_port: null,
   worktree_path: '/home/user/worktrees/task-abc123',
   port: 3001,
   dev_server_state: null,
+  context_vault_root_path: null,
+  context_vault_sources_json: null,
+  context_vault_files_json: null,
+  context_vault_selected_file: null,
   current_agent_run_id: null,
   latest_blocker: null,
   created_at: '2026-04-11T10:00:00.000Z',
@@ -73,8 +77,6 @@ describe('readCapsule', () => {
     expect(capsule.id).toBe(baseTask.id)
     expect(capsule.project_slug).toBe('my-project')
     expect(capsule.title).toBe(baseTask.title)
-    expect(capsule.status).toBe(baseTask.status)
-    expect(capsule.phase).toBe(baseTask.phase)
     expect(capsule.priority).toBe(baseTask.priority)
     expect(capsule.branch_name).toBe(baseTask.branch_name)
     expect(capsule.worktree_path).toBe(baseTask.worktree_path)
@@ -130,8 +132,7 @@ describe('readCapsule', () => {
       id: 'task-001',
       project_slug: 'my-project',
       title: 'Test',
-      status: 'not_a_valid_status',
-      phase: 'context',
+      priority: 'bad',
       updated_at: '2026-04-11T10:00:00.000Z',
     }
     fs.writeFileSync(path.join(capsuleDir, 'task.yaml'), stringify(invalidData), 'utf-8')

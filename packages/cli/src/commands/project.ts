@@ -100,9 +100,7 @@ export function registerProjectCommands(program: Command): void {
 
         const tasks = taskRepo.findByProjectId(project.id)
         const taskCount = tasks.length
-        const activeCount = tasks.filter(
-          (t) => t.status === 'running' || t.status === 'reviewing'
-        ).length
+        const activeCount = tasks.filter((t) => t.port != null).length
 
         if (opts.json) {
           console.log(formatJson({ ...project, task_count: taskCount, active_task_count: activeCount }))

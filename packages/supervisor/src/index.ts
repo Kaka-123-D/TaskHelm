@@ -35,7 +35,6 @@ export function startSupervisor(dbPath?: string): NodeJS.Timeout {
 }
 
 export { runOneCycle } from './loop.js'
-export { canTransition, nextPhase, phaseIndex } from './phase-machine.js'
 export { getSchedulableJobs } from './scheduler.js'
 export { dispatchJob } from './dispatcher.js'
 export { startDevServer, stopDevServer, checkServerHealth, getPoolStatus } from './dev-pool.js'

@@ -36,7 +36,6 @@ Purpose:
 - readable by humans
 - readable by AI
 - versionable in Git
-- compatible with SpecDown sync
 - clean separation between projects and tasks
 
 ### 2. Runtime State Layer
@@ -45,7 +44,6 @@ SQLite stores dynamic operational state:
 
 - projects
 - tasks
-- task phases
 - worktrees
 - branches
 - agents
@@ -68,10 +66,9 @@ Purpose:
 
 A local daemon or supervisor loop drives orchestration:
 
-- watches task state
+- watches runtime state
 - dispatches agents
 - reacts to completion events
-- transitions tasks between phases
 - updates runtime state
 - emits notifications
 
@@ -105,8 +102,7 @@ Clicking a project opens a Project Task Board.
 
 Each task row or card should show:
 
-- task status
-- current phase
+- task priority
 - branch
 - worktree path
 - port
@@ -173,6 +169,5 @@ They define:
 - branch naming policy
 - worktree root
 - dev server policy
-- SpecDown binding
 - task namespace
 - review defaults

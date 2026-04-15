@@ -10,8 +10,6 @@ TaskHelm needs a local runtime that can react continuously.
 
 - poll or subscribe to agent statuses
 - dispatch next jobs
-- maintain task phase transitions
-- enforce review ordering
 - manage dev-server pool
 - emit notifications
 - materialize updated handoff summaries
@@ -23,7 +21,7 @@ Pseudo-flow:
 1. load due tasks
 2. inspect active locks and running jobs
 3. consume new events
-4. update task state
+4. update task runtime metadata
 5. schedule next jobs
 6. emit notifications
 7. refresh dashboard cache
@@ -42,8 +40,8 @@ Pseudo-flow:
 - `project.created`
 - `task.created`
 - `task.imported`
-- `task.phase.changed`
-- `task.blocked`
+- `task.agent_run.completed`
+- `task.agent_run.failed`
 - `agent.run.started`
 - `agent.run.completed`
 - `agent.run.failed`
@@ -55,19 +53,6 @@ Pseudo-flow:
 - `dev_server.failed`
 - `notification.requested`
 - `notification.delivered`
-
-## Scheduling Policy
-
-The scheduler should be deterministic by default.
-
-It should not rely on LLM judgment for:
-
-- whether the next review gate opens
-- whether a sleeping dev server should be stopped
-- whether a task can move from implementation to spec review
-
-LLMs may produce content and judgments inside jobs.
-The supervisor should own workflow transitions.
 
 ## Locks
 
@@ -82,11 +67,11 @@ Use local logical locks for:
 
 On restart, supervisor should:
 
-- reload running tasks from SQLite
+- reload active tasks from SQLite
 - inspect live PIDs
 - mark dead processes as failed or stopped
 - resume pending notifications
-- recompute schedulable jobs
+- reconcile interrupted agent runs
 
 ## Notification Strategy
 

@@ -46,12 +46,19 @@ describe('TaskRepository', () => {
       expect(task.id).toBeTruthy()
       expect(task.project_id).toBe(project.id)
       expect(task.title).toBe('My First Task')
-      expect(task.status).toBe('draft')
-      expect(task.phase).toBe('context')
+      expect(task).not.toHaveProperty('status')
+      expect(task).not.toHaveProperty('phase')
       expect(task.priority).toBe(0)
       expect(task.key).toBeNull()
       expect(task.goal).toBeNull()
       expect(task.branch_name).toBeNull()
+      expect(task.workspace_name).toBeNull()
+      expect(task.workspace_branch).toBeNull()
+      expect(task.workspace_subrepo_branches_json).toBeNull()
+      expect(task.preferred_port).toBeNull()
+      expect(task.context_vault_root_path).toBeNull()
+      expect(task.context_vault_files_json).toBeNull()
+      expect(task.context_vault_selected_file).toBeNull()
       expect(task.created_at).toBeTruthy()
       expect(task.updated_at).toBeTruthy()
 
@@ -140,20 +147,40 @@ describe('TaskRepository', () => {
         title: 'Updated Title',
         goal: 'New goal',
         branch_name: 'feature/xyz',
+        workspace_name: 'alpha-ui',
+        workspace_branch: 'feature/alpha-ui',
+        workspace_subrepo_branches_json: JSON.stringify([{ repoPath: 'packages/ui', branch: 'feature/ui' }]),
+        preferred_port: 4321,
         worktree_path: '/worktrees/xyz',
         port: 3000,
         dev_server_state: 'running',
         priority: 10,
+        context_vault_root_path: '/repo/docs',
+        context_vault_sources_json: JSON.stringify(['/repo/docs/auth']),
+        context_vault_files_json: JSON.stringify([{ relativePath: 'guides/context.md' }]),
+        context_vault_selected_file: 'guides/context.md',
       })
 
       expect(updated.id).toBe(task.id)
       expect(updated.title).toBe('Updated Title')
       expect(updated.goal).toBe('New goal')
       expect(updated.branch_name).toBe('feature/xyz')
+      expect(updated.workspace_name).toBe('alpha-ui')
+      expect(updated.workspace_branch).toBe('feature/alpha-ui')
+      expect(updated.workspace_subrepo_branches_json).toBe(
+        JSON.stringify([{ repoPath: 'packages/ui', branch: 'feature/ui' }]),
+      )
+      expect(updated.preferred_port).toBe(4321)
       expect(updated.worktree_path).toBe('/worktrees/xyz')
       expect(updated.port).toBe(3000)
       expect(updated.dev_server_state).toBe('running')
       expect(updated.priority).toBe(10)
+      expect(updated.context_vault_root_path).toBe('/repo/docs')
+      expect(updated.context_vault_sources_json).toBe(JSON.stringify(['/repo/docs/auth']))
+      expect(updated.context_vault_files_json).toBe(
+        JSON.stringify([{ relativePath: 'guides/context.md' }]),
+      )
+      expect(updated.context_vault_selected_file).toBe('guides/context.md')
     })
 
     it('clears nullable fields when set to null', () => {
@@ -168,38 +195,6 @@ describe('TaskRepository', () => {
     it('throws when updating non-existent task', () => {
       const repo = new TaskRepository(db)
       expect(() => repo.update('nonexistent', { title: 'X' })).toThrow()
-    })
-  })
-
-  describe('updateStatus', () => {
-    it('updates the status field', () => {
-      const project = createTestProject(db)
-      const repo = new TaskRepository(db)
-      const task = repo.create({ project_id: project.id, title: 'Status Task' })
-
-      expect(task.status).toBe('draft')
-
-      const updated = repo.updateStatus(task.id, 'ready')
-      expect(updated.status).toBe('ready')
-
-      const updated2 = repo.updateStatus(task.id, 'running')
-      expect(updated2.status).toBe('running')
-    })
-  })
-
-  describe('updatePhase', () => {
-    it('updates the phase field', () => {
-      const project = createTestProject(db)
-      const repo = new TaskRepository(db)
-      const task = repo.create({ project_id: project.id, title: 'Phase Task' })
-
-      expect(task.phase).toBe('context')
-
-      const updated = repo.updatePhase(task.id, 'planning')
-      expect(updated.phase).toBe('planning')
-
-      const updated2 = repo.updatePhase(task.id, 'implementation')
-      expect(updated2.phase).toBe('implementation')
     })
   })
 

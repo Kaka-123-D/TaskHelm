@@ -12,7 +12,7 @@ export async function GET() {
     const result = projects.map(p => ({
       ...p,
       taskCount: taskRepo.findByProjectId(p.id).length,
-      activeTaskCount: taskRepo.findByProjectId(p.id).filter(t => t.status === 'running').length,
+      activeTaskCount: taskRepo.findByProjectId(p.id).filter(t => t.port != null).length,
     }))
 
     return NextResponse.json(result)

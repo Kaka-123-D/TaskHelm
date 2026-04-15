@@ -11,27 +11,10 @@ export const TaskCapsuleSchema = z.object({
       ref: z.string(),
     })
     .optional(),
-  status: z.enum(['draft', 'ready', 'running', 'reviewing', 'blocked', 'done', 'archived']),
-  phase: z.enum([
-    'context',
-    'planning',
-    'implementation',
-    'spec_review',
-    'code_review',
-    'runtime_verification',
-    'final_summary',
-  ]),
   priority: z.number().int().default(0),
   branch_name: z.string().optional(),
   worktree_path: z.string().optional(),
   port: z.number().int().optional(),
-  specdown: z
-    .object({
-      mode: z.enum(['disabled', 'linked', 'preferred']),
-      project_ref: z.string().optional(),
-      doc_refs: z.array(z.string()).default([]),
-    })
-    .optional(),
   reviews: z
     .object({
       spec_compliance: z.enum(['pending', 'open', 'passed', 'failed']).default('pending'),

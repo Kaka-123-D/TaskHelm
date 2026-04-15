@@ -66,7 +66,7 @@ projects/<project-slug>/
 - Single-user first (no auth/RBAC in v1)
 - Dev servers are pooled with max concurrency — warm vs sleeping states
 - Supervisor updates SQLite first, then refreshes markdown artifacts
-- SpecDown integration is optional — standalone must work on day one
+- Local-first context is a core requirement — standalone must work on day one
 - CLI supports `--json` output for automation; table output by default
 
 ## Document Map

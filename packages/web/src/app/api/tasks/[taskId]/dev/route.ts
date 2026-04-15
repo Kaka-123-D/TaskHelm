@@ -11,13 +11,18 @@ import { getDb } from '@/lib/db'
 
 type Params = { params: Promise<{ taskId: string }> }
 
+interface DevRequestBody {
+  readonly preferredPort?: number | null
+}
+
 /** POST = dev start */
-export async function POST(_request: Request, { params }: Params) {
+export async function POST(request: Request, { params }: Params) {
   try {
     const { taskId } = await params
     const db = getDb()
     const taskRepo = new TaskRepository(db)
     const projectRepo = new ProjectRepository(db)
+    const devServerRepo = new DevServerRepository(db)
 
     const task = taskRepo.findById(taskId)
     if (!task) {
@@ -40,7 +45,20 @@ export async function POST(_request: Request, { params }: Params) {
       )
     }
 
-    const port = await allocatePort(db, project.id, task.id)
+    const body = (await request.json().catch(() => ({}))) as DevRequestBody
+    const requestedPreferredPort =
+      body.preferredPort !== undefined ? body.preferredPort : task.preferred_port
+
+    const port =
+      requestedPreferredPort != null
+        ? (() => {
+            const reserved = devServerRepo.findByPort(requestedPreferredPort)
+            if (reserved && reserved.status !== 'stopped') {
+              throw new Error(`Preferred port ${requestedPreferredPort} is not available`)
+            }
+            return requestedPreferredPort
+          })()
+        : await allocatePort(db, project.id, task.id)
 
     const devServer = startDevServer({
       db,
@@ -52,6 +70,7 @@ export async function POST(_request: Request, { params }: Params) {
     })
 
     taskRepo.update(task.id, {
+      preferred_port: requestedPreferredPort ?? null,
       port: devServer.port,
       dev_server_state: 'running',
     })
@@ -91,7 +110,7 @@ export async function DELETE(_request: Request, { params }: Params) {
     }
 
     taskRepo.update(task.id, {
-      port: undefined,
+      port: null,
       dev_server_state: 'stopped',
     })
 

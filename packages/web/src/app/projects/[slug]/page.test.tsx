@@ -18,8 +18,8 @@ vi.mock('@taskhelm/core', () => ({
   })),
   TaskRepository: vi.fn().mockImplementation(() => ({
     findByProjectId: () => [
-      { id: 'task-1', status: 'ready' },
-      { id: 'task-2', status: 'running' },
+      { id: 'task-1', worktree_path: '/repo/.worktrees/alpha-ui', port: null },
+      { id: 'task-2', worktree_path: null, port: 3010 },
     ],
   })),
 }))
@@ -53,6 +53,8 @@ describe('ProjectPage workbench shell', () => {
     expect(markup).toContain('Project Workspace')
     expect(markup).toContain('Task Rail')
     expect(markup).toContain('Repo root')
+    expect(markup).toContain('Workspaces')
+    expect(markup).toContain('Dev ports')
     expect(markup).toContain('data-slot="task-list"')
   })
 })

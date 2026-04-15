@@ -20,7 +20,6 @@ taskhelm project create
 taskhelm project import
 taskhelm project list
 taskhelm project show <project>
-taskhelm project bind-specdown <project>
 ```
 
 ### Task Commands
@@ -66,9 +65,6 @@ taskhelm dev pool
 ### Sync Commands
 
 ```bash
-taskhelm specdown pull-context <project>
-taskhelm specdown push-task <task>
-taskhelm specdown link <project>
 ```
 
 ## Output Rules

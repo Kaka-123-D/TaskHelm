@@ -21,11 +21,10 @@ Each project card or row should show:
 
 - project name
 - local repo root
-- active task count
-- blocked task count
+- task count
+- attached workspace count
 - active dev server count
 - latest critical notification
-- SpecDown link state
 
 ## Screen 2: Project Task Board
 
@@ -37,8 +36,7 @@ Purpose:
 Each task card or row should show:
 
 - task id and title
-- status
-- phase
+- priority
 - branch
 - worktree path
 - port
@@ -74,4 +72,4 @@ Sections:
 
 - operator should scan many tasks quickly
 - every important ops signal must be visible without opening logs
-- state transitions must feel explicit and trustworthy
+- workspace/runtime actions must feel explicit and trustworthy

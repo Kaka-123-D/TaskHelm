@@ -12,7 +12,14 @@ vi.mock('@taskhelm/core', () => ({
       id: 'project-1',
       slug: 'alpha',
       name: 'Alpha',
-      specdown_project_ref: null,
+      local_repo_root: '/repo/alpha',
+      default_branch: null,
+      branch_naming_pattern: null,
+      worktree_root: null,
+      dev_command: null,
+      install_command: null,
+      test_command: null,
+      max_active_dev_servers: 1,
     }),
   })),
   TaskRepository: vi.fn().mockImplementation(() => ({
@@ -21,8 +28,12 @@ vi.mock('@taskhelm/core', () => ({
       project_id: 'project-1',
       title: 'Ship auth',
       goal: 'Finish the login flow',
-      status: 'ready',
-      priority: 2,
+      priority: 3,
+      branch_name: null,
+      workspace_name: 'alpha-ui',
+      workspace_branch: 'feat/task-1',
+      workspace_subrepo_branches_json: null,
+      preferred_port: 4555,
       worktree_path: null,
       dev_server_state: null,
       port: null,
@@ -39,10 +50,6 @@ vi.mock('@/components/design-system/breadcrumb', () => ({
   Breadcrumb: () => <div data-slot="breadcrumb" />,
 }))
 
-vi.mock('@/components/status-badge', () => ({
-  StatusBadge: ({ value }: { value: string }) => <span data-slot="status-badge">{value}</span>,
-}))
-
 vi.mock('@/components/design-system/port-badge', () => ({
   PortBadge: ({ port }: { port: number }) => <span data-slot="port-badge">{port}</span>,
 }))
@@ -56,11 +63,13 @@ vi.mock('@/components/edit-task-form', () => ({
 }))
 
 vi.mock('@/components/delete-confirm', () => ({
-  DeleteConfirm: () => <div data-slot="delete-confirm" />,
+  DeleteConfirm: ({ redirectHref }: { redirectHref?: string }) => (
+    <div data-slot="delete-confirm" data-redirect-href={redirectHref} />
+  ),
 }))
 
 describe('TaskPage workbench shell', () => {
-  it('renders the execution surface hero and pane section', async () => {
+  it('renders the task work item hero without the extra execution surface wrapper', async () => {
     const TaskPage = (await import('./page')).default
 
     const markup = renderToStaticMarkup(
@@ -68,8 +77,15 @@ describe('TaskPage workbench shell', () => {
     )
 
     expect(markup).toContain('Task Work Item')
-    expect(markup).toContain('Execution Surface')
+    expect(markup).not.toContain('Execution Surface')
+    expect(markup).not.toContain('Read context, preview artifacts, and manage workspace/runtime from one workbench.')
     expect(markup).toContain('Ship auth')
+    expect(markup).toContain('Normal')
+    expect(markup).toContain('alpha-ui')
+    expect(markup).toContain('feat/task-1')
+    expect(markup).toContain(':4555 saved')
     expect(markup).toContain('data-slot="task-detail-panels"')
+    expect(markup).toContain('data-redirect-href="/projects/alpha"')
+    expect(markup).not.toContain('data-slot="status-badge"')
   })
 })

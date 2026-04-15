@@ -58,7 +58,6 @@ Single-user first:
 - hosted multi-tenant orchestration
 - fully autonomous push/merge/PR creation
 - replacing Git or ticket systems
-- replacing SpecDown
 
 ## V1 Success Criteria
 
@@ -71,19 +70,15 @@ TaskHelm v1 is successful if a single user can:
 - receive proactive reporting when sub-agents finish or block
 - keep task context readable in Markdown and executable in runtime state
 
-## Strategic Relationship to SpecDown
+## Local-First Principle
 
-TaskHelm should be open-source and independently usable.
-
-But it should also make an obvious statement:
-
-“If your specs live in SpecDown, TaskHelm becomes a much better manager.”
+TaskHelm should be open-source and independently useful from the local filesystem alone.
 
 That means:
 
 - standalone first-run must be easy
-- SpecDown integration must feel native, not bolted on
-- backlink and product synergy should come from usefulness, not lock-in
+- task context must stay readable in local Markdown and YAML
+- no external integration should be required for core orchestration
 
 ## Information Architecture Thesis
 

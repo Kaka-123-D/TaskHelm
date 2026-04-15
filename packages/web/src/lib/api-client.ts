@@ -6,9 +6,8 @@ export async function fetchProjects() {
   return res.json()
 }
 
-export async function fetchTasks(projectId: string, status?: string) {
+export async function fetchTasks(projectId: string) {
   const params = new URLSearchParams({ projectId })
-  if (status) params.set('status', status)
   const res = await fetch(`${BASE}/tasks?${params}`)
   if (!res.ok) throw new Error('Failed to fetch tasks')
   return res.json()

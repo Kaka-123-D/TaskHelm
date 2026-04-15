@@ -65,8 +65,6 @@ const baseProject = {
   install_command: null,
   test_command: null,
   max_active_dev_servers: 1,
-  specdown_mode: 'disabled',
-  specdown_project_ref: null,
   created_at: '2026-04-12T00:00:00.000Z',
   updated_at: '2026-04-12T00:00:00.000Z',
 } satisfies Project

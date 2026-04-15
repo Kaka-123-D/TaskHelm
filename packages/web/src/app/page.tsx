@@ -15,7 +15,7 @@ export default function HomePage() {
     return {
       project,
       taskCount: tasks.length,
-      runningCount: tasks.filter(t => t.status === 'running').length,
+      runningCount: tasks.filter(t => t.port != null).length,
     }
   })
 
@@ -30,7 +30,7 @@ export default function HomePage() {
               Track your local repos, jump into active work, and keep every engineering workspace in one bright control room.
             </p>
           </div>
-          <div className="projects-page-actions">
+          <div className="projects-page-actions projects-page-actions--stack">
             <div className="projects-page-stat">
               <span className="projects-page-stat-label">Tracked repos</span>
               <span className="projects-page-stat-value">{projects.length}</span>
