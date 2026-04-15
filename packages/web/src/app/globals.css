@@ -478,22 +478,23 @@ input {
   display: none;
 }
 
-.context-file-list-toggle {
+.context-file-list-icon-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(143, 120, 85, 0.2);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.84);
-  padding: 0.45rem 0.8rem;
+  width: 2.25rem;
+  height: 2.25rem;
   color: var(--text-secondary);
-  font-size: 0.74rem;
+  font-size: 0.9rem;
   font-weight: 700;
   letter-spacing: 0.03em;
   transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
 }
 
-.context-file-list-toggle:hover {
+.context-file-list-icon-toggle:hover {
   border-color: var(--border-hover);
   background: rgba(255, 255, 255, 0.96);
   color: var(--text-primary);
@@ -515,15 +516,16 @@ input {
   gap: 0.45rem;
 }
 
-.context-file-tree-folder-label {
+.context-file-tree-row {
   display: flex;
+  width: 100%;
   align-items: center;
-  gap: 0.45rem;
-  color: var(--text-secondary);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  gap: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.95rem;
+  padding: 0.85rem 0.9rem;
+  text-align: left;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
 }
 
 .context-file-tree-children {
@@ -532,23 +534,23 @@ input {
   gap: 0.7rem;
 }
 
-.context-file-list-item {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 0.9rem;
-  border: 1px solid var(--border);
-  border-radius: 0.95rem;
-  background: rgba(255, 255, 255, 0.66);
-  padding: 0.85rem 0.9rem;
-  text-align: left;
-  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+.context-file-tree-row[data-node-kind='folder'] {
+  background: rgba(255, 250, 242, 0.72);
 }
 
-.context-file-list-item:hover,
-.context-file-list-item[data-state='selected'] {
+.context-file-tree-row[data-node-kind='file'] {
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.context-file-tree-row:hover,
+.context-file-tree-row[data-state='selected'] {
   border-color: var(--border-hover);
   background: var(--surface-hover);
+}
+
+.context-file-tree-icon {
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .context-file-preview-viewport {

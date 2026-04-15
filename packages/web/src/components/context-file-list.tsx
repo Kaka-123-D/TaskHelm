@@ -1,9 +1,14 @@
 'use client'
 
+import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'motion/react'
 import { classifyContextVaultFile } from '@/lib/context-vault/file-preview'
 import type { PersistedContextVaultFile } from '@/lib/context-vault/persisted-vault'
 import { buildContextVaultTree, type ContextVaultTreeNode } from '@/lib/context-vault/tree'
+import {
+  createInitialExpandedFolders,
+  ensureSelectedFileFoldersExpanded,
+} from '@/lib/context-vault/tree-state'
 
 interface ContextFileListProps {
   readonly files: readonly PersistedContextVaultFile[]
@@ -20,6 +25,27 @@ export function ContextFileList({
   onSelect,
   onToggleCollapse,
 }: ContextFileListProps) {
+  const tree = useMemo(() => buildContextVaultTree(files), [files])
+  const folderPaths = useMemo(() => collectFolderPaths(tree), [tree])
+  const [expandedFolders, setExpandedFolders] = useState<ReadonlySet<string>>(() =>
+    createInitialExpandedFolders(folderPaths, selectedFile),
+  )
+
+  useEffect(() => {
+    const validPaths = new Set(folderPaths)
+    const rootFolders = folderPaths.filter(folderPath => !folderPath.includes('/'))
+
+    setExpandedFolders(current => {
+      const next = new Set([...current].filter(folderPath => validPaths.has(folderPath)))
+
+      for (const folderPath of rootFolders) {
+        next.add(folderPath)
+      }
+
+      return ensureSelectedFileFoldersExpanded(next, selectedFile)
+    })
+  }, [folderPaths, selectedFile])
+
   if (files.length === 0) {
     return (
       <div className="context-file-list-shell" data-state={collapsed ? 'collapsed' : 'expanded'}>
@@ -29,8 +55,13 @@ export function ContextFileList({
             <p className="mt-1 text-xs text-[var(--text-muted)]">0 files loaded</p>
           </div>
           {onToggleCollapse ? (
-            <button type="button" className="context-file-list-toggle" onClick={onToggleCollapse}>
-              {collapsed ? 'Expand list' : 'Collapse list'}
+            <button
+              type="button"
+              className="context-file-list-icon-toggle"
+              aria-label={collapsed ? 'Expand file list' : 'Collapse file list'}
+              onClick={onToggleCollapse}
+            >
+              <span aria-hidden="true">{collapsed ? '⟫' : '⟪'}</span>
             </button>
           ) : null}
         </div>
@@ -44,8 +75,6 @@ export function ContextFileList({
     )
   }
 
-  const tree = buildContextVaultTree(files)
-
   return (
     <div className="context-file-list-shell" data-state={collapsed ? 'collapsed' : 'expanded'}>
       <div className="context-file-list-header">
@@ -56,8 +85,13 @@ export function ContextFileList({
           </p>
         </div>
         {onToggleCollapse ? (
-          <button type="button" className="context-file-list-toggle" onClick={onToggleCollapse}>
-            {collapsed ? 'Expand list' : 'Collapse list'}
+          <button
+            type="button"
+            className="context-file-list-icon-toggle"
+            aria-label={collapsed ? 'Expand file list' : 'Collapse file list'}
+            onClick={onToggleCollapse}
+          >
+            <span aria-hidden="true">{collapsed ? '⟫' : '⟪'}</span>
           </button>
         ) : null}
       </div>
@@ -69,7 +103,19 @@ export function ContextFileList({
               node={node}
               depth={0}
               selectedFile={selectedFile}
+              expandedFolders={expandedFolders}
               onSelect={onSelect}
+              onToggleFolder={folderPath =>
+                setExpandedFolders(current => {
+                  const next = new Set(current)
+                  if (next.has(folderPath)) {
+                    next.delete(folderPath)
+                  } else {
+                    next.add(folderPath)
+                  }
+                  return next
+                })
+              }
             />
           ))}
         </div>
@@ -78,35 +124,72 @@ export function ContextFileList({
   )
 }
 
+function collectFolderPaths(nodes: readonly ContextVaultTreeNode[]): readonly string[] {
+  const folderPaths: string[] = []
+
+  function walk(currentNodes: readonly ContextVaultTreeNode[]) {
+    for (const node of currentNodes) {
+      if (node.kind !== 'folder') {
+        continue
+      }
+
+      folderPaths.push(node.path)
+      walk(node.children)
+    }
+  }
+
+  walk(nodes)
+  return folderPaths
+}
+
 function ContextFileTreeNode({
   node,
   depth,
   selectedFile,
+  expandedFolders,
   onSelect,
+  onToggleFolder,
 }: {
   readonly node: ContextVaultTreeNode
   readonly depth: number
   readonly selectedFile: string | null
+  readonly expandedFolders: ReadonlySet<string>
   readonly onSelect: (name: string) => void
+  readonly onToggleFolder: (folderPath: string) => void
 }) {
   if (node.kind === 'folder') {
+    const isExpanded = expandedFolders.has(node.path)
+
     return (
       <div className="context-file-tree-folder" data-depth={depth}>
-        <div className="context-file-tree-folder-label" style={{ paddingLeft: `${depth * 0.85}rem` }}>
-          <span className="text-xs text-[var(--text-muted)]">▾</span>
+        <button
+          type="button"
+          className="context-file-tree-row"
+          data-node-kind="folder"
+          aria-expanded={isExpanded}
+          onClick={() => onToggleFolder(node.path)}
+          style={{ marginLeft: `${depth * 0.85}rem` }}
+        >
+          <span className="context-file-tree-icon" aria-hidden="true">
+            {isExpanded ? '📂' : '📁'}
+          </span>
           <span className="truncate">{node.name}</span>
-        </div>
-        <div className="context-file-tree-children">
-          {node.children.map(child => (
-            <ContextFileTreeNode
-              key={child.path}
-              node={child}
-              depth={depth + 1}
-              selectedFile={selectedFile}
-              onSelect={onSelect}
-            />
-          ))}
-        </div>
+        </button>
+        {isExpanded ? (
+          <div className="context-file-tree-children">
+            {node.children.map(child => (
+              <ContextFileTreeNode
+                key={child.path}
+                node={child}
+                depth={depth + 1}
+                selectedFile={selectedFile}
+                expandedFolders={expandedFolders}
+                onSelect={onSelect}
+                onToggleFolder={onToggleFolder}
+              />
+            ))}
+          </div>
+        ) : null}
       </div>
     )
   }
@@ -127,13 +210,14 @@ function ContextFileTreeNode({
     <motion.button
       type="button"
       onClick={() => onSelect(file.relativePath)}
-      className="context-file-list-item"
+      className="context-file-tree-row"
+      data-node-kind="file"
       data-state={isSelected ? 'selected' : 'idle'}
       style={{ marginLeft: `${depth * 0.85}rem` }}
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-[var(--accent)]">
+          <span className="context-file-tree-icon" aria-hidden="true">
             {resolvedCategory === 'image' ? '🖼' : resolvedCategory === 'markdown' ? '📝' : '📄'}
           </span>
           <span className="truncate text-sm font-medium text-[var(--text-primary)]">{node.name}</span>

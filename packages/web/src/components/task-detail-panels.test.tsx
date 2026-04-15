@@ -111,7 +111,7 @@ describe('TaskDetailPanelsView', () => {
     expect(markup).toContain('/repo/alpha/docs')
     expect(markup).toContain('Loaded 1 context file from the local filesystem.')
     expect(markup).toContain('Change Context Vault')
-    expect(markup).toContain('Collapse list')
+    expect(markup).toContain('aria-label="Collapse file list"')
   })
 
   it('does not show the execution-surface loading copy once files already exist', () => {
@@ -168,6 +168,6 @@ describe('TaskDetailPanelsView', () => {
       />,
     )
 
-    expect(markup).toContain('Expand list')
+    expect(markup).toContain('aria-label="Expand file list"')
   })
 })
