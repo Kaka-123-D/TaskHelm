@@ -7,8 +7,6 @@ import {
   TaskRepository,
   writeCapsule,
   formatBranchName,
-  createBranch,
-  branchExists,
   createWorktree,
   listWorktrees,
   removeWorktree,
@@ -16,18 +14,28 @@ import {
 import { getDb } from '@/lib/db'
 import { discoverSubrepos } from '@/lib/workspace/subrepo-discovery'
 import {
+  assertSafeBranchName,
+  currentBranch,
+  listAvailableBaseBranches,
+  prepareBranchForWorktree,
+  RecoverableBaseBranchError,
+} from '@/lib/workspace/base-branch'
+import {
   normalizeWorkspaceSubrepoBranches,
   parseWorkspaceSubrepoBranches,
   serializeWorkspaceSubrepoBranches,
   workspaceNameExistsInProject,
 } from '@/lib/workspace/runtime-settings'
-import { checkoutOrCreateBranch } from '@/lib/workspace/git-branch'
+import { materializeNestedRepoWorktrees } from '@/lib/workspace/nested-worktree'
 
 type Params = { params: Promise<{ taskId: string }> }
 
 interface WorkspaceRequestBody {
   readonly workspaceName?: string
   readonly workspaceBranch?: string
+  readonly baseBranch?: string
+  readonly autoPullBaseBranch?: boolean
+  readonly forceRefreshBaseBranch?: boolean
   readonly subrepoBranches?: readonly { repoPath: string; branch: string }[]
   readonly existingWorktreePath?: string
 }
@@ -130,10 +138,13 @@ export async function GET(_request: Request, { params }: Params) {
       settings: {
         workspaceName: task.workspace_name ?? '',
         workspaceBranch: task.workspace_branch ?? '',
+        baseBranch: currentBranch(project.local_repo_root),
+        autoPullBaseBranch: true,
         preferredPort: task.preferred_port,
         subrepoBranches: parseWorkspaceSubrepoBranches(task.workspace_subrepo_branches_json),
       },
       detectedSubrepos: discoverSubrepos(project.local_repo_root),
+      availableBaseBranches: listAvailableBaseBranches(project.local_repo_root),
       availableExistingWorktrees: getAvailableExistingWorktrees(
         taskRepo,
         project.id,
@@ -171,6 +182,15 @@ export async function PATCH(request: Request, { params }: Params) {
     if (!normalized.workspaceName) {
       return NextResponse.json({ error: 'Workspace name is required' }, { status: 400 })
     }
+    if (normalized.workspaceBranch) {
+      assertSafeBranchName(normalized.workspaceBranch)
+    }
+    if (trimOrEmpty(body.baseBranch)) {
+      assertSafeBranchName(trimOrEmpty(body.baseBranch))
+    }
+    for (const entry of normalized.subrepoBranches) {
+      assertSafeBranchName(entry.branch)
+    }
 
     if (
       workspaceNameExistsInProject(
@@ -192,10 +212,13 @@ export async function PATCH(request: Request, { params }: Params) {
       settings: {
         workspaceName: updatedTask.workspace_name ?? '',
         workspaceBranch: updatedTask.workspace_branch ?? '',
+        baseBranch: trimOrEmpty(body.baseBranch) || currentBranch(project.local_repo_root),
+        autoPullBaseBranch: body.autoPullBaseBranch ?? true,
         preferredPort: updatedTask.preferred_port,
         subrepoBranches: parseWorkspaceSubrepoBranches(updatedTask.workspace_subrepo_branches_json),
       },
       detectedSubrepos,
+      availableBaseBranches: listAvailableBaseBranches(project.local_repo_root),
     })
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 })
@@ -240,6 +263,9 @@ export async function POST(request: Request, { params }: Params) {
             worktree => worktree.path === canonicalPath(requestedExistingWorktreePath),
           )
         : null
+    const baseBranch = trimOrEmpty(body.baseBranch) || currentBranch(repoRoot)
+    const autoPullBaseBranch = body.autoPullBaseBranch ?? true
+    const forceRefreshBaseBranch = body.forceRefreshBaseBranch ?? false
     const workspaceName = normalized.workspaceName || selectedExistingWorktree?.name || ''
     const branchName =
       selectedExistingWorktree?.branch ||
@@ -249,6 +275,11 @@ export async function POST(request: Request, { params }: Params) {
 
     if (!workspaceName) {
       return NextResponse.json({ error: 'Workspace name is required' }, { status: 400 })
+    }
+    assertSafeBranchName(branchName)
+    assertSafeBranchName(baseBranch)
+    for (const entry of subrepoBranches) {
+      assertSafeBranchName(entry.branch)
     }
 
     if (workspaceNameExistsInProject(taskRepo.findByProjectId(project.id), workspaceName, task.id)) {
@@ -266,9 +297,13 @@ export async function POST(request: Request, { params }: Params) {
     const worktreePath =
       selectedExistingWorktree?.path ??
       (() => {
-        if (!branchExists(repoRoot, branchName)) {
-          createBranch(repoRoot, branchName)
-        }
+        prepareBranchForWorktree({
+          repoRoot,
+          targetBranch: branchName,
+          baseBranch,
+          autoPull: autoPullBaseBranch,
+          forceRefresh: forceRefreshBaseBranch,
+        })
 
         if (!fs.existsSync(worktreeRootDir)) {
           fs.mkdirSync(worktreeRootDir, { recursive: true })
@@ -289,10 +324,12 @@ export async function POST(request: Request, { params }: Params) {
       worktree_path: worktreePath,
     })
 
-    if (!selectedExistingWorktree) {
-      for (const subrepo of subrepoBranches) {
-        checkoutOrCreateBranch(path.join(repoRoot, subrepo.repoPath), subrepo.branch)
-      }
+    if (!selectedExistingWorktree && subrepoBranches.length > 0) {
+      materializeNestedRepoWorktrees({
+        repoRoot,
+        worktreePath,
+        nestedRepos: subrepoBranches,
+      })
     }
 
     writeCapsule({
@@ -311,6 +348,14 @@ export async function POST(request: Request, { params }: Params) {
       task: updatedTask,
     }, { status: 201 })
   } catch (error) {
+    if (error instanceof RecoverableBaseBranchError) {
+      return NextResponse.json({
+        error: error.message,
+        code: error.code,
+        recoverable: true,
+        canForceRefresh: error.canForceRefresh,
+      }, { status: 400 })
+    }
     return NextResponse.json({ error: (error as Error).message }, { status: 400 })
   }
 }

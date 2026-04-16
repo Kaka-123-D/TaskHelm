@@ -169,5 +169,6 @@ describe('TaskDetailPanelsView', () => {
     )
 
     expect(markup).toContain('aria-label="Expand file list"')
+    expect(markup).toContain('data-state="collapsed"')
   })
 })

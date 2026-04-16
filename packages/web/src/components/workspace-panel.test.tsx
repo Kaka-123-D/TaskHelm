@@ -188,6 +188,9 @@ describe('WorkspacePanelView', () => {
     )
 
     expect(markup).toContain('Base Branch')
+    expect(markup).toContain('list="workspace-base-branch-options"')
+    expect(markup).toContain('<datalist id="workspace-base-branch-options">')
+    expect(markup).toContain('<option value="main"></option>')
     expect(markup).toContain('Auto-pull latest from base branch')
   })
 
@@ -224,5 +227,40 @@ describe('WorkspacePanelView', () => {
 
     expect(markup).toContain('Force Refresh Base Branch')
     expect(markup).toContain('Failed to pull')
+  })
+
+  it('shows a branch creation hint when the target branch does not exist yet', async () => {
+    const { WorkspacePanelView } = await import('./workspace-panel')
+    const markup = renderToStaticMarkup(
+      <WorkspacePanelView
+        task={makeTask()}
+        loading={false}
+        settingsLoading={false}
+        error={null}
+        workspaceName="alpha-ui"
+        workspaceBranch="feature/alpha-ui"
+        baseBranch="main"
+        availableBaseBranches={['main', 'develop']}
+        autoPullBaseBranch
+        recoverableBaseBranchError={null}
+        subrepoBranches={{}}
+        detectedSubrepos={[]}
+        availableExistingWorktrees={[]}
+        selectedExistingWorktreePath=""
+        onWorkspaceNameChange={() => {}}
+        onWorkspaceBranchChange={() => {}}
+        onBaseBranchChange={() => {}}
+        onAutoPullBaseBranchChange={() => {}}
+        onSubrepoBranchChange={() => {}}
+        onSelectedExistingWorktreeChange={() => {}}
+        onRetryWithForceRefresh={() => {}}
+        onSave={() => {}}
+        onInitOrAttach={() => {}}
+        onCleanup={() => {}}
+      />,
+    )
+
+    expect(markup).toContain('This branch does not exist yet.')
+    expect(markup).toContain('It will be created from &quot;main&quot;.')
   })
 })

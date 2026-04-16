@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { classifyContextVaultFile } from '@/lib/context-vault/file-preview'
 import type { PersistedContextVaultFile } from '@/lib/context-vault/persisted-vault'
 import { buildContextVaultTree, type ContextVaultTreeNode } from '@/lib/context-vault/tree'
 import {
   createInitialExpandedFolders,
-  ensureSelectedFileFoldersExpanded,
+  reconcileExpandedFolders,
 } from '@/lib/context-vault/tree-state'
 
 interface ContextFileListProps {
@@ -27,22 +28,19 @@ export function ContextFileList({
 }: ContextFileListProps) {
   const tree = useMemo(() => buildContextVaultTree(files), [files])
   const folderPaths = useMemo(() => collectFolderPaths(tree), [tree])
+  const didInitializeFolders = useRef(folderPaths.length > 0)
   const [expandedFolders, setExpandedFolders] = useState<ReadonlySet<string>>(() =>
     createInitialExpandedFolders(folderPaths, selectedFile),
   )
 
   useEffect(() => {
-    const validPaths = new Set(folderPaths)
-    const rootFolders = folderPaths.filter(folderPath => !folderPath.includes('/'))
-
     setExpandedFolders(current => {
-      const next = new Set([...current].filter(folderPath => validPaths.has(folderPath)))
-
-      for (const folderPath of rootFolders) {
-        next.add(folderPath)
+      if (!didInitializeFolders.current && folderPaths.length > 0) {
+        didInitializeFolders.current = true
+        return createInitialExpandedFolders(folderPaths, selectedFile)
       }
 
-      return ensureSelectedFileFoldersExpanded(next, selectedFile)
+      return reconcileExpandedFolders(current, folderPaths)
     })
   }, [folderPaths, selectedFile])
 
@@ -157,18 +155,25 @@ function ContextFileTreeNode({
   readonly onSelect: (name: string) => void
   readonly onToggleFolder: (folderPath: string) => void
 }) {
+  const treeNodeStyle = { '--tree-depth': depth } as CSSProperties
+
   if (node.kind === 'folder') {
     const isExpanded = expandedFolders.has(node.path)
 
     return (
-      <div className="context-file-tree-folder" data-depth={depth}>
+      <div
+        className="context-file-tree-node context-file-tree-folder"
+        data-depth={depth}
+        style={treeNodeStyle}
+      >
+        {depth > 0 ? <span className="context-file-tree-branch" aria-hidden="true" /> : null}
         <button
           type="button"
           className="context-file-tree-row"
           data-node-kind="folder"
           aria-expanded={isExpanded}
           onClick={() => onToggleFolder(node.path)}
-          style={{ marginLeft: `${depth * 0.85}rem` }}
+          style={{ marginLeft: `${depth * 1.25}rem` }}
         >
           <span className="context-file-tree-icon" aria-hidden="true">
             {isExpanded ? '📂' : '📁'}
@@ -177,6 +182,7 @@ function ContextFileTreeNode({
         </button>
         {isExpanded ? (
           <div className="context-file-tree-children">
+            <span className="context-file-tree-rail" aria-hidden="true" />
             {node.children.map(child => (
               <ContextFileTreeNode
                 key={child.path}
@@ -207,26 +213,29 @@ function ContextFileTreeNode({
           : 'file'
 
   return (
-    <motion.button
-      type="button"
-      onClick={() => onSelect(file.relativePath)}
-      className="context-file-tree-row"
-      data-node-kind="file"
-      data-state={isSelected ? 'selected' : 'idle'}
-      style={{ marginLeft: `${depth * 0.85}rem` }}
-    >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="context-file-tree-icon" aria-hidden="true">
-            {resolvedCategory === 'image' ? '🖼' : resolvedCategory === 'markdown' ? '📝' : '📄'}
-          </span>
-          <span className="truncate text-sm font-medium text-[var(--text-primary)]">{node.name}</span>
+    <div className="context-file-tree-node" data-depth={depth} style={treeNodeStyle}>
+      {depth > 0 ? <span className="context-file-tree-branch" aria-hidden="true" /> : null}
+      <motion.button
+        type="button"
+        onClick={() => onSelect(file.relativePath)}
+        className="context-file-tree-row"
+        data-node-kind="file"
+        data-state={isSelected ? 'selected' : 'idle'}
+        style={{ marginLeft: `${depth * 1.25}rem` }}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="context-file-tree-icon" aria-hidden="true">
+              {resolvedCategory === 'image' ? '🖼' : resolvedCategory === 'markdown' ? '📝' : '📄'}
+            </span>
+            <span className="truncate text-sm font-medium text-[var(--text-primary)]">{node.name}</span>
+          </div>
+          <div className="mt-1 truncate font-mono text-[11px] text-[var(--text-muted)]">
+            {file.relativePath}
+          </div>
         </div>
-        <div className="mt-1 truncate font-mono text-[11px] text-[var(--text-muted)]">
-          {file.relativePath}
-        </div>
-      </div>
-      <span className="context-vault-bind-badge">{badge}</span>
-    </motion.button>
+        <span className="context-vault-bind-badge">{badge}</span>
+      </motion.button>
+    </div>
   )
 }

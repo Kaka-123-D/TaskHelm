@@ -428,6 +428,7 @@ input {
 }
 
 .context-vault-split {
+  position: relative;
   display: grid;
   gap: 1rem;
   grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr);
@@ -438,7 +439,7 @@ input {
 }
 
 .context-vault-split[data-state='collapsed'] {
-  grid-template-columns: 4.5rem minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .context-vault-sidebar,
@@ -449,6 +450,21 @@ input {
 
 .context-vault-sidebar {
   transition: width 180ms ease;
+}
+
+.context-vault-split[data-state='collapsed'] .context-vault-sidebar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.context-vault-split[data-state='collapsed'] .context-vault-preview-pane {
+  min-width: 0;
 }
 
 .context-file-list-shell,
@@ -469,13 +485,19 @@ input {
 }
 
 .context-file-list-shell[data-state='collapsed'] .context-file-list-header {
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
+  width: 0;
+  padding: 0;
+  overflow: visible;
 }
 
 .context-file-list-shell[data-state='collapsed'] .context-file-list-header > div {
   display: none;
+}
+
+.context-file-list-shell[data-state='collapsed'] {
+  position: relative;
+  width: 0;
+  overflow: visible;
 }
 
 .context-file-list-icon-toggle {
@@ -492,6 +514,15 @@ input {
   font-weight: 700;
   letter-spacing: 0.03em;
   transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.context-file-list-shell[data-state='collapsed'] .context-file-list-icon-toggle {
+  position: absolute;
+  left: -0.25rem;
+  top: 0.75rem;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  box-shadow: 0 10px 24px rgba(97, 64, 17, 0.12);
 }
 
 .context-file-list-icon-toggle:hover {
@@ -516,6 +547,18 @@ input {
   gap: 0.45rem;
 }
 
+.context-file-tree-node {
+  position: relative;
+}
+
+.context-file-tree-branch {
+  position: absolute;
+  left: calc((var(--tree-depth, 0) * 0.85rem) - 0.45rem);
+  top: 1.45rem;
+  width: 0.75rem;
+  border-top: 1px solid rgba(143, 120, 85, 0.26);
+}
+
 .context-file-tree-row {
   display: flex;
   width: 100%;
@@ -529,9 +572,20 @@ input {
 }
 
 .context-file-tree-children {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
+  padding-left: 0.1rem;
+}
+
+.context-file-tree-rail {
+  position: absolute;
+  left: 0.4rem;
+  top: 0.15rem;
+  bottom: 0.85rem;
+  width: 1px;
+  background: rgba(143, 120, 85, 0.2);
 }
 
 .context-file-tree-row[data-node-kind='folder'] {
@@ -983,6 +1037,22 @@ input {
   padding: 0.65rem 0.8rem;
   color: var(--danger-hover);
   font-size: 0.8rem;
+}
+
+.workspace-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  border: 1px solid rgba(143, 120, 85, 0.16);
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.58);
+  padding: 0.8rem 0.9rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.workspace-toggle-row input {
+  accent-color: var(--primary);
 }
 
 .dev-pool-table-shell {

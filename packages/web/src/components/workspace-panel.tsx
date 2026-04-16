@@ -304,6 +304,8 @@ export function WorkspacePanelView({
     task.worktree_path?.split(/[/\\\\]/).filter(Boolean).at(-1) ??
     'Not initialized'
   const branchLabel = task.branch_name ?? task.workspace_branch ?? 'Not initialized'
+  const branchWillBeCreated =
+    workspaceBranch.trim().length > 0 && !availableBaseBranches.includes(workspaceBranch.trim())
 
   return (
     <div className="utility-panel">
@@ -355,12 +357,18 @@ export function WorkspacePanelView({
             onChange={event => onWorkspaceBranchChange(event.target.value)}
             placeholder="feature/alpha-ui"
           />
-          <GlassSelect
+          <GlassInput
             label="Base Branch"
             value={baseBranch}
             onChange={event => onBaseBranchChange(event.target.value)}
-            options={availableBaseBranches.map(branch => ({ value: branch, label: branch }))}
+            placeholder="main"
+            list="workspace-base-branch-options"
           />
+          <datalist id="workspace-base-branch-options">
+            {availableBaseBranches.map(branch => (
+              <option key={branch} value={branch} />
+            ))}
+          </datalist>
           <label className="workspace-toggle-row">
             <input
               type="checkbox"
@@ -369,6 +377,11 @@ export function WorkspacePanelView({
             />
             <span>Auto-pull latest from base branch</span>
           </label>
+          {branchWillBeCreated ? (
+            <p className="text-xs leading-5 text-[var(--text-muted)]">
+              This branch does not exist yet. It will be created from "{baseBranch}".
+            </p>
+          ) : null}
 
           {hasAvailableExistingWorktrees ? (
             <GlassSelect

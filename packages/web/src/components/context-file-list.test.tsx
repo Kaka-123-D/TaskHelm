@@ -58,5 +58,7 @@ describe('ContextFileList', () => {
     expect(markup).toContain('data-node-kind="folder"')
     expect(markup).toContain('aria-expanded="true"')
     expect(markup).toContain('docs')
+    expect(markup).toContain('context-file-tree-rail')
+    expect(markup).toContain('context-file-tree-branch')
   })
 })

@@ -24,17 +24,10 @@ export function createInitialExpandedFolders(
   return expanded
 }
 
-export function ensureSelectedFileFoldersExpanded(
+export function reconcileExpandedFolders(
   expandedFolders: ReadonlySet<string>,
-  selectedFile: string | null,
+  folderPaths: readonly string[],
 ): ReadonlySet<string> {
-  const next = new Set(expandedFolders)
-
-  if (selectedFile) {
-    for (const folderPath of parentFolders(selectedFile)) {
-      next.add(folderPath)
-    }
-  }
-
-  return next
+  const validPaths = new Set(folderPaths)
+  return new Set([...expandedFolders].filter(folderPath => validPaths.has(folderPath)))
 }

@@ -61,10 +61,13 @@ describe('GET /api/tasks/[taskId]/workspace', () => {
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toMatchObject({
       settings: {
+        baseBranch: expect.any(String),
+        autoPullBaseBranch: true,
         workspaceName: '',
         workspaceBranch: '',
         preferredPort: null,
       },
+      availableBaseBranches: expect.arrayContaining([expect.any(String)]),
       detectedSubrepos: [path.join('packages', 'ui')],
     })
   })
@@ -126,6 +129,40 @@ describe('GET /api/tasks/[taskId]/workspace', () => {
 })
 
 describe('POST /api/tasks/[taskId]/workspace', () => {
+  it('rejects a missing base branch before trying to create the workspace', async () => {
+    const project = new ProjectRepository(db).create({
+      name: 'Alpha',
+      slug: 'alpha',
+      local_repo_root: repoRoot,
+    })
+    const taskRepo = new TaskRepository(db)
+    const task = taskRepo.create({
+      project_id: project.id,
+      title: 'Ship auth',
+      key: 'ALPHA-0',
+    })
+
+    const { POST } = await import('./route')
+    const response = await POST(
+      new Request('http://localhost', {
+        method: 'POST',
+        body: JSON.stringify({
+          workspaceName: 'alpha-ui',
+          workspaceBranch: 'feature/alpha-ui',
+          baseBranch: 'typo/base-branch',
+          autoPullBaseBranch: false,
+          subrepoBranches: [],
+        }),
+      }),
+      { params: Promise.resolve({ taskId: task.id }) },
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({
+      error: 'Base branch "typo/base-branch" does not exist',
+    })
+  })
+
   it('persists workspace settings and initializes runtime state', async () => {
     const project = new ProjectRepository(db).create({
       name: 'Alpha',
@@ -139,6 +176,12 @@ describe('POST /api/tasks/[taskId]/workspace', () => {
       key: 'ALPHA-1',
     })
 
+    const current = execSync('git rev-parse --abbrev-ref HEAD', {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: 'pipe',
+    }).trim()
+
     const { POST } = await import('./route')
     const response = await POST(
       new Request('http://localhost', {
@@ -146,18 +189,29 @@ describe('POST /api/tasks/[taskId]/workspace', () => {
         body: JSON.stringify({
           workspaceName: 'alpha-ui',
           workspaceBranch: 'feature/alpha-ui',
+          baseBranch: current,
+          autoPullBaseBranch: false,
           subrepoBranches: [{ repoPath: path.join('packages', 'ui'), branch: 'feature/ui' }],
         }),
       }),
       { params: Promise.resolve({ taskId: task.id }) },
     )
+    const payload = await response.json()
 
     expect(response.status).toBe(201)
-    await expect(response.json()).resolves.toMatchObject({
+    expect(payload).toMatchObject({
       workspaceName: 'alpha-ui',
       branchName: 'feature/alpha-ui',
       subrepoBranches: [{ repoPath: path.join('packages', 'ui'), branch: 'feature/ui' }],
     })
+    expect(fs.existsSync(path.join(payload.worktreePath, 'packages', 'ui', '.git'))).toBe(true)
+    expect(
+      execSync('git branch --show-current', {
+        cwd: path.join(payload.worktreePath, 'packages', 'ui'),
+        encoding: 'utf8',
+        stdio: 'pipe',
+      }).trim(),
+    ).toBe('feature/ui')
 
     expect(taskRepo.findById(task.id)).toMatchObject({
       workspace_name: 'alpha-ui',
@@ -213,6 +267,47 @@ describe('POST /api/tasks/[taskId]/workspace', () => {
     })
   })
 
+  it('returns a recoverable error when auto-pull of the base branch fails', async () => {
+    const project = new ProjectRepository(db).create({
+      name: 'Alpha',
+      slug: 'alpha',
+      local_repo_root: repoRoot,
+    })
+    const taskRepo = new TaskRepository(db)
+    const task = taskRepo.create({
+      project_id: project.id,
+      title: 'Ship auth',
+      key: 'ALPHA-4',
+    })
+    const current = execSync('git rev-parse --abbrev-ref HEAD', {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: 'pipe',
+    }).trim()
+
+    const { POST } = await import('./route')
+    const response = await POST(
+      new Request('http://localhost', {
+        method: 'POST',
+        body: JSON.stringify({
+          workspaceName: 'alpha-pull',
+          workspaceBranch: 'feature/alpha-pull',
+          baseBranch: current,
+          autoPullBaseBranch: true,
+          subrepoBranches: [],
+        }),
+      }),
+      { params: Promise.resolve({ taskId: task.id }) },
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'BASE_BRANCH_PULL_FAILED',
+      canForceRefresh: true,
+      recoverable: true,
+    })
+  })
+
   it('attaches an existing unassigned worktree instead of creating a new one', async () => {
     const worktreeRoot = path.join(repoRoot, '.worktrees')
     fs.mkdirSync(worktreeRoot, { recursive: true })
@@ -261,6 +356,39 @@ describe('POST /api/tasks/[taskId]/workspace', () => {
       workspace_branch: 'feature/existing',
       branch_name: 'feature/existing',
       worktree_path: canonicalExistingWorktreePath,
+    })
+  })
+
+  it('rejects unsafe branch names before running git commands', async () => {
+    const project = new ProjectRepository(db).create({
+      name: 'Alpha',
+      slug: 'alpha',
+      local_repo_root: repoRoot,
+    })
+    const task = new TaskRepository(db).create({
+      project_id: project.id,
+      title: 'Unsafe branch',
+      key: 'ALPHA-10',
+    })
+
+    const { POST } = await import('./route')
+    const response = await POST(
+      new Request('http://localhost', {
+        method: 'POST',
+        body: JSON.stringify({
+          workspaceName: 'unsafe-ui',
+          workspaceBranch: 'feature/"bad"',
+          baseBranch: 'main',
+          autoPullBaseBranch: false,
+          subrepoBranches: [],
+        }),
+      }),
+      { params: Promise.resolve({ taskId: task.id }) },
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({
+      error: 'Branch name contains unsupported characters',
     })
   })
 })
