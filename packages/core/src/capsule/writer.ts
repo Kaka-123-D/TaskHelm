@@ -39,11 +39,8 @@ function buildCapsuleData(task: Task, projectSlug: string): Record<string, unkno
     data.goal = task.goal
   }
 
-  if (task.source_type !== null || task.source_ref !== null) {
-    data.source = {
-      type: task.source_type,
-      ref: task.source_ref,
-    }
+  if (task.refer_link !== null) {
+    data.referLink = task.refer_link
   }
 
   if (task.branch_name !== null) {

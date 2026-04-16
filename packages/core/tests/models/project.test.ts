@@ -65,7 +65,6 @@ describe('ProjectRepository', () => {
         worktree_root: '/home/user/worktrees',
         dev_command: 'pnpm dev',
         install_command: 'pnpm install',
-        test_command: 'pnpm test',
         max_active_dev_servers: 3,
       })
 
@@ -75,7 +74,7 @@ describe('ProjectRepository', () => {
       expect(project.worktree_root).toBe('/home/user/worktrees')
       expect(project.dev_command).toBe('pnpm dev')
       expect(project.install_command).toBe('pnpm install')
-      expect(project.test_command).toBe('pnpm test')
+      expect(project).not.toHaveProperty('test_command')
       expect(project.max_active_dev_servers).toBe(3)
     })
   })

@@ -82,15 +82,15 @@ describe('TaskRepository', () => {
         title: 'Full Task',
         key: 'TASK-001',
         goal: 'Implement feature X',
-        source_type: 'github_issue',
-        source_ref: 'https://github.com/org/repo/issues/1',
+        refer_link: 'https://github.com/org/repo/issues/1',
         priority: 5,
       })
 
       expect(task.key).toBe('TASK-001')
       expect(task.goal).toBe('Implement feature X')
-      expect(task.source_type).toBe('github_issue')
-      expect(task.source_ref).toBe('https://github.com/org/repo/issues/1')
+      expect(task.refer_link).toBe('https://github.com/org/repo/issues/1')
+      expect(task).not.toHaveProperty('source_type')
+      expect(task).not.toHaveProperty('source_ref')
       expect(task.priority).toBe(5)
     })
   })
@@ -146,6 +146,7 @@ describe('TaskRepository', () => {
       const updated = repo.update(task.id, {
         title: 'Updated Title',
         goal: 'New goal',
+        refer_link: 'https://example.com/tickets/42',
         branch_name: 'feature/xyz',
         workspace_name: 'alpha-ui',
         workspace_branch: 'feature/alpha-ui',
@@ -164,6 +165,7 @@ describe('TaskRepository', () => {
       expect(updated.id).toBe(task.id)
       expect(updated.title).toBe('Updated Title')
       expect(updated.goal).toBe('New goal')
+      expect(updated.refer_link).toBe('https://example.com/tickets/42')
       expect(updated.branch_name).toBe('feature/xyz')
       expect(updated.workspace_name).toBe('alpha-ui')
       expect(updated.workspace_branch).toBe('feature/alpha-ui')

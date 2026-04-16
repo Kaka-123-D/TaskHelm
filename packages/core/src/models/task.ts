@@ -7,8 +7,7 @@ export interface CreateTaskInput {
   readonly title: string
   readonly key?: string
   readonly goal?: string
-  readonly source_type?: string
-  readonly source_ref?: string
+  readonly refer_link?: string
   readonly priority?: number
 }
 
@@ -16,8 +15,7 @@ export interface UpdateTaskInput {
   readonly title?: string
   readonly goal?: string
   readonly key?: string
-  readonly source_type?: string
-  readonly source_ref?: string
+  readonly refer_link?: string | null
   readonly priority?: number
   readonly branch_name?: string | null
   readonly workspace_name?: string | null
@@ -41,8 +39,7 @@ type TaskRow = {
   key: string | null
   title: string
   goal: string | null
-  source_type: string | null
-  source_ref: string | null
+  refer_link: string | null
   priority: number
   branch_name: string | null
   workspace_name: string | null
@@ -69,8 +66,7 @@ function rowToTask(row: TaskRow): Task {
     key: row.key,
     title: row.title,
     goal: row.goal,
-    source_type: row.source_type,
-    source_ref: row.source_ref,
+    refer_link: row.refer_link,
     priority: row.priority,
     branch_name: row.branch_name,
     workspace_name: row.workspace_name,
@@ -102,14 +98,14 @@ export class TaskRepository {
       .prepare(
         `INSERT INTO tasks (
           id, project_id, key, title, goal,
-          source_type, source_ref, priority,
+          refer_link, priority,
           branch_name, workspace_name, workspace_branch, workspace_subrepo_branches_json, preferred_port,
           worktree_path, port, dev_server_state,
           context_vault_root_path, context_vault_sources_json, context_vault_files_json, context_vault_selected_file,
           current_agent_run_id, latest_blocker, created_at, updated_at
         ) VALUES (
           @id, @project_id, @key, @title, @goal,
-          @source_type, @source_ref, @priority,
+          @refer_link, @priority,
           @branch_name, @workspace_name, @workspace_branch, @workspace_subrepo_branches_json, @preferred_port,
           @worktree_path, @port, @dev_server_state,
           @context_vault_root_path, @context_vault_sources_json, @context_vault_files_json, @context_vault_selected_file,
@@ -122,8 +118,7 @@ export class TaskRepository {
         key: input.key ?? null,
         title: input.title,
         goal: input.goal ?? null,
-        source_type: input.source_type ?? null,
-        source_ref: input.source_ref ?? null,
+        refer_link: input.refer_link ?? null,
         priority: input.priority ?? 0,
         branch_name: null,
         workspace_name: null,
@@ -173,8 +168,7 @@ export class TaskRepository {
           title = @title,
           goal = @goal,
           key = @key,
-          source_type = @source_type,
-          source_ref = @source_ref,
+          refer_link = @refer_link,
           priority = @priority,
           branch_name = @branch_name,
           workspace_name = @workspace_name,
@@ -198,8 +192,7 @@ export class TaskRepository {
         title: input.title ?? existing.title,
         goal: input.goal !== undefined ? input.goal : existing.goal,
         key: input.key !== undefined ? input.key : existing.key,
-        source_type: input.source_type !== undefined ? input.source_type : existing.source_type,
-        source_ref: input.source_ref !== undefined ? input.source_ref : existing.source_ref,
+        refer_link: input.refer_link !== undefined ? input.refer_link : existing.refer_link,
         priority: input.priority !== undefined ? input.priority : existing.priority,
         branch_name: input.branch_name !== undefined ? input.branch_name : existing.branch_name,
         workspace_name:

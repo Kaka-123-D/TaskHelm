@@ -17,7 +17,6 @@ const baseProject: Project = {
   worktree_root: null,
   dev_command: null,
   install_command: null,
-  test_command: null,
   max_active_dev_servers: 1,
   created_at: '2026-04-11T10:00:00.000Z',
   updated_at: '2026-04-11T10:00:00.000Z',
@@ -29,10 +28,13 @@ const baseTask: Task = {
   key: 'TASK-1',
   title: 'Implement feature X',
   goal: 'Add X functionality',
-  source_type: 'github_issue',
-  source_ref: 'https://github.com/org/repo/issues/1',
+  refer_link: 'https://github.com/org/repo/issues/1',
   priority: 3,
   branch_name: 'feature/task-abc123',
+  workspace_name: null,
+  workspace_branch: null,
+  workspace_subrepo_branches_json: null,
+  preferred_port: null,
   worktree_path: '/home/user/worktrees/task-abc123',
   port: 3001,
   dev_server_state: null,
@@ -107,8 +109,8 @@ describe('writeCapsule', () => {
     expect(parsed.worktree_path).toBe(baseTask.worktree_path)
     expect(parsed.port).toBe(baseTask.port)
     expect(parsed.goal).toBe(baseTask.goal)
-    expect(parsed.source?.type).toBe(baseTask.source_type)
-    expect(parsed.source?.ref).toBe(baseTask.source_ref)
+    expect(parsed.referLink).toBe(baseTask.refer_link)
+    expect(parsed.source).toBeUndefined()
     expect(parsed.updated_at).toBe(baseTask.updated_at)
   })
 
@@ -182,8 +184,7 @@ describe('writeCapsule', () => {
     const minimalTask: Task = {
       ...baseTask,
       goal: null,
-      source_type: null,
-      source_ref: null,
+      refer_link: null,
       branch_name: null,
       worktree_path: null,
       port: null,
@@ -193,7 +194,7 @@ describe('writeCapsule', () => {
     const content = fs.readFileSync(path.join(capsuleDir, 'task.yaml'), 'utf-8')
     const parsed = parse(content)
     expect(parsed.goal).toBeUndefined()
-    expect(parsed.source).toBeUndefined()
+    expect(parsed.referLink).toBeUndefined()
     expect(parsed.branch_name).toBeUndefined()
     expect(parsed.worktree_path).toBeUndefined()
     expect(parsed.port).toBeUndefined()

@@ -5,12 +5,7 @@ export const TaskCapsuleSchema = z.object({
   project_slug: z.string(),
   title: z.string(),
   goal: z.string().optional(),
-  source: z
-    .object({
-      type: z.string(),
-      ref: z.string(),
-    })
-    .optional(),
+  referLink: z.string().url().optional(),
   priority: z.number().int().default(0),
   branch_name: z.string().optional(),
   worktree_path: z.string().optional(),

@@ -18,7 +18,6 @@ const baseProject: Project = {
   worktree_root: null,
   dev_command: null,
   install_command: null,
-  test_command: null,
   max_active_dev_servers: 1,
   created_at: '2026-04-11T10:00:00.000Z',
   updated_at: '2026-04-11T10:00:00.000Z',
@@ -30,8 +29,7 @@ const baseTask: Task = {
   key: 'TASK-1',
   title: 'Implement feature X',
   goal: 'Add X functionality',
-  source_type: 'github_issue',
-  source_ref: 'https://github.com/org/repo/issues/1',
+  refer_link: 'https://github.com/org/repo/issues/1',
   priority: 3,
   branch_name: 'feature/task-abc123',
   workspace_name: null,
@@ -82,8 +80,8 @@ describe('readCapsule', () => {
     expect(capsule.worktree_path).toBe(baseTask.worktree_path)
     expect(capsule.port).toBe(baseTask.port)
     expect(capsule.goal).toBe(baseTask.goal)
-    expect(capsule.source?.type).toBe(baseTask.source_type)
-    expect(capsule.source?.ref).toBe(baseTask.source_ref)
+    expect(capsule.referLink).toBe(baseTask.refer_link)
+    expect(capsule.source).toBeUndefined()
     expect(capsule.updated_at).toBe(baseTask.updated_at)
   })
 

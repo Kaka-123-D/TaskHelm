@@ -63,7 +63,6 @@ export interface Project {
   readonly worktree_root: string | null
   readonly dev_command: string | null
   readonly install_command: string | null
-  readonly test_command: string | null
   readonly max_active_dev_servers: number
   readonly created_at: string
   readonly updated_at: string
@@ -75,8 +74,7 @@ export interface Task {
   readonly key: string | null
   readonly title: string
   readonly goal: string | null
-  readonly source_type: string | null
-  readonly source_ref: string | null
+  readonly refer_link: string | null
   readonly priority: number
   readonly branch_name: string | null
   readonly workspace_name: string | null
