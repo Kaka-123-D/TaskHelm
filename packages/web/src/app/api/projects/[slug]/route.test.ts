@@ -86,3 +86,36 @@ describe('DELETE /api/projects/[slug]', () => {
     expect(db.prepare('SELECT COUNT(*) AS count FROM events WHERE entity_type = ? AND entity_id = ?').get('project', project.id)).toEqual({ count: 0 })
   })
 })
+
+describe('PATCH /api/projects/[slug]', () => {
+  it('updates a project without returning test_command', async () => {
+    const projectRepo = new ProjectRepository(db)
+    const project = projectRepo.create({
+      name: 'Alpha',
+      slug: 'alpha',
+      local_repo_root: '/repo/alpha',
+    })
+
+    const { PATCH } = await import('./route')
+    const response = await PATCH(
+      new Request('http://localhost/api/projects/alpha', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: 'Alpha Updated',
+          install_command: 'pnpm install',
+        }),
+      }),
+      { params: Promise.resolve({ slug: 'alpha' }) },
+    )
+
+    expect(response.status).toBe(200)
+    const payload = (await response.json()) as {
+      name: string
+      install_command?: string
+      test_command?: string
+    }
+    expect(payload.name).toBe('Alpha Updated')
+    expect(payload.install_command).toBe('pnpm install')
+    expect(payload).not.toHaveProperty('test_command')
+  })
+})
