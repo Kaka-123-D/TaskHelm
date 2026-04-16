@@ -68,16 +68,17 @@ describe('runMigrations', () => {
     runMigrations(db)
 
     const rows = db.prepare('SELECT filename FROM _migrations ORDER BY filename').all() as Array<{ filename: string }>
-    expect(rows.length).toBe(12)
+    expect(rows.length).toBe(13)
     expect(rows[0].filename).toMatch(/001_projects/)
     expect(rows[8].filename).toMatch(/009_/)
     expect(rows[9].filename).toMatch(/010_local_context_schema_cleanup/)
     expect(rows[10].filename).toMatch(/011_task_runtime_preferences/)
     expect(rows[11].filename).toMatch(/012_remove_task_status_and_phase/)
+    expect(rows[12].filename).toMatch(/013_project_command_and_task_refer_link_cleanup/)
     db.close()
   })
 
-  it('removes remote-link columns while keeping local context vault fields', () => {
+  it('removes legacy project/task fields while keeping local context vault fields', () => {
     const db = createDatabase(TEST_DB_PATH)
     runMigrations(db)
 
@@ -95,7 +96,6 @@ describe('runMigrations', () => {
       'worktree_root',
       'dev_command',
       'install_command',
-      'test_command',
       'max_active_dev_servers',
       'created_at',
       'updated_at',
@@ -107,8 +107,7 @@ describe('runMigrations', () => {
       'key',
       'title',
       'goal',
-      'source_type',
-      'source_ref',
+      'refer_link',
       'priority',
       'branch_name',
       'worktree_path',
