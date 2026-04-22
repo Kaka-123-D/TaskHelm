@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build",
+    "build": "node scripts/clean-runtime.mjs && next build && node scripts/package-runtime.mjs",
     "dev": "next dev --port 4100",
+    "package-runtime": "node scripts/package-runtime.mjs",
     "test": "vitest run --passWithNoTests",
     "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@taskhelm/core": "workspace:*",

@@ -12,11 +12,11 @@ describe('supportedContextVaultFile', () => {
     expect(supportedContextVaultFile('config.yaml')).toBe(true)
     expect(supportedContextVaultFile('component.tsx')).toBe(true)
     expect(supportedContextVaultFile('diagram.png')).toBe(true)
+    expect(supportedContextVaultFile('movie.mp4')).toBe(true)
   })
 
   it('rejects unsupported binary files', () => {
     expect(supportedContextVaultFile('archive.zip')).toBe(false)
-    expect(supportedContextVaultFile('movie.mp4')).toBe(false)
   })
 })
 
@@ -25,6 +25,7 @@ describe('classifyContextVaultFile', () => {
     expect(classifyContextVaultFile('context.md')).toMatchObject({ category: 'markdown' })
     expect(classifyContextVaultFile('schema.json')).toMatchObject({ category: 'text' })
     expect(classifyContextVaultFile('diagram.png')).toMatchObject({ category: 'image' })
+    expect(classifyContextVaultFile('movie.mp4')).toMatchObject({ category: 'video' })
     expect(classifyContextVaultFile('archive.zip')).toMatchObject({ category: 'unsupported' })
   })
 })

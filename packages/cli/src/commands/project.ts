@@ -18,7 +18,6 @@ export function registerProjectCommands(program: Command): void {
     .option('--default-branch <branch>', 'Default git branch')
     .option('--dev-command <cmd>', 'Command to start dev server')
     .option('--install-command <cmd>', 'Command to install dependencies')
-    .option('--test-command <cmd>', 'Command to run tests')
     .action((opts) => {
       const db = getDb()
       try {
@@ -31,7 +30,6 @@ export function registerProjectCommands(program: Command): void {
           default_branch: opts.defaultBranch as string | undefined,
           dev_command: opts.devCommand as string | undefined,
           install_command: opts.installCommand as string | undefined,
-          test_command: opts.testCommand as string | undefined,
         })
         console.log(chalk.green('Project created:'))
         console.log(formatJson(project))

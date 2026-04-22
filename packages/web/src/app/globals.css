@@ -388,7 +388,30 @@ input {
 .task-detail-grid {
   display: grid;
   gap: 1rem;
-  grid-template-columns: minmax(0, 1.7fr) minmax(17rem, 0.95fr);
+  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr) 25rem;
+}
+
+.task-detail-main,
+.task-detail-sidebar {
+  min-width: 0;
+}
+
+.task-detail-main {
+  display: flex;
+}
+
+.task-detail-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.task-detail-main > .task-pane {
+  display: flex;
+  min-height: 100%;
+  flex: 1;
+  flex-direction: column;
 }
 
 .task-pane {
@@ -409,6 +432,11 @@ input {
 
 .task-pane-body {
   padding: 1rem;
+}
+
+.task-detail-main .task-pane-body {
+  min-height: 0;
+  flex: 1;
 }
 
 .task-pane-label {
@@ -438,7 +466,15 @@ input {
   transition: grid-template-columns 180ms ease;
 }
 
+.task-detail-main .context-vault-split {
+  flex: 1;
+}
+
 .context-vault-split[data-state='collapsed'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.context-vault-split[data-list-mode='popover'] {
   grid-template-columns: minmax(0, 1fr);
 }
 
@@ -465,6 +501,11 @@ input {
 
 .context-vault-split[data-state='collapsed'] .context-vault-preview-pane {
   min-width: 0;
+}
+
+.context-vault-split[data-state='popover'] .context-vault-preview-pane {
+  position: relative;
+  overflow: visible;
 }
 
 .context-file-list-shell,
@@ -500,6 +541,15 @@ input {
   overflow: visible;
 }
 
+.context-file-list-shell[data-state='compact'] {
+  align-items: stretch;
+}
+
+.context-file-list-shell[data-state='compact'] .context-file-list-panel {
+  padding: 0;
+  gap: 0.55rem;
+}
+
 .context-file-list-icon-toggle {
   display: inline-flex;
   align-items: center;
@@ -529,6 +579,76 @@ input {
   border-color: var(--border-hover);
   background: rgba(255, 255, 255, 0.96);
   color: var(--text-primary);
+}
+
+.context-file-list-icon-toggle--inline {
+  align-self: center;
+  margin-bottom: 0.35rem;
+}
+
+.context-vault-popover-anchor {
+  position: absolute;
+  left: 0.5rem;
+  top: 0.4rem;
+  z-index: 3;
+}
+
+.context-vault-popover-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid rgba(143, 120, 85, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 12px 24px rgba(97, 64, 17, 0.1);
+  color: var(--text-primary);
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.context-vault-popover-trigger:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.context-vault-popover-trigger[aria-expanded='true'] {
+  transform: translateY(-1px);
+}
+
+.context-vault-file-popover {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.65rem);
+  width: min(24rem, calc(100vw - 5rem));
+  max-height: min(32rem, 70vh);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: rgba(255, 252, 247, 0.97);
+  box-shadow: 0 22px 46px rgba(97, 64, 17, 0.18);
+  backdrop-filter: blur(10px);
+}
+
+.context-vault-file-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  padding: 0.85rem 0.95rem;
+}
+
+.context-vault-file-popover .context-file-list-shell {
+  height: min(26rem, calc(70vh - 4.5rem));
+}
+
+.context-vault-file-popover .context-file-list-header {
+  display: none;
+}
+
+.context-vault-file-popover .context-file-list-panel {
+  padding-top: 0.85rem;
 }
 
 .context-file-list-panel {
@@ -561,7 +681,7 @@ input {
 
 .context-file-tree-row {
   display: flex;
-  width: 100%;
+  width: 95%;
   align-items: center;
   gap: 0.9rem;
   border: 1px solid var(--border);
@@ -603,15 +723,35 @@ input {
 }
 
 .context-file-tree-icon {
+  display: inline-flex;
+  height: 2rem;
+  width: 2rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 0.65rem;
+  background: rgba(255, 250, 242, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(143, 120, 85, 0.12);
   font-size: 1rem;
   line-height: 1;
+}
+
+.context-file-tree-icon--thumbnail {
+  padding: 0;
+}
+
+.context-file-tree-thumbnail {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .context-file-preview-viewport {
   min-height: 0;
   flex: 1;
   overflow: hidden;
-  padding: 0 1rem 1rem;
+  padding-bottom: 1rem;
 }
 
 .context-file-preview-stage {
@@ -640,7 +780,15 @@ input {
   justify-content: center;
 }
 
+.context-preview-video-frame {
+  display: flex;
+  min-height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
 .context-preview-image,
+.context-preview-video,
 .context-preview-markdown-image {
   max-width: 100%;
   border-radius: 1rem;
@@ -650,6 +798,13 @@ input {
 
 .context-preview-image {
   max-height: 100%;
+  object-fit: contain;
+}
+
+.context-preview-video {
+  width: 100%;
+  max-height: 100%;
+  background: rgba(42, 34, 20, 0.92);
   object-fit: contain;
 }
 
@@ -877,6 +1032,29 @@ input {
 .context-vault-pill[data-state='idle'] {
   background: rgba(71, 53, 28, 0.09);
   color: var(--text-secondary);
+}
+
+@media (max-width: 1535px) {
+  .task-detail-grid[data-layout='stacked'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .task-detail-grid[data-layout='stacked'] .task-detail-sidebar {
+    order: -1;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .task-detail-grid[data-layout='stacked'] .task-detail-sidebar > * {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 1100px) {
+  .task-detail-grid[data-layout='stacked'] .task-detail-sidebar {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .context-vault-folder-grid {
@@ -1368,7 +1546,8 @@ input {
     width: 100%;
   }
 
-  .task-detail-grid {
+  .task-detail-grid,
+  .task-detail-grid[data-layout='stacked'] {
     grid-template-columns: 1fr;
   }
 
@@ -1383,7 +1562,8 @@ input {
     align-items: stretch;
   }
 
-  .context-vault-split {
+  .context-vault-split,
+  .context-vault-split[data-list-mode='compact'] {
     grid-template-columns: 1fr;
     min-height: auto;
   }

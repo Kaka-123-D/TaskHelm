@@ -50,7 +50,7 @@ async function readMarkdownFileHandle(
   const relativePath = [...segments, handle.name].join('/')
   const preview = classifyContextVaultFile(handle.name)
   const content =
-    preview.category === 'image' && file.arrayBuffer
+    (preview.category === 'image' || preview.category === 'video') && file.arrayBuffer
       ? `data:${preview.mediaType};base64,${arrayBufferToBase64(await file.arrayBuffer())}`
       : await file.text()
 

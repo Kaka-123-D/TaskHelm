@@ -14,16 +14,14 @@ interface CreateTaskFormProps {
 interface FormState {
   readonly title: string
   readonly goal: string
-  readonly sourceType: string
-  readonly sourceRef: string
+  readonly referLink: string
   readonly priority: string
 }
 
 const INITIAL_STATE: FormState = {
   title: '',
   goal: '',
-  sourceType: '',
-  sourceRef: '',
+  referLink: '',
   priority: '3',
 }
 
@@ -34,6 +32,12 @@ const PRIORITY_OPTIONS = [
   { value: '4', label: 'Low' },
   { value: '5', label: 'Backlog' },
 ]
+
+function normalizeReferLink(value: string): string | null {
+  const trimmed = value.trim()
+  if (trimmed.length === 0) return null
+  return new URL(trimmed).toString()
+}
 
 export function CreateTaskForm({ projectId }: CreateTaskFormProps) {
   const [open, setOpen] = useState(false)
@@ -54,14 +58,20 @@ export function CreateTaskForm({ projectId }: CreateTaskFormProps) {
     setError(null)
     setSubmitting(true)
     try {
+      let referLink: string | null
+      try {
+        referLink = normalizeReferLink(form.referLink)
+      } catch {
+        throw new Error('Refer Link must be a valid absolute URL')
+      }
+
       const body: Record<string, string | number> = {
         project_id: projectId,
         title: form.title,
         priority: parseInt(form.priority, 10),
       }
       if (form.goal) body.goal = form.goal
-      if (form.sourceType) body.source_type = form.sourceType
-      if (form.sourceRef) body.source_ref = form.sourceRef
+      if (referLink) body.refer_link = referLink
 
       const res = await fetch('/api/tasks', {
         method: 'POST',
@@ -104,10 +114,12 @@ export function CreateTaskForm({ projectId }: CreateTaskFormProps) {
             <GlassInput label="Title *" value={form.title} onChange={e => updateField('title', e.target.value)} placeholder="Add user authentication" />
             <GlassInput label="Goal" value={form.goal} onChange={e => updateField('goal', e.target.value)} placeholder="Implement JWT-based auth" />
             <GlassSelect label="Priority" options={PRIORITY_OPTIONS} value={form.priority} onChange={e => updateField('priority', e.target.value)} />
-            <div className="grid grid-cols-2 gap-3">
-              <GlassInput label="Source Type" value={form.sourceType} onChange={e => updateField('sourceType', e.target.value)} placeholder="github_issue" />
-              <GlassInput label="Source Ref" value={form.sourceRef} onChange={e => updateField('sourceRef', e.target.value)} placeholder="#42" />
-            </div>
+            <GlassInput
+              label="Refer Link"
+              value={form.referLink}
+              onChange={e => updateField('referLink', e.target.value)}
+              placeholder="https://example.com/tickets/42"
+            />
           </div>
 
           <div className="flex justify-end gap-3 mt-6">

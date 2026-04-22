@@ -22,7 +22,6 @@ Suggested columns:
 - `worktree_root TEXT`
 - `dev_command TEXT`
 - `install_command TEXT`
-- `test_command TEXT`
 - `max_active_dev_servers INTEGER DEFAULT 1`
 - `created_at TEXT NOT NULL`
 - `updated_at TEXT NOT NULL`
@@ -34,15 +33,20 @@ Suggested columns:
 - `key TEXT`
 - `title TEXT NOT NULL`
 - `goal TEXT`
-- `source_type TEXT`
-- `source_ref TEXT`
-- `status TEXT NOT NULL`
-- `phase TEXT NOT NULL`
-- `priority INTEGER DEFAULT 0`
+- `refer_link TEXT`
+- `priority INTEGER DEFAULT 3`
 - `branch_name TEXT`
+- `workspace_name TEXT`
+- `workspace_branch TEXT`
+- `workspace_subrepo_branches_json TEXT`
+- `preferred_port INTEGER`
 - `worktree_path TEXT`
 - `port INTEGER`
 - `dev_server_state TEXT`
+- `context_vault_root_path TEXT`
+- `context_vault_sources_json TEXT`
+- `context_vault_files_json TEXT`
+- `context_vault_selected_file TEXT`
 - `current_agent_run_id TEXT`
 - `latest_blocker TEXT`
 - `created_at TEXT NOT NULL`
@@ -51,8 +55,6 @@ Suggested columns:
 Indexes:
 
 - `idx_tasks_project_id`
-- `idx_tasks_status`
-- `idx_tasks_phase`
 
 ### `agent_runs`
 

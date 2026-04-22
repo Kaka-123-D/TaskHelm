@@ -62,6 +62,21 @@ export default async function TaskPage({ params }: TaskPageProps) {
               <p className="workbench-hero-description">
                 {task.goal || `Working inside ${project.name}. Use the right-hand utilities to manage workspace and dev runtime.`}
               </p>
+              {task.refer_link ? (
+                <div className="mt-3">
+                  <div className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+                    Refer Link
+                  </div>
+                  <a
+                    href={task.refer_link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-[var(--accent-strong)] underline decoration-[rgba(176,110,24,0.35)] underline-offset-4 transition hover:text-[var(--accent-hover)]"
+                  >
+                    {task.refer_link}
+                  </a>
+                </div>
+              ) : null}
             </div>
             <div className="workbench-hero-actions">
               {task.port != null && <PortBadge port={task.port} />}

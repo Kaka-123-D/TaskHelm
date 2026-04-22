@@ -7,27 +7,18 @@ TaskHelm is a local control plane for parallel software execution — managing p
 ## Quick Start
 
 ```bash
-# Clone and install
-git clone https://github.com/your-org/taskhelm.git
-cd taskhelm
-pnpm install
-pnpm run build
+# App launcher
+npm i -g taskhelm
+taskhelm
 
-# Create a project
-taskhelm project create --name "My App" --slug my-app --repo /path/to/repo
-
-# Create a task
-taskhelm task create --project my-app --title "Add auth" --goal "Implement JWT auth"
-
-# Start the task (creates branch + worktree)
-taskhelm task start <task-id>
-
-# View task details
-taskhelm task show <task-id>
-
-# Start the web dashboard
-pnpm --filter @taskhelm/web run dev
+# CLI
+npm i -g @taskhelm/cli
+taskhelm project list
 ```
+
+`taskhelm` is the launcher package. It starts the local web app on `http://127.0.0.1:4100`, downloading a version-matched runtime bundle on first launch when needed.
+
+`@taskhelm/cli` is the CLI-only package. It does not auto-open the web app.
 
 ## What It Does
 
@@ -63,8 +54,30 @@ pnpm --filter @taskhelm/web run dev
 |---------|-------------|
 | `@taskhelm/core` | Domain model, SQLite repositories, workspace utilities, capsule I/O |
 | `@taskhelm/supervisor` | Supervisor loop, dispatcher, dev-pool, recovery, notifications |
-| `@taskhelm/cli` | CLI commands (project, task, workspace, dev, agent) |
+| `@taskhelm/cli` | CLI-only commands (project, task, workspace, dev, agent) |
 | `@taskhelm/web` | Next.js dashboard with real-time SSE updates |
+
+## Manual Publish
+
+Publish order:
+
+```bash
+pnpm install
+pnpm run build
+
+pnpm --filter @taskhelm/core publish --access public
+pnpm --filter @taskhelm/supervisor publish --access public
+pnpm --filter @taskhelm/cli publish --access public
+pnpm publish --access public
+```
+
+Before publishing `taskhelm`, host the web runtime manifest and runtime bundle at the default launcher URL shape:
+
+```text
+https://releases.taskhelm.dev/runtime/{version}/manifest.json
+```
+
+The manifest should point to the versioned runtime `.tgz` built from `packages/web/runtime`.
 
 ## V1 Autonomy Boundary
 

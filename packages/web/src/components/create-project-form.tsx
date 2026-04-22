@@ -15,7 +15,6 @@ interface FormState {
   readonly defaultBranch: string
   readonly devCommand: string
   readonly installCommand: string
-  readonly testCommand: string
 }
 
 const INITIAL_STATE: FormState = {
@@ -26,7 +25,6 @@ const INITIAL_STATE: FormState = {
   defaultBranch: '',
   devCommand: '',
   installCommand: '',
-  testCommand: '',
 }
 
 function toSlug(name: string): string {
@@ -79,8 +77,6 @@ export function CreateProjectForm() {
       if (form.defaultBranch) body.default_branch = form.defaultBranch
       if (form.devCommand) body.dev_command = form.devCommand
       if (form.installCommand) body.install_command = form.installCommand
-      if (form.testCommand) body.test_command = form.testCommand
-
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -131,7 +127,6 @@ export function CreateProjectForm() {
             <GlassInput label="Default Branch" value={form.defaultBranch} onChange={e => updateField('defaultBranch', e.target.value)} placeholder="main" />
             <GlassInput label="Dev Command" value={form.devCommand} onChange={e => updateField('devCommand', e.target.value)} placeholder="npm run dev" />
             <GlassInput label="Install Command" value={form.installCommand} onChange={e => updateField('installCommand', e.target.value)} placeholder="npm install" />
-            <GlassInput label="Test Command" value={form.testCommand} onChange={e => updateField('testCommand', e.target.value)} placeholder="npm test" />
           </div>
 
           <div className="mt-6 flex justify-end gap-3">

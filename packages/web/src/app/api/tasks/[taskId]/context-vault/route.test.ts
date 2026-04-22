@@ -142,7 +142,7 @@ describe('PATCH /api/tasks/[taskId]/context-vault', () => {
 })
 
 describe('GET /api/tasks/[taskId]/context-vault', () => {
-  it('re-reads the current local markdown content from saved source paths', async () => {
+  it('re-reads the current local content from saved source paths', async () => {
     const markdownPath = path.join(vaultRoot, 'context.md')
     fs.writeFileSync(markdownPath, '# Old Context\n')
 

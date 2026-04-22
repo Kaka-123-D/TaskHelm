@@ -52,4 +52,23 @@ describe('ContextFilePreview', () => {
     expect(markup).toContain('<img')
     expect(markup).toContain('src="data:image/png;base64,AAA"')
   })
+
+  it('renders video files as videos', () => {
+    const file: PersistedContextVaultFile = {
+      relativePath: 'videos/demo.mp4',
+      absolutePath: '/tmp/videos/demo.mp4',
+      content: 'data:video/mp4;base64,AAA',
+      category: 'video',
+      mediaType: 'video/mp4',
+    }
+
+    const markup = renderToStaticMarkup(
+      <ContextFilePreview file={file} />,
+    )
+
+    expect(markup).toContain('<video')
+    expect(markup).toContain('controls')
+    expect(markup).toContain('playsInline')
+    expect(markup).toContain('src="data:video/mp4;base64,AAA"')
+  })
 })

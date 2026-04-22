@@ -149,4 +149,184 @@ describe('runMigrations', () => {
     expect(countAfter).toBe(countBefore)
     db.close()
   })
+
+  it('applies migration 013 on an existing pre-cleanup database with dependent foreign keys', () => {
+    const db = createDatabase(TEST_DB_PATH)
+
+    db.exec(`
+      CREATE TABLE projects (
+        id TEXT PRIMARY KEY,
+        slug TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        local_repo_root TEXT NOT NULL,
+        default_branch TEXT,
+        branch_naming_pattern TEXT,
+        worktree_root TEXT,
+        dev_command TEXT,
+        install_command TEXT,
+        test_command TEXT,
+        max_active_dev_servers INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE tasks (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        key TEXT,
+        title TEXT NOT NULL,
+        goal TEXT,
+        source_type TEXT,
+        source_ref TEXT,
+        priority INTEGER NOT NULL DEFAULT 0,
+        branch_name TEXT,
+        worktree_path TEXT,
+        port INTEGER,
+        dev_server_state TEXT,
+        context_vault_root_path TEXT,
+        context_vault_sources_json TEXT,
+        context_vault_files_json TEXT,
+        context_vault_selected_file TEXT,
+        current_agent_run_id TEXT,
+        latest_blocker TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        workspace_name TEXT,
+        workspace_branch TEXT,
+        workspace_subrepo_branches_json TEXT,
+        preferred_port INTEGER
+      );
+
+      CREATE TABLE agent_runs (
+        id TEXT PRIMARY KEY,
+        task_id TEXT NOT NULL REFERENCES tasks(id),
+        kind TEXT NOT NULL,
+        role TEXT,
+        status TEXT NOT NULL,
+        input_ref TEXT,
+        output_ref TEXT,
+        error_message TEXT,
+        started_at TEXT,
+        finished_at TEXT,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE review_gates (
+        id TEXT PRIMARY KEY,
+        task_id TEXT NOT NULL REFERENCES tasks(id),
+        gate_type TEXT NOT NULL,
+        status TEXT NOT NULL,
+        result TEXT,
+        notes_ref TEXT,
+        opened_at TEXT,
+        closed_at TEXT,
+        UNIQUE(task_id, gate_type)
+      );
+
+      CREATE TABLE dev_servers (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id),
+        task_id TEXT,
+        port INTEGER NOT NULL UNIQUE,
+        pid INTEGER,
+        status TEXT NOT NULL,
+        health_url TEXT,
+        started_at TEXT,
+        stopped_at TEXT
+      );
+
+      CREATE TABLE notifications (
+        id TEXT PRIMARY KEY,
+        task_id TEXT,
+        project_id TEXT,
+        level TEXT NOT NULL,
+        channel TEXT NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        delivered_at TEXT
+      );
+
+      CREATE TABLE locks (
+        key TEXT PRIMARY KEY,
+        owner TEXT NOT NULL,
+        expires_at TEXT,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE events (
+        id TEXT PRIMARY KEY,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        payload_json TEXT,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE _migrations (
+        filename TEXT PRIMARY KEY,
+        applied_at TEXT NOT NULL
+      );
+    `)
+
+    db.prepare(
+      `INSERT INTO projects (
+        id, slug, name, description, local_repo_root, default_branch, branch_naming_pattern, worktree_root,
+        dev_command, install_command, test_command, max_active_dev_servers, created_at, updated_at
+      ) VALUES (
+        'project-1', 'demo', 'Demo', NULL, '/tmp/repo', 'main', NULL, NULL,
+        'npm run dev', 'npm install', 'npm test', 1, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
+      )`
+    ).run()
+
+    db.prepare(
+      `INSERT INTO tasks (
+        id, project_id, key, title, goal, source_type, source_ref, priority, branch_name, worktree_path, port,
+        dev_server_state, context_vault_root_path, context_vault_sources_json, context_vault_files_json,
+        context_vault_selected_file, current_agent_run_id, latest_blocker, created_at, updated_at,
+        workspace_name, workspace_branch, workspace_subrepo_branches_json, preferred_port
+      ) VALUES (
+        'task-1', 'project-1', 'TASK-1', 'Demo task', NULL, 'ticket', '#1', 3, NULL, NULL, NULL,
+        NULL, NULL, NULL, NULL,
+        NULL, NULL, NULL, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z',
+        NULL, NULL, NULL, NULL
+      )`
+    ).run()
+
+    db.prepare(
+      `INSERT INTO agent_runs (
+        id, task_id, kind, role, status, input_ref, output_ref, error_message, started_at, finished_at, created_at
+      ) VALUES (
+        'run-1', 'task-1', 'implement', 'worker', 'queued', NULL, NULL, NULL, NULL, NULL, '2026-01-01T00:00:00.000Z'
+      )`
+    ).run()
+
+    db.prepare(
+      `INSERT INTO _migrations (filename, applied_at) VALUES
+        ('001_projects.sql', '2026-01-01T00:00:00.000Z'),
+        ('002_tasks.sql', '2026-01-01T00:00:00.000Z'),
+        ('003_agent_runs.sql', '2026-01-01T00:00:00.000Z'),
+        ('004_review_gates.sql', '2026-01-01T00:00:00.000Z'),
+        ('005_dev_servers.sql', '2026-01-01T00:00:00.000Z'),
+        ('006_notifications.sql', '2026-01-01T00:00:00.000Z'),
+        ('007_locks.sql', '2026-01-01T00:00:00.000Z'),
+        ('008_events.sql', '2026-01-01T00:00:00.000Z'),
+        ('009_specdown_context_vault.sql', '2026-01-01T00:00:00.000Z'),
+        ('010_local_context_schema_cleanup.sql', '2026-01-01T00:00:00.000Z'),
+        ('011_task_runtime_preferences.sql', '2026-01-01T00:00:00.000Z'),
+        ('012_remove_task_status_and_phase.sql', '2026-01-01T00:00:00.000Z')`
+    ).run()
+
+    expect(() => runMigrations(db)).not.toThrow()
+
+    const taskColumns = db.prepare('PRAGMA table_info(tasks)').all() as Array<{ name: string }>
+    expect(taskColumns.map(column => column.name)).toContain('refer_link')
+    expect(taskColumns.map(column => column.name)).not.toContain('source_type')
+
+    const rows = db.prepare('SELECT filename FROM _migrations ORDER BY filename').all() as Array<{ filename: string }>
+    expect(rows.at(-1)?.filename).toBe('013_project_command_and_task_refer_link_cleanup.sql')
+    db.close()
+  })
 })

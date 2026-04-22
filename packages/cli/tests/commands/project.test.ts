@@ -63,14 +63,12 @@ describe('ProjectRepository via CLI helpers', () => {
         default_branch: 'main',
         dev_command: 'pnpm dev',
         install_command: 'pnpm install',
-        test_command: 'pnpm test',
       })
 
       expect(project.description).toBe('A full description')
       expect(project.default_branch).toBe('main')
       expect(project.dev_command).toBe('pnpm dev')
       expect(project.install_command).toBe('pnpm install')
-      expect(project.test_command).toBe('pnpm test')
     })
   })
 

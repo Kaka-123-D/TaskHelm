@@ -72,7 +72,6 @@ const baseProject = {
   worktree_root: null,
   dev_command: null,
   install_command: null,
-  test_command: null,
   max_active_dev_servers: 1,
   created_at: '2026-04-12T00:00:00.000Z',
   updated_at: '2026-04-12T00:00:00.000Z',

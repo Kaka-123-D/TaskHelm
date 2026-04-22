@@ -1,9 +1,17 @@
 {
   "name": "taskhelm",
-  "private": true,
+  "version": "0.1.0",
+  "private": false,
+  "bin": {
+    "taskhelm": "./bin/taskhelm.js"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "build": "turbo build",
+    "build": "node scripts/build-workspaces.mjs",
     "test": "turbo test",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
@@ -12,5 +20,8 @@
   "devDependencies": {
     "turbo": "^2.4.0",
     "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "@taskhelm/cli": "workspace:*"
   }
 }

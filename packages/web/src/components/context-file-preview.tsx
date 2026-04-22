@@ -141,7 +141,7 @@ export function ContextFilePreview({ file }: ContextFilePreviewProps) {
       style={{ background: 'rgba(255,255,255,0.42)', borderColor: 'var(--border)' }}
     >
       <div className="context-file-preview-toolbar border-b" style={{ borderColor: 'var(--border)' }}>
-        <div className="font-mono text-xs text-[var(--text-muted)]">
+        <div className="font-mono text-xs text-[var(--text-muted)] ml-[3rem]">
           {file?.relativePath ?? 'Preview'}
         </div>
         {file ? (
@@ -176,6 +176,10 @@ export function ContextFilePreview({ file }: ContextFilePreviewProps) {
                   alt={file.relativePath}
                   className="context-preview-image"
                 />
+              </div>
+            ) : resolvedCategory === 'video' ? (
+              <div className="context-preview-video-frame">
+                <video src={content} className="context-preview-video" controls playsInline />
               </div>
             ) : resolvedCategory === 'text' ? (
               <pre className="context-preview-code">{content}</pre>

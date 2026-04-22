@@ -2,6 +2,10 @@
   "name": "@taskhelm/cli",
   "version": "0.1.0",
   "type": "module",
+  "main": "./dist/src/index.js",
+  "exports": {
+    ".": "./dist/src/index.js"
+  },
   "bin": { "taskhelm": "dist/bin/taskhelm.js" },
   "scripts": {
     "build": "tsc",

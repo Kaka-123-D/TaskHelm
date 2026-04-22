@@ -7,84 +7,49 @@ import { GlassButton } from '@/components/design-system/glass-button'
 import { GlassInput } from '@/components/design-system/glass-input'
 import { StatusDot } from '@/components/design-system/status-dot'
 
+export interface ExternalPortConflict {
+  readonly conflictType: 'external_port_in_use'
+  readonly port: number
+  readonly process: {
+    readonly pid: number | null
+    readonly command: string | null
+    readonly user: string | null
+    readonly cwd: string | null
+  } | null
+}
+
 interface DevServerPanelProps {
   readonly task: Task
 }
 
-export function DevServerPanel({ task }: DevServerPanelProps) {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
+export interface DevServerPanelViewProps {
+  readonly task: Task
+  readonly loading: boolean
+  readonly error: string | null
+  readonly preferredPort: string
+  readonly conflict: ExternalPortConflict | null
+  readonly onPreferredPortChange: (value: string) => void
+  readonly onSavePreferredPort: () => void
+  readonly onStart: () => void
+  readonly onStop: () => void
+  readonly onKillExternal: () => void
+}
 
+export function DevServerPanelView({
+  task,
+  loading,
+  error,
+  preferredPort,
+  conflict,
+  onPreferredPortChange,
+  onSavePreferredPort,
+  onStart,
+  onStop,
+  onKillExternal,
+}: DevServerPanelViewProps) {
   const state = task.dev_server_state
   const port = task.port
-  const [preferredPort, setPreferredPort] = useState(
-    task.preferred_port != null ? String(task.preferred_port) : '',
-  )
   const isRunning = state === 'running' || state === 'warm'
-
-  const handleSavePreferredPort = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await fetch(`/api/tasks/${task.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          preferred_port: preferredPort.trim() ? Number(preferredPort) : null,
-        }),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error ?? 'Failed to save preferred port')
-      }
-      router.refresh()
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setLoading(false)
-    }
-  }, [preferredPort, router, task.id])
-
-  const handleStart = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await fetch(`/api/tasks/${task.id}/dev`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          preferredPort: preferredPort.trim() ? Number(preferredPort) : null,
-        }),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error ?? 'Failed to start dev server')
-      }
-      router.refresh()
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setLoading(false)
-    }
-  }, [preferredPort, router, task.id])
-
-  const handleStop = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await fetch(`/api/tasks/${task.id}/dev`, { method: 'DELETE' })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error ?? 'Failed to stop dev server')
-      }
-      router.refresh()
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setLoading(false)
-    }
-  }, [task.id, router])
 
   return (
     <div className="utility-panel">
@@ -111,14 +76,34 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
         )}
       </div>
 
-      {error && <div className="utility-panel-error">{error}</div>}
+      {conflict ? (
+        <div className="utility-panel-error">
+          <div className="font-semibold">Port {conflict.port} is already in use</div>
+          <div className="mt-2 space-y-1 text-xs leading-5">
+            {conflict.process?.pid != null ? <div><strong>PID:</strong> {conflict.process.pid}</div> : null}
+            {conflict.process?.command ? <div><strong>Command:</strong> {conflict.process.command}</div> : null}
+            {conflict.process?.user ? <div><strong>User:</strong> {conflict.process.user}</div> : null}
+            {conflict.process?.cwd ? <div><strong>Working directory:</strong> {conflict.process.cwd}</div> : null}
+            <div>This process is outside TaskHelm. Review it before deciding whether to kill it.</div>
+          </div>
+          {conflict.process?.pid != null ? (
+            <div className="mt-3">
+              <GlassButton variant="danger" onClick={onKillExternal} loading={loading} className="text-xs px-3 py-1.5">
+                Kill external process
+              </GlassButton>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {error && !conflict ? <div className="utility-panel-error">{error}</div> : null}
 
       <div className="mb-3">
         <GlassInput
           label="Preferred Port"
           inputMode="numeric"
           value={preferredPort}
-          onChange={event => setPreferredPort(event.target.value.replace(/[^\d]/g, ''))}
+          onChange={event => onPreferredPortChange(event.target.value.replace(/[^\d]/g, ''))}
           placeholder="3001"
         />
       </div>
@@ -126,7 +111,7 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
       <div className="flex flex-wrap gap-2">
         <GlassButton
           variant="secondary"
-          onClick={handleSavePreferredPort}
+          onClick={onSavePreferredPort}
           loading={loading}
           className="text-xs px-3 py-1.5"
         >
@@ -135,7 +120,7 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
         {!isRunning ? (
           <GlassButton
             variant="primary"
-            onClick={handleStart}
+            onClick={onStart}
             loading={loading}
             disabled={!task.worktree_path}
             className="text-xs px-3 py-1.5"
@@ -144,7 +129,7 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
           </GlassButton>
         ) : (
           <>
-            <GlassButton variant="danger" onClick={handleStop} loading={loading} className="text-xs px-3 py-1.5">
+            <GlassButton variant="danger" onClick={onStop} loading={loading} className="text-xs px-3 py-1.5">
               Stop
             </GlassButton>
             {port != null && (
@@ -168,5 +153,132 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
         </p>
       )}
     </div>
+  )
+}
+
+export function DevServerPanel({ task }: DevServerPanelProps) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [conflict, setConflict] = useState<ExternalPortConflict | null>(null)
+  const router = useRouter()
+  const [preferredPort, setPreferredPort] = useState(
+    task.preferred_port != null ? String(task.preferred_port) : '',
+  )
+
+  const handleSavePreferredPort = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    setConflict(null)
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          preferred_port: preferredPort.trim() ? Number(preferredPort) : null,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error ?? 'Failed to save preferred port')
+      }
+      router.refresh()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [preferredPort, router, task.id])
+
+  const handleStart = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    setConflict(null)
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/dev`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          preferredPort: preferredPort.trim() ? Number(preferredPort) : null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        if (res.status === 409 && data.conflictType === 'external_port_in_use') {
+          setConflict(data as ExternalPortConflict)
+          return
+        }
+        throw new Error(data.error ?? 'Failed to start dev server')
+      }
+      router.refresh()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [preferredPort, router, task.id])
+
+  const handleStop = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    setConflict(null)
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/dev`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error ?? 'Failed to stop dev server')
+      }
+      router.refresh()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [task.id, router])
+
+  const handleKillExternal = useCallback(async () => {
+    if (!conflict?.process?.pid) {
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/dev`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          externalPid: conflict.process.pid,
+          externalPort: conflict.port,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error ?? 'Failed to stop external process')
+      }
+      setConflict(null)
+      router.refresh()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [conflict, router, task.id])
+
+  return (
+    <DevServerPanelView
+      task={task}
+      loading={loading}
+      error={error}
+      preferredPort={preferredPort}
+      conflict={conflict}
+      onPreferredPortChange={value => {
+        setPreferredPort(value)
+        setConflict(null)
+      }}
+      onSavePreferredPort={handleSavePreferredPort}
+      onStart={handleStart}
+      onStop={handleStop}
+      onKillExternal={handleKillExternal}
+    />
   )
 }

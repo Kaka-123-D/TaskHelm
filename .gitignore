@@ -9,6 +9,7 @@ dist/
 
 # Turborepo
 .turbo/
+.worktrees/
 
 # SQLite databases
 *.db

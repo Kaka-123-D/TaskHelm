@@ -89,15 +89,13 @@ describe('Task CLI commands', () => {
         title: 'Full Task',
         goal: 'Accomplish great things',
         key: 'TASK-42',
-        source_type: 'github_issue',
-        source_ref: 'https://github.com/org/repo/issues/42',
+        refer_link: 'https://github.com/org/repo/issues/42',
         priority: 5,
       })
 
       expect(task.goal).toBe('Accomplish great things')
       expect(task.key).toBe('TASK-42')
-      expect(task.source_type).toBe('github_issue')
-      expect(task.source_ref).toBe('https://github.com/org/repo/issues/42')
+      expect(task.refer_link).toBe('https://github.com/org/repo/issues/42')
       expect(task.priority).toBe(5)
     })
 

@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: 'Autonomous AI engineering manager',
 }
 
+export const dynamic = 'force-dynamic'
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const db = getDb()
   const projectRepo = new ProjectRepository(db)

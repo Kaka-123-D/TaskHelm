@@ -35,7 +35,7 @@ describe('ContextFileList', () => {
       <ContextFileList
         files={files}
         selectedFile="docs/context.md"
-        collapsed
+        displayMode="collapsed"
         onSelect={() => {}}
         onToggleCollapse={() => {}}
       />,
@@ -60,5 +60,36 @@ describe('ContextFileList', () => {
     expect(markup).toContain('docs')
     expect(markup).toContain('context-file-tree-rail')
     expect(markup).toContain('context-file-tree-branch')
+  })
+
+  it('renders icon rail items with accessible names when compact mode is active', () => {
+    const markup = renderToStaticMarkup(
+      <ContextFileList
+        files={files}
+        selectedFile="docs/context.md"
+        displayMode="compact"
+        onSelect={() => {}}
+      />,
+    )
+
+    expect(markup).toContain('data-state="compact"')
+    expect(markup).toContain('aria-label="File docs/context.md"')
+    expect(markup).toContain('title="docs/context.md"')
+    expect(markup).not.toContain('Context Files')
+    expect(markup).not.toContain('context.md</span>')
+  })
+
+  it('renders image files with thumbnail previews in the list', () => {
+    const markup = renderToStaticMarkup(
+      <ContextFileList
+        files={files}
+        selectedFile="docs/images/diagram.png"
+        onSelect={() => {}}
+      />,
+    )
+
+    expect(markup).toContain('context-file-tree-icon--thumbnail')
+    expect(markup).toContain('class="context-file-tree-thumbnail"')
+    expect(markup).toContain('src="data:image/png;base64,AAA"')
   })
 })

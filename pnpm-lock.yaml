@@ -7,6 +7,16 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@taskhelm/cli':
+        specifier: workspace:*
+        version: link:packages/cli
+      '@taskhelm/core':
+        specifier: workspace:*
+        version: link:packages/core
+      '@taskhelm/supervisor':
+        specifier: workspace:*
+        version: link:packages/supervisor
     devDependencies:
       turbo:
         specifier: ^2.4.0

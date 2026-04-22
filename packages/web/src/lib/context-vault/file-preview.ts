@@ -1,4 +1,4 @@
-export type ContextVaultFileCategory = 'markdown' | 'text' | 'image' | 'unsupported'
+export type ContextVaultFileCategory = 'markdown' | 'text' | 'image' | 'video' | 'unsupported'
 
 const MARKDOWN_EXTENSIONS = new Set(['.md', '.mdx'])
 const TEXT_EXTENSIONS = new Set([
@@ -34,6 +34,12 @@ const IMAGE_EXTENSIONS = new Map<string, string>([
   ['.gif', 'image/gif'],
   ['.svg', 'image/svg+xml'],
 ])
+const VIDEO_EXTENSIONS = new Map<string, string>([
+  ['.mp4', 'video/mp4'],
+  ['.webm', 'video/webm'],
+  ['.mov', 'video/quicktime'],
+  ['.m4v', 'video/x-m4v'],
+])
 
 function getExtension(filename: string): string {
   const lastDot = filename.lastIndexOf('.')
@@ -57,6 +63,11 @@ export function classifyContextVaultFile(filename: string): {
   const imageMediaType = IMAGE_EXTENSIONS.get(extension)
   if (imageMediaType) {
     return { category: 'image', mediaType: imageMediaType }
+  }
+
+  const videoMediaType = VIDEO_EXTENSIONS.get(extension)
+  if (videoMediaType) {
+    return { category: 'video', mediaType: videoMediaType }
   }
 
   return { category: 'unsupported', mediaType: 'application/octet-stream' }

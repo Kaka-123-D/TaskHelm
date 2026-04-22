@@ -21,8 +21,7 @@ export function registerTaskCommands(program: Command): void {
     .requiredOption('--title <title>', 'Task title')
     .option('--goal <text>', 'Task goal description')
     .option('--key <key>', 'Task key (e.g. TASK-42)')
-    .option('--source-type <type>', 'Source type (e.g. github_issue)')
-    .option('--source-ref <ref>', 'Source reference URL or identifier')
+    .option('--refer-link <url>', 'Related reference URL')
     .option('--priority <n>', 'Task priority (integer)', parseInt)
     .action((opts) => {
       const db = getDb()
@@ -41,8 +40,7 @@ export function registerTaskCommands(program: Command): void {
           title: opts.title as string,
           goal: opts.goal as string | undefined,
           key: opts.key as string | undefined,
-          source_type: opts.sourceType as string | undefined,
-          source_ref: opts.sourceRef as string | undefined,
+          refer_link: opts.referLink as string | undefined,
           priority: opts.priority as number | undefined,
         })
 

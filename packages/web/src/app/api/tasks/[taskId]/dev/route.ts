@@ -4,15 +4,22 @@ import {
   TaskRepository,
   DevServerRepository,
   allocatePort,
+  isPortAvailable,
   releasePort,
 } from '@taskhelm/core'
 import { startDevServer, stopDevServer } from '@taskhelm/supervisor'
 import { getDb } from '@/lib/db'
+import { inspectListeningPort, killExternalProcessForPort } from '@/lib/dev/external-port'
 
 type Params = { params: Promise<{ taskId: string }> }
 
 interface DevRequestBody {
   readonly preferredPort?: number | null
+}
+
+interface ExternalStopBody {
+  readonly externalPid?: number | null
+  readonly externalPort?: number | null
 }
 
 /** POST = dev start */
@@ -53,12 +60,46 @@ export async function POST(request: Request, { params }: Params) {
       requestedPreferredPort != null
         ? (() => {
             const reserved = devServerRepo.findByPort(requestedPreferredPort)
-            if (reserved && reserved.status !== 'stopped') {
-              throw new Error(`Preferred port ${requestedPreferredPort} is not available`)
+            if (reserved) {
+              if (reserved.status !== 'stopped') {
+                throw new Error(`Preferred port ${requestedPreferredPort} is not available`)
+              }
+
+              // Older TaskHelm versions left stopped dev server rows behind, which
+              // still occupy the UNIQUE port key. Reclaim them before starting.
+              devServerRepo.delete(reserved.id)
             }
             return requestedPreferredPort
           })()
         : await allocatePort(db, project.id, task.id)
+
+    if (requestedPreferredPort != null) {
+      const process = await inspectListeningPort(port)
+      if (process) {
+        return NextResponse.json(
+          {
+            error: `Port ${port} is already in use`,
+            conflictType: 'external_port_in_use',
+            port,
+            process,
+          },
+          { status: 409 },
+        )
+      }
+
+      const available = await isPortAvailable(port)
+      if (!available) {
+        return NextResponse.json(
+          {
+            error: `Port ${port} is already in use`,
+            conflictType: 'external_port_in_use',
+            port,
+            process: null,
+          },
+          { status: 409 },
+        )
+      }
+    }
 
     const devServer = startDevServer({
       db,
@@ -86,16 +127,22 @@ export async function POST(request: Request, { params }: Params) {
 }
 
 /** DELETE = dev stop */
-export async function DELETE(_request: Request, { params }: Params) {
+export async function DELETE(request: Request, { params }: Params) {
   try {
     const { taskId } = await params
     const db = getDb()
     const taskRepo = new TaskRepository(db)
     const devServerRepo = new DevServerRepository(db)
+    const body = (await request.json().catch(() => ({}))) as ExternalStopBody
 
     const task = taskRepo.findById(taskId)
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    }
+
+    if (body.externalPid != null && body.externalPort != null) {
+      const result = await killExternalProcessForPort(body.externalPort, body.externalPid)
+      return NextResponse.json({ ...result, external: true })
     }
 
     const devServer = devServerRepo.findByTaskId(taskId)

@@ -27,7 +27,6 @@ Fields:
 - `worktree_root`
 - `dev_command`
 - `install_command`
-- `test_command`
 - `max_active_dev_servers`
 - `created_at`
 - `updated_at`
@@ -49,8 +48,7 @@ Fields:
 - `key`
 - `title`
 - `goal`
-- `source_type`
-- `source_ref`
+- `refer_link`
 - `priority`
 - `branch_name`
 - `workspace_name`

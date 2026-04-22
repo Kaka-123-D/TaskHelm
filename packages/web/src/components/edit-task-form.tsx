@@ -24,7 +24,14 @@ const PRIORITY_OPTIONS = [
 interface FormState {
   readonly title: string
   readonly goal: string
+  readonly referLink: string
   readonly priority: string
+}
+
+function normalizeReferLink(value: string): string | null {
+  const trimmed = value.trim()
+  if (trimmed.length === 0) return null
+  return new URL(trimmed).toString()
 }
 
 export function EditTaskForm({ task, projectSlug: _projectSlug }: EditTaskFormProps) {
@@ -32,6 +39,7 @@ export function EditTaskForm({ task, projectSlug: _projectSlug }: EditTaskFormPr
   const [form, setForm] = useState<FormState>({
     title: task.title,
     goal: task.goal ?? '',
+    referLink: task.refer_link ?? '',
     priority: String(task.priority),
   })
   const [error, setError] = useState<string | null>(null)
@@ -50,12 +58,20 @@ export function EditTaskForm({ task, projectSlug: _projectSlug }: EditTaskFormPr
     setError(null)
     setSubmitting(true)
     try {
+      let referLink: string | null
+      try {
+        referLink = normalizeReferLink(form.referLink)
+      } catch {
+        throw new Error('Refer Link must be a valid absolute URL')
+      }
+
       const res = await fetch(`/api/tasks/${task.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: form.title,
           goal: form.goal || null,
+          refer_link: referLink,
           priority: parseInt(form.priority, 10),
         }),
       })
@@ -88,6 +104,12 @@ export function EditTaskForm({ task, projectSlug: _projectSlug }: EditTaskFormPr
           <div className="space-y-3">
             <GlassInput label="Title" value={form.title} onChange={e => updateField('title', e.target.value)} placeholder="Task title" />
             <GlassInput label="Goal" value={form.goal} onChange={e => updateField('goal', e.target.value)} placeholder="Task goal" />
+            <GlassInput
+              label="Refer Link"
+              value={form.referLink}
+              onChange={e => updateField('referLink', e.target.value)}
+              placeholder="https://example.com/tickets/42"
+            />
             <GlassSelect label="Priority" options={PRIORITY_OPTIONS} value={form.priority} onChange={e => updateField('priority', e.target.value)} />
           </div>
           <div className="flex justify-end gap-3 mt-6">

@@ -100,8 +100,5 @@ export function releasePort(db: Database.Database, port: number): void {
     return
   }
 
-  const now = new Date().toISOString()
-  db.prepare(
-    'UPDATE dev_servers SET status = @status, stopped_at = @stopped_at WHERE port = @port'
-  ).run({ status: 'stopped', stopped_at: now, port })
+  db.prepare('DELETE FROM dev_servers WHERE id = ?').run(row.id)
 }

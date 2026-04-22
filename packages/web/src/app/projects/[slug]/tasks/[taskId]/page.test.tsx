@@ -18,7 +18,6 @@ vi.mock('@taskhelm/core', () => ({
       worktree_root: null,
       dev_command: null,
       install_command: null,
-      test_command: null,
       max_active_dev_servers: 1,
     }),
   })),
@@ -28,6 +27,7 @@ vi.mock('@taskhelm/core', () => ({
       project_id: 'project-1',
       title: 'Ship auth',
       goal: 'Finish the login flow',
+      refer_link: 'https://example.com/tickets/42',
       priority: 3,
       branch_name: null,
       workspace_name: 'alpha-ui',
@@ -81,6 +81,9 @@ describe('TaskPage workbench shell', () => {
     expect(markup).not.toContain('Read context, preview artifacts, and manage workspace/runtime from one workbench.')
     expect(markup).toContain('Ship auth')
     expect(markup).toContain('Normal')
+    expect(markup).toContain('Refer Link')
+    expect(markup).toContain('href="https://example.com/tickets/42"')
+    expect(markup).toContain('target="_blank"')
     expect(markup).toContain('alpha-ui')
     expect(markup).toContain('feat/task-1')
     expect(markup).toContain(':4555 saved')

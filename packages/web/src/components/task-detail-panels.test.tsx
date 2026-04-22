@@ -25,7 +25,6 @@ function createProject(overrides: Partial<Project> = {}): Project {
     worktree_root: null,
     dev_command: null,
     install_command: null,
-    test_command: null,
     max_active_dev_servers: 1,
     created_at: '2026-04-13T00:00:00.000Z',
     updated_at: '2026-04-13T00:00:00.000Z',
@@ -40,10 +39,13 @@ function createTask(overrides: Partial<Task> = {}): Task {
     key: null,
     title: 'Ship auth',
     goal: 'Finish the login flow',
-    source_type: null,
-    source_ref: null,
+    refer_link: null,
     priority: 2,
     branch_name: null,
+    workspace_name: null,
+    workspace_branch: null,
+    workspace_subrepo_branches_json: null,
+    preferred_port: null,
     worktree_path: null,
     port: null,
     dev_server_state: null,
@@ -110,8 +112,9 @@ describe('TaskDetailPanelsView', () => {
     expect(markup).toContain('guides/context.md')
     expect(markup).toContain('/repo/alpha/docs')
     expect(markup).toContain('Loaded 1 context file from the local filesystem.')
-    expect(markup).toContain('Change Context Vault')
+    expect(markup).toContain('Update Vault')
     expect(markup).toContain('aria-label="Collapse file list"')
+    expect(markup).toContain('refreshes from the linked local source every 30 seconds')
   })
 
   it('does not show the execution-surface loading copy once files already exist', () => {
@@ -170,5 +173,68 @@ describe('TaskDetailPanelsView', () => {
 
     expect(markup).toContain('aria-label="Expand file list"')
     expect(markup).toContain('data-state="collapsed"')
+  })
+
+  it('renders the stacked task-detail layout hook for laptop view', () => {
+    const markup = renderToStaticMarkup(
+      <TaskDetailPanelsView
+        task={createTask()}
+        project={createProject()}
+        rootPath="/repo/alpha/docs"
+        sourceCount={1}
+        files={[
+          {
+            relativePath: 'guides/context.md',
+            absolutePath: '/tmp/vault-root/guides/context.md',
+            content: '# Context',
+            category: 'markdown',
+            mediaType: 'text/markdown',
+          },
+        ]}
+        selectedFile="guides/context.md"
+        statusMessage={null}
+        forceLayoutMode="stacked"
+        fileListCollapsed={false}
+        onSelectFile={() => {}}
+        onToggleFileListCollapse={() => {}}
+        onOpenExplorer={() => {}}
+      />,
+    )
+
+    expect(markup).toContain('data-layout="stacked"')
+    expect(markup).toContain('data-slot="task-detail-sidebar"')
+    expect(markup).toContain('data-slot="task-detail-main"')
+    expect(markup).toContain('data-list-mode="popover"')
+    expect(markup).toContain('aria-label="Open context file picker"')
+  })
+
+  it('renders a floating file picker trigger when list mode switches to popover', () => {
+    const markup = renderToStaticMarkup(
+      <TaskDetailPanelsView
+        task={createTask()}
+        project={createProject()}
+        rootPath="/repo/alpha/docs"
+        sourceCount={1}
+        files={[
+          {
+            relativePath: 'guides/context.md',
+            absolutePath: '/tmp/vault-root/guides/context.md',
+            content: '# Context',
+            category: 'markdown',
+            mediaType: 'text/markdown',
+          },
+        ]}
+        selectedFile="guides/context.md"
+        statusMessage={null}
+        forceFileListMode="popover"
+        fileListCollapsed={false}
+        onSelectFile={() => {}}
+        onToggleFileListCollapse={() => {}}
+        onOpenExplorer={() => {}}
+      />,
+    )
+
+    expect(markup).toContain('data-list-mode="popover"')
+    expect(markup).toContain('aria-label="Open context file picker"')
   })
 })

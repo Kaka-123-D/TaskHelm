@@ -16,7 +16,6 @@ interface FormState {
   readonly description: string
   readonly devCommand: string
   readonly installCommand: string
-  readonly testCommand: string
   readonly maxDevServers: string
 }
 
@@ -27,7 +26,6 @@ export function EditProjectForm({ project }: EditProjectFormProps) {
     description: project.description ?? '',
     devCommand: project.dev_command ?? '',
     installCommand: project.install_command ?? '',
-    testCommand: project.test_command ?? '',
     maxDevServers: String(project.max_active_dev_servers),
   })
   const [error, setError] = useState<string | null>(null)
@@ -50,7 +48,6 @@ export function EditProjectForm({ project }: EditProjectFormProps) {
       body.description = form.description || ''
       if (form.devCommand) body.dev_command = form.devCommand
       if (form.installCommand) body.install_command = form.installCommand
-      if (form.testCommand) body.test_command = form.testCommand
       body.max_active_dev_servers = parseInt(form.maxDevServers, 10) || 3
 
       const res = await fetch(`/api/projects/${project.slug}`, {
@@ -89,7 +86,6 @@ export function EditProjectForm({ project }: EditProjectFormProps) {
             <GlassInput label="Description" value={form.description} onChange={e => updateField('description', e.target.value)} placeholder="Description" />
             <GlassInput label="Dev Command" value={form.devCommand} onChange={e => updateField('devCommand', e.target.value)} placeholder="npm run dev" />
             <GlassInput label="Install Command" value={form.installCommand} onChange={e => updateField('installCommand', e.target.value)} placeholder="npm install" />
-            <GlassInput label="Test Command" value={form.testCommand} onChange={e => updateField('testCommand', e.target.value)} placeholder="npm test" />
             <GlassInput label="Max Dev Servers" type="number" value={form.maxDevServers} onChange={e => updateField('maxDevServers', e.target.value)} placeholder="3" />
           </div>
           <div className="flex justify-end gap-3 mt-6">

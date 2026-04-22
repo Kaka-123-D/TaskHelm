@@ -54,7 +54,7 @@ Purpose:
 Sections:
 
 - task summary
-- source ticket info
+- refer link
 - current branch and worktree
 - live agent runs
 - review pipeline

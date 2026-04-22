@@ -3,6 +3,10 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type Database from 'better-sqlite3'
 
+const NON_TRANSACTIONAL_MIGRATIONS = new Set([
+  '013_project_command_and_task_refer_link_cleanup.sql',
+])
+
 function getMigrationsDir(): string {
   // Works at runtime from both src/ (vitest) and dist/ (production) because
   // import.meta.url always points to the actual file being executed.
@@ -53,6 +57,12 @@ export function runMigrations(db: Database.Database): void {
     }
 
     const sql = readFileSync(join(migrationsDir, filename), 'utf-8')
+
+    if (NON_TRANSACTIONAL_MIGRATIONS.has(filename)) {
+      db.exec(sql)
+      insertMigration.run(filename, new Date().toISOString())
+      continue
+    }
 
     db.transaction(() => {
       db.exec(sql)
