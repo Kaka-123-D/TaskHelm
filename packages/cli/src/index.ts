@@ -6,6 +6,7 @@ import { registerDevCommands } from './commands/dev.js'
 import { registerAgentCommands } from './commands/agent.js'
 import { shouldLaunchApp } from './launcher/argv.js'
 import { launchTaskHelmApp } from './launcher/index.js'
+import { basename } from 'node:path'
 
 export const program = new Command()
   .name('taskhelm')
@@ -23,6 +24,8 @@ export interface MainOptions {
 }
 
 export async function main(argv = process.argv, options: MainOptions = {}): Promise<void> {
+  program.name(basename(argv[1] || 'taskhelm').replace(/\.js$/, ''))
+
   if (shouldLaunchApp(argv, options)) {
     await launchTaskHelmApp()
     return

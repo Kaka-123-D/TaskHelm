@@ -7,11 +7,13 @@
   },
   "files": [
     "bin",
-    "README.md"
+    "README.md",
+    "runtime"
   ],
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "build": "node scripts/build-workspaces.mjs",
+    "build": "node scripts/build-workspaces.mjs && node scripts/sync-bundled-runtime.mjs",
+    "prepack": "pnpm run build",
     "test": "turbo test",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",

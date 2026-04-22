@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
-import { ensureRuntime } from './runtime-cache.js'
+import { join } from 'node:path'
+import { ensureRuntime, getCliPackageRoot } from './runtime-cache.js'
 import { openBrowser } from './open-browser.js'
 import { startRuntimeServer, waitForServer } from './server-process.js'
 
@@ -8,7 +9,7 @@ interface PackageMeta {
 }
 
 function getCliVersion(): string {
-  const raw = readFileSync(new URL('../../../package.json', import.meta.url), 'utf-8')
+  const raw = readFileSync(join(getCliPackageRoot(), 'package.json'), 'utf-8')
   return (JSON.parse(raw) as PackageMeta).version
 }
 

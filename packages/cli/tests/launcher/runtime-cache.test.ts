@@ -32,6 +32,21 @@ describe('runtime cache helpers', () => {
     expect(getBundledRuntimeEntrypoint()).toBe(entrypoint)
   })
 
+  it('derives bundled runtime candidates from a packaged root install layout', async () => {
+    const { getBundledRuntimeCandidates, getCliPackageRoot } = await import(
+      '../../src/launcher/runtime-cache.js'
+    )
+
+    expect(getCliPackageRoot().replace(/\\/g, '/')).toMatch(/packages\/cli$/)
+
+    expect(getBundledRuntimeCandidates('/opt/taskhelm/node_modules/@taskhelm/cli')).toContain(
+      '/opt/taskhelm/runtime/standalone/packages/web/server.js',
+    )
+    expect(getBundledRuntimeCandidates('/opt/taskhelm/node_modules/@taskhelm/cli')).toContain(
+      '/opt/taskhelm/runtime/standalone/server.js',
+    )
+  })
+
   it('installs a runtime bundle from an explicit archive override when bundled runtime is disabled', async () => {
     const sourceRoot = mkdtempSync(join(tmpdir(), 'taskhelm-runtime-source-'))
     const archiveRoot = mkdtempSync(join(tmpdir(), 'taskhelm-runtime-archive-'))

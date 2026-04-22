@@ -6,7 +6,7 @@
   "exports": {
     ".": "./dist/src/index.js"
   },
-  "bin": { "taskhelm": "dist/bin/taskhelm.js" },
+  "bin": { "taskhelm-cli": "dist/bin/taskhelm.js" },
   "scripts": {
     "build": "tsc",
     "test": "vitest run",

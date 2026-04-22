@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -7,8 +7,38 @@ import { resolveRuntimeManifest } from './runtime-manifest.js'
 
 const ENTRYPOINT_CANDIDATES = ['packages/web/server.js', 'server.js'] as const
 
-function getCliPackageRoot(): string {
-  return resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
+export function getCliPackageRoot(): string {
+  let current = dirname(fileURLToPath(import.meta.url))
+
+  while (true) {
+    const packageJsonPath = join(current, 'package.json')
+    if (existsSync(packageJsonPath)) {
+      const raw = readFileSync(packageJsonPath, 'utf-8')
+      const parsed = JSON.parse(raw) as { readonly name?: string }
+      if (parsed.name === '@taskhelm/cli') {
+        return current
+      }
+    }
+
+    const parent = dirname(current)
+    if (parent === current) {
+      throw new Error('Unable to resolve @taskhelm/cli package root from launcher runtime')
+    }
+    current = parent
+  }
+}
+
+export function getBundledRuntimeCandidates(cliRoot: string = getCliPackageRoot()): readonly string[] {
+  return [
+    resolve(cliRoot, '..', '..', 'runtime', 'standalone', 'packages', 'web', 'server.js'),
+    resolve(cliRoot, '..', '..', 'runtime', 'standalone', 'server.js'),
+    resolve(cliRoot, '..', '..', '..', 'runtime', 'standalone', 'packages', 'web', 'server.js'),
+    resolve(cliRoot, '..', '..', '..', 'runtime', 'standalone', 'server.js'),
+    resolve(cliRoot, '..', '..', 'web', 'runtime', 'standalone', 'packages', 'web', 'server.js'),
+    resolve(cliRoot, '..', '..', 'web', 'runtime', 'standalone', 'server.js'),
+    resolve(cliRoot, '..', '..', 'web', '.next', 'standalone', 'packages', 'web', 'server.js'),
+    resolve(cliRoot, '..', '..', 'web', '.next', 'standalone', 'server.js'),
+  ]
 }
 
 export function getTaskHelmHome(): string {
@@ -45,15 +75,7 @@ export function getBundledRuntimeEntrypoint(): string | null {
   const explicit = process.env.TASKHELM_BUNDLED_RUNTIME_ENTRYPOINT
   if (explicit && existsSync(explicit)) return explicit
 
-  const cliRoot = getCliPackageRoot()
-  const candidates = [
-    resolve(cliRoot, '..', '..', 'web', 'runtime', 'standalone', 'packages', 'web', 'server.js'),
-    resolve(cliRoot, '..', '..', 'web', 'runtime', 'standalone', 'server.js'),
-    resolve(cliRoot, '..', '..', 'web', '.next', 'standalone', 'packages', 'web', 'server.js'),
-    resolve(cliRoot, '..', '..', 'web', '.next', 'standalone', 'server.js'),
-  ]
-
-  return candidates.find(candidate => existsSync(candidate)) ?? null
+  return getBundledRuntimeCandidates().find(candidate => existsSync(candidate)) ?? null
 }
 
 export function getBundledRuntimeRoot(): string | null {

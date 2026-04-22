@@ -1,7 +1,12 @@
 import type { NextConfig } from 'next'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const packageRoot = dirname(fileURLToPath(import.meta.url))
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  outputFileTracingRoot: resolve(packageRoot, '..', '..'),
   serverExternalPackages: ['@taskhelm/core', '@taskhelm/supervisor', 'better-sqlite3'],
   webpack: config => {
     config.ignoreWarnings = [
