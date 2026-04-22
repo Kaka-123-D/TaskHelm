@@ -9,23 +9,16 @@ afterEach(() => {
 })
 
 describe('runtime manifest resolution', () => {
-  it('uses the default manifest URL template when no env override is provided', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ bundleUrl: 'https://downloads.example.com/taskhelm-runtime.tgz' }),
-    })
+  it('returns null when no explicit runtime manifest or bundle override is configured', async () => {
+    const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
 
-    const { DEFAULT_RUNTIME_MANIFEST_URL, resolveRuntimeManifest } = await import(
-      '../../src/launcher/runtime-manifest.js'
-    )
+    const { resolveRuntimeManifest } = await import('../../src/launcher/runtime-manifest.js')
 
     const manifest = await resolveRuntimeManifest('1.2.3')
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      DEFAULT_RUNTIME_MANIFEST_URL.replace('{version}', '1.2.3'),
-    )
-    expect(manifest?.bundleUrl).toBe('https://downloads.example.com/taskhelm-runtime.tgz')
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(manifest).toBeNull()
   })
 
   it('prefers explicit env manifest URL over the default template', async () => {

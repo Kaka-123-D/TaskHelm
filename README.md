@@ -16,7 +16,7 @@ npm i -g @taskhelm/cli
 taskhelm-cli project list
 ```
 
-`taskhelm` is the launcher package. It starts the local web app on `http://127.0.0.1:4100` using the bundled runtime shipped inside the npm package.
+`taskhelm` is the launcher package. On first run it prepares the local web runtime from assets shipped inside the npm package, caches the prepared runtime under `~/.taskhelm/runtime/<version>`, then starts the app on `http://127.0.0.1:4100`.
 
 `@taskhelm/cli` is the CLI-only package. It does not auto-open the web app.
 
@@ -71,7 +71,7 @@ pnpm --filter @taskhelm/cli publish --access public
 pnpm publish --access public
 ```
 
-`taskhelm` now bundles the web runtime directly in the published npm tarball, so no external runtime host is required for the normal global install path.
+`taskhelm` no longer requires an external runtime host. The published npm package contains the launcher plus the web workspace assets needed to prepare the runtime locally on the installing machine during first run.
 
 ## V1 Autonomy Boundary
 

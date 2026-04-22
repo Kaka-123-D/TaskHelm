@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -28,6 +29,27 @@ export function getCliPackageRoot(): string {
   }
 }
 
+export function getTaskHelmPackageRoot(cliRoot: string = getCliPackageRoot()): string | null {
+  let current = dirname(cliRoot)
+
+  while (true) {
+    const packageJsonPath = join(current, 'package.json')
+    if (existsSync(packageJsonPath)) {
+      const raw = readFileSync(packageJsonPath, 'utf-8')
+      const parsed = JSON.parse(raw) as { readonly name?: string }
+      if (parsed.name === 'taskhelm') {
+        return current
+      }
+    }
+
+    const parent = dirname(current)
+    if (parent === current) {
+      return null
+    }
+    current = parent
+  }
+}
+
 export function getBundledRuntimeCandidates(cliRoot: string = getCliPackageRoot()): readonly string[] {
   return [
     resolve(cliRoot, '..', '..', 'runtime', 'standalone', 'packages', 'web', 'server.js'),
@@ -39,6 +61,14 @@ export function getBundledRuntimeCandidates(cliRoot: string = getCliPackageRoot(
     resolve(cliRoot, '..', '..', 'web', '.next', 'standalone', 'packages', 'web', 'server.js'),
     resolve(cliRoot, '..', '..', 'web', '.next', 'standalone', 'server.js'),
   ]
+}
+
+function getLocalPrepareScript(): string | null {
+  const taskhelmRoot = getTaskHelmPackageRoot()
+  if (!taskhelmRoot) return null
+
+  const candidate = join(taskhelmRoot, 'scripts', 'prepare-installed-runtime.mjs')
+  return existsSync(candidate) ? candidate : null
 }
 
 export function getTaskHelmHome(): string {
@@ -93,6 +123,36 @@ export function getBundledRuntimeRoot(): string | null {
   return null
 }
 
+function prepareRuntimeLocally(version: string): string {
+  const runtimeRoot = getRuntimeRoot(version)
+  const prepareScript = getLocalPrepareScript()
+  if (!prepareScript) {
+    throw new Error(
+      'TaskHelm local runtime prepare script is missing from this installation. Reinstall taskhelm or rebuild the package.',
+    )
+  }
+
+  try {
+    execFileSync(
+      process.execPath,
+      [prepareScript, '--runtime-root', runtimeRoot, '--version', version],
+      {
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+          NEXT_TELEMETRY_DISABLED: '1',
+        },
+      },
+    )
+  } catch (error) {
+    throw new Error(
+      `TaskHelm could not prepare the local web runtime for version ${version}. ${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
+
+  return getRuntimeEntrypoint(version)
+}
+
 export async function ensureRuntime(version: string): Promise<string> {
   if (isRuntimeReady(version)) return getRuntimeEntrypoint(version)
 
@@ -105,17 +165,12 @@ export async function ensureRuntime(version: string): Promise<string> {
   }
 
   const manifest = await resolveRuntimeManifest(version)
-  if (!manifest) {
-    throw new Error(
-      [
-        'TaskHelm web runtime is not available locally yet.',
-        'Run the web build first, provide TASKHELM_BUNDLED_RUNTIME_ENTRYPOINT, or configure TASKHELM_RUNTIME_MANIFEST_URL/TASKHELM_RUNTIME_BUNDLE_URL.',
-      ].join(' '),
-    )
+  if (manifest) {
+    const runtimeRoot = getRuntimeRoot(version)
+    mkdirSync(dirname(runtimeRoot), { recursive: true })
+    await installRuntimeBundle({ manifest, runtimeRoot })
+    return getRuntimeEntrypoint(version)
   }
 
-  const runtimeRoot = getRuntimeRoot(version)
-  mkdirSync(dirname(runtimeRoot), { recursive: true })
-  await installRuntimeBundle({ manifest, runtimeRoot })
-  return getRuntimeEntrypoint(version)
+  return prepareRuntimeLocally(version)
 }

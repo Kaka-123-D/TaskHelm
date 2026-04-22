@@ -5,9 +5,6 @@ export interface RuntimeManifest {
   readonly entrypointCandidates: readonly string[]
 }
 
-export const DEFAULT_RUNTIME_MANIFEST_URL =
-  'https://releases.taskhelm.dev/runtime/{version}/manifest.json'
-
 const DEFAULT_ENTRYPOINT_CANDIDATES = ['standalone/packages/web/server.js', 'standalone/server.js'] as const
 
 function normalizeEntrypoints(input: string | readonly string[] | undefined): readonly string[] {
@@ -37,7 +34,8 @@ export function getRuntimeManifestOverride(version: string): RuntimeManifest | n
 }
 
 function resolveManifestUrl(version: string): string | null {
-  const template = process.env.TASKHELM_RUNTIME_MANIFEST_URL?.trim() || DEFAULT_RUNTIME_MANIFEST_URL
+  const template = process.env.TASKHELM_RUNTIME_MANIFEST_URL?.trim()
+  if (!template) return null
 
   return template.includes('{version}') ? template.replaceAll('{version}', version) : template
 }

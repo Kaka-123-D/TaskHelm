@@ -1,11 +1,23 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { execFileSync } from 'node:child_process'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
 const originalEnv = { ...process.env }
+const childProcessExecFileSync = vi.hoisted(() => vi.fn())
+
+vi.mock('node:child_process', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:child_process')>()
+  return {
+    ...actual,
+    execFileSync: childProcessExecFileSync,
+  }
+})
+
+beforeEach(() => {
+  childProcessExecFileSync.mockReset()
+})
 
 afterEach(() => {
   process.env = { ...originalEnv }
@@ -47,7 +59,33 @@ describe('runtime cache helpers', () => {
     )
   })
 
+  it('resolves the owning taskhelm package root from the installed cli path', async () => {
+    const fakeInstallRoot = mkdtempSync(join(tmpdir(), 'taskhelm-install-layout-'))
+    const taskhelmRoot = join(fakeInstallRoot, 'taskhelm')
+    const cliRoot = join(taskhelmRoot, 'node_modules', '@taskhelm', 'cli')
+    mkdirSync(cliRoot, { recursive: true })
+    writeFileSync(join(taskhelmRoot, 'package.json'), JSON.stringify({ name: 'taskhelm' }))
+    writeFileSync(join(cliRoot, 'package.json'), JSON.stringify({ name: '@taskhelm/cli' }))
+
+    const { getTaskHelmPackageRoot } = await import('../../src/launcher/runtime-cache.js')
+
+    expect(getTaskHelmPackageRoot(cliRoot)).toBe(taskhelmRoot)
+    expect(getTaskHelmPackageRoot('/packages/cli')).toBeNull()
+
+    rmSync(fakeInstallRoot, { recursive: true, force: true })
+  })
+
   it('installs a runtime bundle from an explicit archive override when bundled runtime is disabled', async () => {
+    const { execFileSync: actualExecFileSync } = await vi.importActual<typeof import('node:child_process')>(
+      'node:child_process'
+    )
+    childProcessExecFileSync.mockImplementation((command, args, options) => {
+      if (command === 'tar') {
+        return actualExecFileSync(command, args, options)
+      }
+
+      return Buffer.from('')
+    })
     const sourceRoot = mkdtempSync(join(tmpdir(), 'taskhelm-runtime-source-'))
     const archiveRoot = mkdtempSync(join(tmpdir(), 'taskhelm-runtime-archive-'))
     const runtimeRoot = join(sourceRoot, 'standalone', 'packages', 'web')
@@ -56,7 +94,7 @@ describe('runtime cache helpers', () => {
     writeFileSync(entrypoint, 'console.log("runtime")')
 
     const archivePath = join(archiveRoot, 'taskhelm-runtime.tgz')
-    execFileSync('tar', ['-czf', archivePath, 'standalone'], { cwd: sourceRoot })
+    actualExecFileSync('tar', ['-czf', archivePath, 'standalone'], { cwd: sourceRoot })
 
     const sha256 = createHash('sha256').update(readFileSync(archivePath)).digest('hex')
     const taskhelmHome = mkdtempSync(join(tmpdir(), 'taskhelm-home-'))
@@ -72,5 +110,52 @@ describe('runtime cache helpers', () => {
     await expect(ensureRuntime('9.9.9')).resolves.toBe(
       join(taskhelmHome, 'runtime', '9.9.9', 'standalone', 'packages', 'web', 'server.js'),
     )
+  })
+
+  it('prepares a local runtime from the installed taskhelm package when no prebuilt runtime or remote override exists', async () => {
+    const taskhelmHome = mkdtempSync(join(tmpdir(), 'taskhelm-home-'))
+    const version = '7.7.7'
+    const runtimeRoot = join(taskhelmHome, 'runtime', version)
+    process.env.TASKHELM_HOME = taskhelmHome
+    process.env.TASKHELM_DISABLE_BUNDLED_RUNTIME = '1'
+    delete process.env.TASKHELM_RUNTIME_BUNDLE_URL
+    delete process.env.TASKHELM_RUNTIME_MANIFEST_URL
+
+    childProcessExecFileSync.mockImplementation((_cmd, args) => {
+      const runtimeArgIndex = args.indexOf('--runtime-root')
+      const targetRuntimeRoot = String(args[runtimeArgIndex + 1])
+      const entrypoint = join(targetRuntimeRoot, 'packages', 'web', 'server.js')
+      mkdirSync(join(targetRuntimeRoot, 'packages', 'web'), { recursive: true })
+      writeFileSync(entrypoint, 'console.log("runtime")')
+      writeFileSync(
+        join(targetRuntimeRoot, 'manifest.json'),
+        JSON.stringify({ entrypointCandidates: ['packages/web/server.js'] }),
+      )
+      return Buffer.from('')
+    })
+
+    const { ensureRuntime, getTaskHelmPackageRoot } = await import('../../src/launcher/runtime-cache.js')
+
+    const packageRoot = getTaskHelmPackageRoot()
+    expect(packageRoot?.replace(/\\/g, '/')).toMatch(/\.worktrees\/feat-bundled-npm-runtime$/)
+
+    await expect(ensureRuntime(version)).resolves.toBe(join(runtimeRoot, 'packages', 'web', 'server.js'))
+
+    expect(childProcessExecFileSync).toHaveBeenCalledWith(
+      process.execPath,
+      expect.arrayContaining([
+        expect.stringMatching(/prepare-installed-runtime\.mjs$/),
+        '--runtime-root',
+        runtimeRoot,
+        '--version',
+        version,
+      ]),
+      expect.objectContaining({
+        stdio: 'inherit',
+        env: expect.objectContaining({ NEXT_TELEMETRY_DISABLED: '1' }),
+      }),
+    )
+
+    rmSync(taskhelmHome, { recursive: true, force: true })
   })
 })

@@ -8,22 +8,49 @@ importers:
 
   .:
     dependencies:
+      '@tailwindcss/postcss':
+        specifier: ^4.0.0
+        version: 4.2.2
       '@taskhelm/cli':
         specifier: workspace:*
         version: link:packages/cli
-      '@taskhelm/core':
-        specifier: workspace:*
-        version: link:packages/core
-      '@taskhelm/supervisor':
-        specifier: workspace:*
-        version: link:packages/supervisor
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.3(@types/react@19.2.14)
+      mermaid:
+        specifier: ^11.12.0
+        version: 11.14.0
+      motion:
+        specifier: ^12.38.0
+        version: 12.38.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      next:
+        specifier: ^15.2.0
+        version: 15.5.15(@playwright/test@1.59.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.5
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.5(react@19.2.5)
+      react-markdown:
+        specifier: ^10.1.0
+        version: 10.1.0(@types/react@19.2.14)(react@19.2.5)
+      remark-gfm:
+        specifier: ^4.0.1
+        version: 4.0.1
+      tailwindcss:
+        specifier: ^4.0.0
+        version: 4.2.2
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
     devDependencies:
       turbo:
         specifier: ^2.4.0
         version: 2.9.6
-      typescript:
-        specifier: ^5.7.0
-        version: 5.9.3
 
   packages/cli:
     dependencies:

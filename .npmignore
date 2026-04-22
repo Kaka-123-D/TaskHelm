@@ -1,0 +1,8 @@
+packages/web/.next
+packages/web/.turbo
+packages/web/node_modules
+packages/web/runtime
+packages/web/tsconfig.tsbuildinfo
+packages/web/**/*.test.ts
+packages/web/**/*.test.tsx
+packages/web/vitest.config.ts

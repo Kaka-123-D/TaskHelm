@@ -8,11 +8,20 @@
   "files": [
     "bin",
     "README.md",
-    "runtime"
+    "scripts/prepare-installed-runtime.mjs",
+    "packages/web/package.json",
+    "packages/web/next-env.d.ts",
+    "packages/web/next.config.ts",
+    "packages/web/postcss.config.mjs",
+    "packages/web/tsconfig.json",
+    "packages/web/scripts",
+    "packages/web/src",
+    "!packages/web/src/**/*.test.ts",
+    "!packages/web/src/**/*.test.tsx"
   ],
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "build": "node scripts/build-workspaces.mjs && node scripts/sync-bundled-runtime.mjs",
+    "build": "node scripts/build-workspaces.mjs",
     "prepack": "pnpm run build",
     "test": "turbo test",
     "lint": "turbo lint",
@@ -24,6 +33,18 @@
     "typescript": "^5.7.0"
   },
   "dependencies": {
-    "@taskhelm/cli": "workspace:*"
+    "@taskhelm/cli": "workspace:*",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "mermaid": "^11.12.0",
+    "motion": "^12.38.0",
+    "next": "^15.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0"
   }
 }
