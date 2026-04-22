@@ -71,7 +71,6 @@ pnpm --filter @taskhelm/cli publish --access public
 pnpm publish --access public
 ```
 
-Before publishing `taskhelm`, host the web runtime manifest and runtime bundle at the default launcher URL shape:
 `taskhelm` now bundles the web runtime directly in the published npm tarball, so no external runtime host is required for the normal global install path.
 
 ## V1 Autonomy Boundary
