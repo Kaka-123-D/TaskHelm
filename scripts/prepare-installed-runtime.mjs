@@ -1,12 +1,12 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { mkdtempSync } from 'node:fs'
 
 const packageRoot = resolve(new URL('..', import.meta.url).pathname)
 const webRoot = join(packageRoot, 'packages', 'web')
 const nextBin = join(packageRoot, 'node_modules', 'next', 'dist', 'bin', 'next')
-const cleanRuntimeScript = join(webRoot, 'scripts', 'clean-runtime.mjs')
-const packageRuntimeScript = join(webRoot, 'scripts', 'package-runtime.mjs')
 
 function parseArgs(argv) {
   let runtimeRoot = ''
@@ -61,25 +61,49 @@ function main() {
 
   assertExists(webRoot, 'web workspace')
   assertExists(nextBin, 'Next.js runtime build binary')
-  assertExists(packageRuntimeScript, 'runtime packaging script')
 
   mkdirSync(dirname(runtimeRoot), { recursive: true })
+  const stageRoot = mkdtempSync(join(tmpdir(), 'taskhelm-runtime-prepare-'))
 
-  if (existsSync(cleanRuntimeScript)) {
-    runNodeScript(cleanRuntimeScript, [], webRoot)
+  try {
+    cpSync(packageRoot, stageRoot, {
+      recursive: true,
+      dereference: true,
+      filter: sourcePath => {
+        const normalized = sourcePath.replace(/\\/g, '/')
+        if (normalized.includes('/packages/web/.next')) return false
+        if (normalized.includes('/packages/web/runtime')) return false
+        if (normalized.endsWith('/.git')) return false
+        return true
+      },
+    })
+
+    const stageWebRoot = join(stageRoot, 'packages', 'web')
+    const stageNextBin = join(stageRoot, 'node_modules', 'next', 'dist', 'bin', 'next')
+    const cleanRuntimeScript = join(stageWebRoot, 'scripts', 'clean-runtime.mjs')
+    const packageRuntimeScript = join(stageWebRoot, 'scripts', 'package-runtime.mjs')
+
+    assertExists(stageNextBin, 'staged Next.js runtime build binary')
+    assertExists(packageRuntimeScript, 'staged runtime packaging script')
+
+    if (existsSync(cleanRuntimeScript)) {
+      runNodeScript(cleanRuntimeScript, [], stageWebRoot)
+    }
+
+    execFileSync(process.execPath, [stageNextBin, 'build'], {
+      cwd: stageWebRoot,
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        NEXT_TELEMETRY_DISABLED: '1',
+        TASKHELM_RUNTIME_PREPARE_VERSION: version,
+      },
+    })
+
+    runNodeScript(packageRuntimeScript, ['--output', runtimeRoot, '--skip-archive'], stageWebRoot)
+  } finally {
+    rmSync(stageRoot, { recursive: true, force: true })
   }
-
-  execFileSync(process.execPath, [nextBin, 'build'], {
-    cwd: webRoot,
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-      NEXT_TELEMETRY_DISABLED: '1',
-      TASKHELM_RUNTIME_PREPARE_VERSION: version,
-    },
-  })
-
-  runNodeScript(packageRuntimeScript, ['--output', runtimeRoot, '--skip-archive'], webRoot)
 }
 
 main()
