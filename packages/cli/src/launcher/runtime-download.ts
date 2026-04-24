@@ -3,6 +3,7 @@ import { copyFileSync, createWriteStream, existsSync, mkdirSync, readFileSync, r
 import { mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import { pipeline } from 'node:stream/promises'
 import type { RuntimeManifest } from './runtime-manifest.js'
@@ -21,7 +22,7 @@ function isHttpUrl(value: string): boolean {
 }
 
 function resolveLocalBundlePath(value: string): string {
-  return isFileUrl(value) ? new URL(value).pathname : value
+  return isFileUrl(value) ? fileURLToPath(value) : value
 }
 
 async function copyBundleToTemp(bundleUrl: string, destination: string): Promise<void> {

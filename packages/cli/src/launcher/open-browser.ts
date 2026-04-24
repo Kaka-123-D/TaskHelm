@@ -2,6 +2,10 @@ import { spawn } from 'node:child_process'
 import { platform } from 'node:os'
 
 export function openBrowser(url: string): void {
+  if (process.env.TASKHELM_OPEN_BROWSER === '0' || process.env.TASKHELM_OPEN_BROWSER === 'false') {
+    return
+  }
+
   const command =
     platform() === 'darwin'
       ? ['open', url]
@@ -16,4 +20,3 @@ export function openBrowser(url: string): void {
   })
   child.unref()
 }
-

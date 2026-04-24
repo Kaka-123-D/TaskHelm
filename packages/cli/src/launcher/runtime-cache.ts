@@ -8,6 +8,19 @@ import { resolveRuntimeManifest } from './runtime-manifest.js'
 
 const ENTRYPOINT_CANDIDATES = ['packages/web/server.js', 'server.js'] as const
 
+function readPackageName(packageRoot: string): string | null {
+  const packageJsonPath = join(packageRoot, 'package.json')
+  if (!existsSync(packageJsonPath)) return null
+
+  const raw = readFileSync(packageJsonPath, 'utf-8')
+  const parsed = JSON.parse(raw) as { readonly name?: string }
+  return parsed.name ?? null
+}
+
+function isTaskHelmPackageRoot(candidate: string): boolean {
+  return readPackageName(candidate) === 'taskhelm'
+}
+
 export function getCliPackageRoot(): string {
   let current = dirname(fileURLToPath(import.meta.url))
 
@@ -30,16 +43,26 @@ export function getCliPackageRoot(): string {
 }
 
 export function getTaskHelmPackageRoot(cliRoot: string = getCliPackageRoot()): string | null {
+  const envRoot = process.env.TASKHELM_PACKAGE_ROOT
+  if (envRoot && isTaskHelmPackageRoot(envRoot)) {
+    return envRoot
+  }
+
   let current = dirname(cliRoot)
 
   while (true) {
-    const packageJsonPath = join(current, 'package.json')
-    if (existsSync(packageJsonPath)) {
-      const raw = readFileSync(packageJsonPath, 'utf-8')
-      const parsed = JSON.parse(raw) as { readonly name?: string }
-      if (parsed.name === 'taskhelm') {
-        return current
-      }
+    if (isTaskHelmPackageRoot(current)) {
+      return current
+    }
+
+    const siblingCandidate = join(current, 'taskhelm')
+    if (isTaskHelmPackageRoot(siblingCandidate)) {
+      return siblingCandidate
+    }
+
+    const nodeModulesCandidate = join(current, 'node_modules', 'taskhelm')
+    if (isTaskHelmPackageRoot(nodeModulesCandidate)) {
+      return nodeModulesCandidate
     }
 
     const parent = dirname(current)
@@ -94,7 +117,8 @@ export function getRuntimeEntrypoint(version: string): string {
 
 export function isRuntimeReady(version: string): boolean {
   const runtimeRoot = getRuntimeRoot(version)
-  return ENTRYPOINT_CANDIDATES.some(relativePath => existsSync(join(runtimeRoot, relativePath)))
+  const candidates = readRuntimeManifestEntryPoints(runtimeRoot) ?? ENTRYPOINT_CANDIDATES
+  return candidates.some(relativePath => existsSync(join(runtimeRoot, relativePath)))
 }
 
 export function getBundledRuntimeEntrypoint(): string | null {

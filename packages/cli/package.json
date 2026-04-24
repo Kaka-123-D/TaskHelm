@@ -2,10 +2,22 @@
   "name": "@taskhelm/cli",
   "version": "0.1.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kaka-123-D/TaskHelm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Kaka-123-D/TaskHelm/issues"
+  },
+  "homepage": "https://github.com/Kaka-123-D/TaskHelm/tree/main/packages/cli#readme",
   "main": "./dist/src/index.js",
   "exports": {
     ".": "./dist/src/index.js"
   },
+  "files": [
+    "dist",
+    "package.json"
+  ],
   "bin": { "taskhelm-cli": "dist/bin/taskhelm.js" },
   "scripts": {
     "build": "tsc",

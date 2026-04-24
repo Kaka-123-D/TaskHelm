@@ -2,8 +2,21 @@
   "name": "@taskhelm/core",
   "version": "0.1.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kaka-123-D/TaskHelm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Kaka-123-D/TaskHelm/issues"
+  },
+  "homepage": "https://github.com/Kaka-123-D/TaskHelm/tree/main/packages/core#readme",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src/db/migrations",
+    "package.json"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch --preserveWatchOutput",

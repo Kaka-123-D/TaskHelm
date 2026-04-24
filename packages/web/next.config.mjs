@@ -1,10 +1,10 @@
-import type { NextConfig } from 'next'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const packageRoot = dirname(fileURLToPath(import.meta.url))
 
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   output: 'standalone',
   outputFileTracingRoot: resolve(packageRoot, '..', '..'),
   serverExternalPackages: ['@taskhelm/core', '@taskhelm/supervisor', 'better-sqlite3'],

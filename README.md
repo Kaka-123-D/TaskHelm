@@ -73,6 +73,44 @@ pnpm publish --access public
 
 `taskhelm` no longer requires an external runtime host. The published npm package contains the launcher plus the web workspace assets needed to prepare the runtime locally on the installing machine during first run.
 
+## GitHub Actions Publish
+
+This repo is set up for npm trusted publishing via GitHub Actions in [.github/workflows/publish.yml](./.github/workflows/publish.yml).
+
+Before tagging a release:
+
+1. Push this repository to GitHub.
+2. Make sure the packages already exist on npm or the names are still available:
+   - `taskhelm`
+   - `@taskhelm/cli`
+   - `@taskhelm/core`
+   - `@taskhelm/supervisor`
+3. In npm package settings, add a trusted publisher for each published package:
+   - provider: `GitHub Actions`
+   - organization/user: your GitHub owner
+   - repository: this repository name
+   - workflow filename: `publish.yml`
+4. Use GitHub-hosted runners. npm trusted publishing does not support self-hosted runners.
+5. Push a tag like `v0.1.0`.
+
+The publish workflow will:
+- install dependencies
+- typecheck and build all packages
+- pack `taskhelm` and `@taskhelm/cli`
+- run a packed-install smoke test
+- publish `@taskhelm/core`, `@taskhelm/supervisor`, `@taskhelm/cli`, then `taskhelm`
+
+After publish:
+
+```bash
+nvm use 22 # or any Node.js >= 22.14.0
+npm i -g taskhelm
+taskhelm
+
+npm i -g @taskhelm/cli
+taskhelm-cli
+```
+
 ## V1 Autonomy Boundary
 
 **Allowed:** create branch/worktree, dispatch agents, edit code, run local dev/test commands, run review pipeline, update task artifacts.

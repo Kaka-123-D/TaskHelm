@@ -2,6 +2,18 @@
   "name": "taskhelm",
   "version": "0.1.0",
   "private": false,
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kaka-123-D/TaskHelm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Kaka-123-D/TaskHelm/issues"
+  },
+  "homepage": "https://github.com/Kaka-123-D/TaskHelm#readme",
+  "engines": {
+    "node": ">=22.14.0"
+  },
   "bin": {
     "taskhelm": "./bin/taskhelm.js"
   },
@@ -11,7 +23,7 @@
     "scripts/prepare-installed-runtime.mjs",
     "packages/web/package.json",
     "packages/web/next-env.d.ts",
-    "packages/web/next.config.ts",
+    "packages/web/next.config.mjs",
     "packages/web/postcss.config.mjs",
     "packages/web/tsconfig.json",
     "packages/web/scripts",
@@ -22,7 +34,6 @@
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "build": "node scripts/build-workspaces.mjs",
-    "prepack": "pnpm run build",
     "test": "turbo test",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
@@ -34,7 +45,10 @@
   },
   "dependencies": {
     "@taskhelm/cli": "workspace:*",
+    "@taskhelm/core": "workspace:*",
+    "@taskhelm/supervisor": "workspace:*",
     "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^24.8.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "mermaid": "^11.12.0",

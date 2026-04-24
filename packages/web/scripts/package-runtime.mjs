@@ -11,14 +11,17 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { dirname, join, relative, resolve } from 'node:path'
 
-const webRoot = resolve(new URL('..', import.meta.url).pathname)
+const webRoot = resolve(fileURLToPath(new URL('..', import.meta.url)))
+const installNodeModulesDir = resolve(webRoot, '..', '..', 'node_modules')
 const standaloneDir = join(webRoot, '.next', 'standalone')
 const staticDir = join(webRoot, '.next', 'static')
 const packageJson = JSON.parse(readFileSync(join(webRoot, 'package.json'), 'utf-8'))
 const version = packageJson.version ?? '0.0.0'
 const bundleFile = `taskhelm-web-runtime-${version}.tgz`
+const FORCE_MATERIALIZED_PACKAGES = new Set(['@taskhelm', 'better-sqlite3', 'sharp'])
 
 function parseArgs(argv) {
   const args = { output: join(webRoot, 'runtime'), skipArchive: false }
@@ -82,9 +85,37 @@ function materializeSymlink(entryPath) {
   cpSync(resolvedTarget, entryPath, { recursive: true, dereference: true })
 }
 
+function materializeInstalledPackages(topLevelNodeModules) {
+  if (!existsSync(installNodeModulesDir)) {
+    return
+  }
+
+  for (const entry of readdirSync(installNodeModulesDir, { withFileTypes: true })) {
+    if (entry.name === '.bin' || entry.name === '.pnpm' || entry.name === 'taskhelm') {
+      continue
+    }
+
+    const sourcePath = join(installNodeModulesDir, entry.name)
+    const destinationPath = join(topLevelNodeModules, entry.name)
+
+    if (existsSync(destinationPath) && !FORCE_MATERIALIZED_PACKAGES.has(entry.name)) {
+      continue
+    }
+
+    materializeEntry(sourcePath, destinationPath)
+  }
+}
+
 function materializeRuntimeNodeModules(rootDir) {
   const topLevelNodeModules = join(rootDir, 'node_modules')
   const webNodeModules = join(rootDir, 'packages', 'web', 'node_modules')
+  const fallbackSharedNodeModules = join(installNodeModulesDir, '.pnpm', 'node_modules')
+
+  if (!existsSync(topLevelNodeModules)) {
+    return
+  }
+
+  materializeInstalledPackages(topLevelNodeModules)
 
   for (const entry of readdirSync(topLevelNodeModules, { withFileTypes: true })) {
     if (!entry.isSymbolicLink()) {
@@ -95,6 +126,21 @@ function materializeRuntimeNodeModules(rootDir) {
   }
 
   const pnpmDir = join(topLevelNodeModules, '.pnpm')
+  if (!existsSync(pnpmDir)) {
+    if (!existsSync(fallbackSharedNodeModules)) {
+      return
+    }
+
+    for (const entry of readdirSync(fallbackSharedNodeModules, { withFileTypes: true })) {
+      materializeEntry(join(fallbackSharedNodeModules, entry.name), join(topLevelNodeModules, entry.name))
+    }
+    return
+  }
+
+  if (!existsSync(webNodeModules)) {
+    return
+  }
+
   const nextBundleEntry = readdirSync(pnpmDir, { withFileTypes: true }).find(
     entry => entry.isDirectory() && entry.name.startsWith('next@'),
   )
@@ -140,26 +186,21 @@ function main() {
   mkdirSync(outputDir, { recursive: true })
 
   const outputStandaloneDir = join(outputDir, 'standalone')
-
-  if (skipArchive) {
-    cpSync(standaloneDir, outputStandaloneDir, { recursive: true, dereference: true })
-
-    if (existsSync(staticDir)) {
-      mkdirSync(join(outputDir, 'static'), { recursive: true })
-      cpSync(staticDir, join(outputDir, 'static'), { recursive: true })
-    }
-
-    writeRuntimeManifest(outputDir, undefined, undefined)
-    return
-  }
-
-  cpSync(standaloneDir, outputStandaloneDir, { recursive: true })
+  cpSync(standaloneDir, outputStandaloneDir, {
+    recursive: true,
+    dereference: false,
+  })
   rewriteInternalSymlinks(outputStandaloneDir, standaloneDir, outputStandaloneDir)
   materializeRuntimeNodeModules(outputStandaloneDir)
 
   if (existsSync(staticDir)) {
     mkdirSync(join(outputDir, 'static'), { recursive: true })
     cpSync(staticDir, join(outputDir, 'static'), { recursive: true })
+  }
+
+  if (skipArchive) {
+    writeRuntimeManifest(outputDir, undefined, undefined)
+    return
   }
 
   let sha256

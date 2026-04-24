@@ -1,12 +1,46 @@
 import { execFileSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { mkdtempSync } from 'node:fs'
 
-const packageRoot = resolve(new URL('..', import.meta.url).pathname)
+const packageRoot = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const webRoot = join(packageRoot, 'packages', 'web')
-const nextBin = join(packageRoot, 'node_modules', 'next', 'dist', 'bin', 'next')
+const require = createRequire(import.meta.url)
+
+function findInstallNodeModulesRoot(fromPath) {
+  let current = dirname(fromPath)
+  let fallbackNodeModulesRoot = ''
+
+  while (true) {
+    if (basename(current) === 'node_modules') {
+      fallbackNodeModulesRoot = current
+      if (existsSync(join(current, '.pnpm'))) {
+        return current
+      }
+    }
+
+    const parent = dirname(current)
+    if (parent === current) {
+      if (fallbackNodeModulesRoot) {
+        return fallbackNodeModulesRoot
+      }
+      throw new Error(`Unable to resolve installed node_modules root for ${fromPath}`)
+    }
+    current = parent
+  }
+}
+
+const nextPackageJson = require.resolve('next/package.json')
+const nextBin = join(dirname(nextPackageJson), 'dist', 'bin', 'next')
+const installNodeModulesRoot = findInstallNodeModulesRoot(nextPackageJson)
+const packageJson = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf-8'))
+
+function getDirectDependencies() {
+  return Object.keys(packageJson.dependencies ?? {})
+}
 
 function parseArgs(argv) {
   let runtimeRoot = ''
@@ -56,11 +90,42 @@ function runNodeScript(scriptPath, args = [], cwd = packageRoot) {
   })
 }
 
+function materializeDirectDependencies(stageRoot) {
+  const stageNodeModulesRoot = join(stageRoot, 'node_modules')
+
+  for (const dependency of getDirectDependencies()) {
+    const dependencyRoot = resolveInstalledDependencyRoot(dependency)
+    const stageDependencyRoot = join(stageNodeModulesRoot, dependency)
+
+    if (existsSync(stageDependencyRoot)) {
+      continue
+    }
+
+    mkdirSync(dirname(stageDependencyRoot), { recursive: true })
+    symlinkSync(dependencyRoot, stageDependencyRoot)
+  }
+}
+
+function resolveInstalledDependencyRoot(dependency) {
+  const directPackageJson = join(installNodeModulesRoot, dependency, 'package.json')
+  if (existsSync(directPackageJson)) {
+    return dirname(directPackageJson)
+  }
+
+  const pnpmSharedPackageJson = join(installNodeModulesRoot, '.pnpm', 'node_modules', dependency, 'package.json')
+  if (existsSync(pnpmSharedPackageJson)) {
+    return dirname(pnpmSharedPackageJson)
+  }
+
+  throw new Error(`Direct dependency ${dependency} is missing from installed node_modules at ${installNodeModulesRoot}`)
+}
+
 function main() {
   const { runtimeRoot, version } = parseArgs(process.argv)
 
   assertExists(webRoot, 'web workspace')
   assertExists(nextBin, 'Next.js runtime build binary')
+  assertExists(installNodeModulesRoot, 'installed node_modules root')
 
   mkdirSync(dirname(runtimeRoot), { recursive: true })
   const stageRoot = mkdtempSync(join(tmpdir(), 'taskhelm-runtime-prepare-'))
@@ -77,6 +142,12 @@ function main() {
         return true
       },
     })
+
+    cpSync(installNodeModulesRoot, join(stageRoot, 'node_modules'), {
+      recursive: true,
+      dereference: false,
+    })
+    materializeDirectDependencies(stageRoot)
 
     const stageWebRoot = join(stageRoot, 'packages', 'web')
     const stageNextBin = join(stageRoot, 'node_modules', 'next', 'dist', 'bin', 'next')

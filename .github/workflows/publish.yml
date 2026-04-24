@@ -1,0 +1,81 @@
+name: Publish Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.14.0
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+
+      - name: Read versions
+        id: versions
+        run: |
+          echo "root=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+          echo "core=$(node -p \"require('./packages/core/package.json').version\")" >> "$GITHUB_OUTPUT"
+          echo "supervisor=$(node -p \"require('./packages/supervisor/package.json').version\")" >> "$GITHUB_OUTPUT"
+          echo "cli=$(node -p \"require('./packages/cli/package.json').version\")" >> "$GITHUB_OUTPUT"
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Pack core tarball
+        run: pnpm --dir packages/core pack --pack-destination /tmp/taskhelm-core-pack
+
+      - name: Pack supervisor tarball
+        run: pnpm --dir packages/supervisor pack --pack-destination /tmp/taskhelm-supervisor-pack
+
+      - name: Pack CLI tarball
+        run: pnpm --dir packages/cli pack --pack-destination /tmp/taskhelm-cli-pack
+
+      - name: Pack app tarball
+        run: pnpm pack --pack-destination /tmp/taskhelm-pack
+
+      - name: Verify packed install
+        run: >
+          node scripts/verify-packed-install.mjs
+          --core-tarball /tmp/taskhelm-core-pack/taskhelm-core-${{ steps.versions.outputs.core }}.tgz
+          --supervisor-tarball /tmp/taskhelm-supervisor-pack/taskhelm-supervisor-${{ steps.versions.outputs.supervisor }}.tgz
+          --taskhelm-tarball /tmp/taskhelm-pack/taskhelm-${{ steps.versions.outputs.root }}.tgz
+          --cli-tarball /tmp/taskhelm-cli-pack/taskhelm-cli-${{ steps.versions.outputs.cli }}.tgz
+          --port 4122
+
+      - name: Publish @taskhelm/core
+        run: pnpm --filter @taskhelm/core publish --access public --provenance --no-git-checks
+
+      - name: Publish @taskhelm/supervisor
+        run: pnpm --filter @taskhelm/supervisor publish --access public --provenance --no-git-checks
+
+      - name: Publish @taskhelm/cli
+        run: pnpm --filter @taskhelm/cli publish --access public --provenance --no-git-checks
+
+      - name: Publish taskhelm
+        run: pnpm publish --access public --provenance --no-git-checks

@@ -137,7 +137,8 @@ describe('runtime cache helpers', () => {
     const { ensureRuntime, getTaskHelmPackageRoot } = await import('../../src/launcher/runtime-cache.js')
 
     const packageRoot = getTaskHelmPackageRoot()
-    expect(packageRoot?.replace(/\\/g, '/')).toMatch(/\.worktrees\/feat-bundled-npm-runtime$/)
+    expect(packageRoot).toBeTruthy()
+    expect(readFileSync(join(packageRoot!, 'package.json'), 'utf-8')).toContain('"name": "taskhelm"')
 
     await expect(ensureRuntime(version)).resolves.toBe(join(runtimeRoot, 'packages', 'web', 'server.js'))
 
@@ -155,6 +156,31 @@ describe('runtime cache helpers', () => {
         env: expect.objectContaining({ NEXT_TELEMETRY_DISABLED: '1' }),
       }),
     )
+
+    rmSync(taskhelmHome, { recursive: true, force: true })
+  })
+
+  it('treats a cached runtime with manifest entrypoints as ready on subsequent launches', async () => {
+    const taskhelmHome = mkdtempSync(join(tmpdir(), 'taskhelm-home-ready-'))
+    const version = '8.8.8'
+    const runtimeRoot = join(taskhelmHome, 'runtime', version)
+    const runtimeEntrypoint = join(runtimeRoot, 'standalone', 'packages', 'web', 'server.js')
+
+    mkdirSync(join(runtimeRoot, 'standalone', 'packages', 'web'), { recursive: true })
+    writeFileSync(runtimeEntrypoint, 'console.log("runtime")')
+    writeFileSync(
+      join(runtimeRoot, 'manifest.json'),
+      JSON.stringify({ entrypointCandidates: ['standalone/packages/web/server.js'] }),
+    )
+
+    process.env.TASKHELM_HOME = taskhelmHome
+    process.env.TASKHELM_DISABLE_BUNDLED_RUNTIME = '1'
+
+    const { ensureRuntime, isRuntimeReady } = await import('../../src/launcher/runtime-cache.js')
+
+    expect(isRuntimeReady(version)).toBe(true)
+    await expect(ensureRuntime(version)).resolves.toBe(runtimeEntrypoint)
+    expect(childProcessExecFileSync).not.toHaveBeenCalled()
 
     rmSync(taskhelmHome, { recursive: true, force: true })
   })
