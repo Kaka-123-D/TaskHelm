@@ -36,6 +36,43 @@ describe('ContextFilePreview', () => {
     expect(markup).toContain('data-slot="mermaid-block"')
   })
 
+  it('renders context vault asset references embedded in markdown', () => {
+    const file: PersistedContextVaultFile = {
+      relativePath: 'docs/context.md',
+      absolutePath: '/tmp/docs/context.md',
+      content: 'Attached image:\n\n[@/assets/shot.png]\n\nAttached video:\n\n[@/media/demo.mp4]',
+      category: 'markdown',
+      mediaType: 'text/markdown',
+    }
+    const files: readonly PersistedContextVaultFile[] = [
+      file,
+      {
+        relativePath: 'assets/shot.png',
+        absolutePath: '/tmp/assets/shot.png',
+        content: 'data:image/png;base64,AAA',
+        category: 'image',
+        mediaType: 'image/png',
+      },
+      {
+        relativePath: 'media/demo.mp4',
+        absolutePath: '/tmp/media/demo.mp4',
+        content: 'data:video/mp4;base64,BBB',
+        category: 'video',
+        mediaType: 'video/mp4',
+      },
+    ]
+
+    const markup = renderToStaticMarkup(
+      <ContextFilePreview file={file} files={files} />,
+    )
+
+    expect(markup).toContain('context-preview-referenced-asset')
+    expect(markup).toContain('src="data:image/png;base64,AAA"')
+    expect(markup).toContain('src="data:video/mp4;base64,BBB"')
+    expect(markup).not.toContain('[@/assets/shot.png]')
+    expect(markup).not.toContain('[@/media/demo.mp4]')
+  })
+
   it('renders image files as images', () => {
     const file: PersistedContextVaultFile = {
       relativePath: 'images/diagram.png',

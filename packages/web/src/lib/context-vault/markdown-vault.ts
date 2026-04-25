@@ -11,7 +11,7 @@ function readSupportedFile(filePath: string, basePath: string): PersistedContext
   const preview = classifyContextVaultFile(filePath)
   const buffer = fs.readFileSync(filePath)
   const content =
-    preview.category === 'image'
+    preview.category === 'image' || preview.category === 'video'
       ? `data:${preview.mediaType};base64,${buffer.toString('base64')}`
       : buffer.toString('utf8')
 
@@ -55,7 +55,7 @@ export function discoverMarkdownFiles(inputPath: string): {
   const stat = fs.statSync(resolvedPath)
   if (stat.isFile()) {
     if (!supportedContextVaultFile(resolvedPath)) {
-      throw new Error('Selected file must be a supported text, markdown, or image file')
+      throw new Error('Selected file must be a supported text, markdown, image, or video file')
     }
 
     const parentDir = path.dirname(resolvedPath)

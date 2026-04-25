@@ -808,6 +808,22 @@ input {
   object-fit: contain;
 }
 
+.context-preview-referenced-asset {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0 0 1rem;
+}
+
+.context-preview-referenced-asset figcaption {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.74rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .context-preview-markdown {
   color: var(--text-secondary);
   font-size: 0.95rem;

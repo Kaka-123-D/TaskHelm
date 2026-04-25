@@ -268,7 +268,7 @@ export function TaskDetailPanelsView({
                     ) : null}
                   </div>
                 ) : null}
-                <ContextFilePreview file={selectedRecord} />
+                <ContextFilePreview file={selectedRecord} files={files} />
               </div>
             </div>
           </div>

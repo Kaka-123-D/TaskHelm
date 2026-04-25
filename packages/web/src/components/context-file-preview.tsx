@@ -9,6 +9,73 @@ import type { PersistedContextVaultFile } from '@/lib/context-vault/persisted-va
 
 interface ContextFilePreviewProps {
   readonly file: PersistedContextVaultFile | null
+  readonly files?: readonly PersistedContextVaultFile[]
+}
+
+interface MarkdownSegment {
+  readonly type: 'markdown' | 'asset'
+  readonly value: string
+  readonly file?: PersistedContextVaultFile
+}
+
+function normalizeVaultReferencePath(value: string): string {
+  let normalized = value.trim().replace(/\\/g, '/').replace(/^\/+/, '')
+  while (normalized.startsWith('./')) {
+    normalized = normalized.slice(2)
+  }
+
+  try {
+    return decodeURIComponent(normalized)
+  } catch {
+    return normalized
+  }
+}
+
+function buildVaultFileMap(files: readonly PersistedContextVaultFile[]): Map<string, PersistedContextVaultFile> {
+  return new Map(
+    files.map(file => [normalizeVaultReferencePath(file.relativePath), file]),
+  )
+}
+
+function splitMarkdownAssetReferences(
+  content: string,
+  files: readonly PersistedContextVaultFile[],
+): readonly MarkdownSegment[] {
+  const fileMap = buildVaultFileMap(files)
+  const segments: MarkdownSegment[] = []
+  const referencePattern = /\[@\/([^\]\r\n]+)\]/g
+  let cursor = 0
+
+  for (const match of content.matchAll(referencePattern)) {
+    const matchIndex = match.index ?? 0
+    const rawReference = match[0]
+    const relativePath = normalizeVaultReferencePath(match[1] ?? '')
+    const referencedFile = fileMap.get(relativePath)
+    const referencedCategory = referencedFile?.category ?? (
+      referencedFile ? classifyContextVaultFile(referencedFile.relativePath).category : 'unsupported'
+    )
+
+    if (matchIndex > cursor) {
+      segments.push({ type: 'markdown', value: content.slice(cursor, matchIndex) })
+    }
+
+    if (
+      referencedFile?.content &&
+      (referencedCategory === 'image' || referencedCategory === 'video')
+    ) {
+      segments.push({ type: 'asset', value: rawReference, file: referencedFile })
+    } else {
+      segments.push({ type: 'markdown', value: rawReference })
+    }
+
+    cursor = matchIndex + rawReference.length
+  }
+
+  if (cursor < content.length) {
+    segments.push({ type: 'markdown', value: content.slice(cursor) })
+  }
+
+  return segments.length > 0 ? segments : [{ type: 'markdown', value: content }]
 }
 
 function MermaidBlock({ chart }: { readonly chart: string }) {
@@ -62,75 +129,113 @@ function MermaidBlock({ chart }: { readonly chart: string }) {
 
 function MarkdownPreview({
   content,
+  files,
 }: {
   readonly content: string
+  readonly files: readonly PersistedContextVaultFile[]
 }) {
+  const segments = splitMarkdownAssetReferences(content, files)
+
   return (
     <div className="context-preview-markdown-body">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          ul: ({ children }) => (
-            <ul className="context-preview-list context-preview-list--unordered">{children}</ul>
-          ),
-          ol: ({ children }) => (
-            <ol className="context-preview-list context-preview-list--ordered">{children}</ol>
-          ),
-          li: ({ children }) => <li className="context-preview-list-item">{children}</li>,
-          a: ({ href, children, ...props }) => (
-            <a
-              {...props}
-              href={href}
-              target="_blank"
-              rel="noreferrer"
-              className="context-preview-link"
-            >
-              {children}
-            </a>
-          ),
-          pre: ({ children }) => <div className="context-preview-pre">{children}</div>,
-          table: ({ children }) => (
-            <div className="context-preview-table-wrap">
-              <table>{children}</table>
-            </div>
-          ),
-          blockquote: ({ children }) => (
-            <blockquote className="context-preview-blockquote">{children}</blockquote>
-          ),
-          hr: () => <hr className="context-preview-rule" />,
-          code: ({ className, children, ...props }) => {
-            const language = /language-(\S+)/.exec(className ?? '')?.[1]?.toLowerCase()
-            const source = String(children ?? '').replace(/\n$/, '')
+      {segments.map((segment, index) => {
+        if (segment.type === 'asset' && segment.file?.content) {
+          const category = segment.file.category ?? classifyContextVaultFile(segment.file.relativePath).category
 
-            if (language === 'mermaid') {
-              return <MermaidBlock chart={source} />
-            }
-
+          if (category === 'image') {
             return (
-              <code {...props} className={className}>
-                {children}
-              </code>
+              <figure className="context-preview-referenced-asset" key={`${segment.file.relativePath}-${index}`}>
+                <img
+                  src={segment.file.content}
+                  alt={segment.file.relativePath}
+                  className="context-preview-markdown-image"
+                />
+                <figcaption>{segment.file.relativePath}</figcaption>
+              </figure>
             )
-          },
-          img: ({ src, alt, ...props }) => {
-            return (
-              <img
-                {...props}
-                src={typeof src === 'string' ? src : ''}
-                alt={typeof alt === 'string' ? alt : ''}
-                className="context-preview-markdown-image"
+          }
+
+          return (
+            <figure className="context-preview-referenced-asset" key={`${segment.file.relativePath}-${index}`}>
+              <video
+                src={segment.file.content}
+                className="context-preview-video"
+                controls
+                playsInline
               />
-            )
-          },
-        }}
-      >
-        {content}
-      </ReactMarkdown>
+              <figcaption>{segment.file.relativePath}</figcaption>
+            </figure>
+          )
+        }
+
+        return (
+          <ReactMarkdown
+            key={`${segment.value}-${index}`}
+            remarkPlugins={[remarkGfm]}
+            components={{
+              ul: ({ children }) => (
+                <ul className="context-preview-list context-preview-list--unordered">{children}</ul>
+              ),
+              ol: ({ children }) => (
+                <ol className="context-preview-list context-preview-list--ordered">{children}</ol>
+              ),
+              li: ({ children }) => <li className="context-preview-list-item">{children}</li>,
+              a: ({ href, children, ...props }) => (
+                <a
+                  {...props}
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="context-preview-link"
+                >
+                  {children}
+                </a>
+              ),
+              pre: ({ children }) => <div className="context-preview-pre">{children}</div>,
+              table: ({ children }) => (
+                <div className="context-preview-table-wrap">
+                  <table>{children}</table>
+                </div>
+              ),
+              blockquote: ({ children }) => (
+                <blockquote className="context-preview-blockquote">{children}</blockquote>
+              ),
+              hr: () => <hr className="context-preview-rule" />,
+              code: ({ className, children, ...props }) => {
+                const language = /language-(\S+)/.exec(className ?? '')?.[1]?.toLowerCase()
+                const source = String(children ?? '').replace(/\n$/, '')
+
+                if (language === 'mermaid') {
+                  return <MermaidBlock chart={source} />
+                }
+
+                return (
+                  <code {...props} className={className}>
+                    {children}
+                  </code>
+                )
+              },
+              img: ({ src, alt, ...props }) => {
+                return (
+                  <img
+                    {...props}
+                    src={typeof src === 'string' ? src : ''}
+                    alt={typeof alt === 'string' ? alt : ''}
+                    className="context-preview-markdown-image"
+                  />
+                )
+              },
+            }}
+          >
+            {segment.value}
+          </ReactMarkdown>
+        )
+      })}
     </div>
   )
 }
 
-export function ContextFilePreview({ file }: ContextFilePreviewProps) {
+export function ContextFilePreview({ file, files = file ? [file] : [] }: ContextFilePreviewProps) {
   const preview = file ? classifyContextVaultFile(file.relativePath) : null
   const resolvedCategory = file?.category ?? preview?.category ?? 'unsupported'
   const content = file?.content ?? null
@@ -167,7 +272,7 @@ export function ContextFilePreview({ file }: ContextFilePreviewProps) {
               </div>
             ) : resolvedCategory === 'markdown' ? (
               <div className="context-preview-markdown">
-                <MarkdownPreview content={content} />
+                <MarkdownPreview content={content} files={files} />
               </div>
             ) : resolvedCategory === 'image' ? (
               <div className="context-preview-image-frame">
