@@ -13,7 +13,17 @@ vi.mock('@/lib/db', () => ({
   getDb: () => db,
 }))
 
+function removeTestDb(): void {
+  for (const ext of ['', '-wal', '-shm']) {
+    try {
+      fs.unlinkSync(TEST_DB + ext)
+    } catch {}
+  }
+}
+
 beforeEach(() => {
+  removeTestDb()
+
   repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'taskhelm-workspace-route-'))
   execSync('git init', { cwd: repoRoot, stdio: 'pipe' })
   execSync('git config user.email "test@test.com"', { cwd: repoRoot, stdio: 'pipe' })
@@ -34,11 +44,7 @@ beforeEach(() => {
 afterEach(() => {
   db?.close()
   fs.rmSync(repoRoot, { recursive: true, force: true })
-  for (const ext of ['', '-wal', '-shm']) {
-    try {
-      fs.unlinkSync(TEST_DB + ext)
-    } catch {}
-  }
+  removeTestDb()
 })
 
 describe('GET /api/tasks/[taskId]/workspace', () => {

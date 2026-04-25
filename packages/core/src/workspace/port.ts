@@ -100,5 +100,12 @@ export function releasePort(db: Database.Database, port: number): void {
     return
   }
 
-  db.prepare('DELETE FROM dev_servers WHERE id = ?').run(row.id)
+  db.prepare(
+    `UPDATE dev_servers
+     SET status = 'stopped', stopped_at = @stopped_at, pid = NULL
+     WHERE id = @id`
+  ).run({
+    id: row.id,
+    stopped_at: new Date().toISOString(),
+  })
 }
