@@ -158,6 +158,23 @@ function resolveInstalledBin(packageRoot, binName) {
   return resolve(packageRoot, relativeBin)
 }
 
+function stopProcessTree(child) {
+  if (!child.pid || child.killed) {
+    return
+  }
+
+  if (process.platform !== 'win32') {
+    try {
+      process.kill(-child.pid, 'SIGTERM')
+      return
+    } catch {
+      // Fall back to killing the direct child below.
+    }
+  }
+
+  child.kill('SIGTERM')
+}
+
 async function waitForServer(url, timeoutMs = 90000) {
   const startedAt = Date.now()
   while (Date.now() - startedAt < timeoutMs) {
@@ -209,6 +226,7 @@ async function main() {
         HOSTNAME: '127.0.0.1',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32',
     })
 
     child.stdout?.on('data', chunk => {
@@ -230,7 +248,7 @@ async function main() {
       }
       throw error
     } finally {
-      child.kill('SIGTERM')
+      stopProcessTree(child)
     }
   } finally {
     rmSync(installRoot, { recursive: true, force: true })
