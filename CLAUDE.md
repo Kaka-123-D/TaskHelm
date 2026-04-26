@@ -4,56 +4,74 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-TaskHelm is an autonomous AI engineering manager for solo operators. It is a local control plane for parallel software execution — managing projects, tasks, branches, worktrees, agents, review pipelines, and dev servers from a single interface.
+TaskHelm is an autonomous AI engineering manager for solo operators — a local control plane that manages projects, tasks, branches, worktrees, agents, review pipelines, and dev servers. It ships as two npm binaries:
 
-**Current state:** Design/specification phase only. No implementation code exists yet. The `docs/` directory contains 13 specification documents that define the product vision, architecture, domain model, and technical specs for v1.
+- `taskhelm` — launcher that boots the local web dashboard on `http://127.0.0.1:4100` (default). On first run it prepares a Next.js standalone runtime under `~/.taskhelm/runtime/<version>` from assets shipped inside the npm tarball (see `scripts/prepare-installed-runtime.mjs`).
+- `taskhelm-cli` — CLI-only entrypoint. Same Commander program, but does not auto-launch the dashboard (see `packages/cli/src/launcher/argv.ts` and `bin/taskhelm.js`).
 
-## Intended Tech Stack (from docs/04-init-roadmap.md)
+State lives in two places:
+- **SQLite** at `~/.taskhelm/taskhelm.db` (override with `TASKHELM_DB`) — runtime state, WAL mode, migrations applied on every `getDb()` call.
+- **Markdown/YAML capsules** on disk per project/task — human-readable, git-versionable.
 
-- **Frontend:** Next.js (web dashboard)
-- **Backend:** Local Node.js service
-- **CLI:** TypeScript
-- **Database:** SQLite (WAL mode, plain SQL migrations — no heavy ORM)
-- **Task memory:** Markdown + YAML on disk
-- **Process control:** OS child process management
+## Workspace Layout
 
-## Architecture (Hybrid Model)
+pnpm workspace + Turborepo, four packages:
 
-TaskHelm uses two complementary storage layers:
+| Package | Role |
+|---------|------|
+| `@taskhelm/core` | Domain model, SQLite repos, migrations, capsule I/O, workspace utilities (branch/worktree/port). All other packages depend on this. |
+| `@taskhelm/supervisor` | Event loop (`runOneCycle`), scheduler, dispatcher, dev-pool, recovery, notifier. Spawns agents via `agents/shell-adapter.ts`. |
+| `@taskhelm/cli` | Commander CLI (`project`, `task`, `workspace`, `dev`, `agent` groups) plus the launcher (`launcher/`) that prepares and starts the web runtime. |
+| `@taskhelm/web` | Next.js 15 App Router dashboard (React 19, Tailwind v4). Reads/writes the same SQLite via `@taskhelm/core`. |
 
-1. **Markdown/YAML on disk** — human-readable task memory, versionable in Git
-2. **SQLite** — runtime state (status, locks, PIDs, ports, events, agent lifecycle)
+Build dependency order is enforced by Turbo (`^build`). The root `pnpm run build` calls `scripts/build-workspaces.mjs`, which runs `pnpm run build` in each package sequentially in this order: **core → supervisor → cli → web**. It strips `npm_*`/`PNPM_*`/`INIT_CWD` env vars before each subprocess to prevent pnpm-script env leakage; preserve that behavior.
 
-Five core layers:
-- **Project & Task Memory** — disk-based capsule files per task
-- **Runtime State** — SQLite tables (projects, tasks, agent_runs, review_gates, dev_servers, notifications, locks, events)
-- **Supervisor** — local daemon that watches state, dispatches agents, transitions tasks, emits notifications
-- **Workspace Runtime** — branch/worktree creation, port allocation, dev server lifecycle, pooling
-- **Interface** — CLI and web dashboard as equal first-class surfaces
+## Common Commands
 
-## Domain Model
+```bash
+# All packages (Turborepo)
+pnpm run typecheck            # tsc --noEmit across all packages
+pnpm run test                 # Vitest (run mode) across all packages
+pnpm run build                # Custom orchestrator, NOT `turbo build`
+pnpm run dev                  # Per-package dev (web: next dev on :4100)
 
-- `Project` is the top-level boundary (repo root, policies, task namespace)
-- `Task` is the primary execution unit (branch, worktree, port, agent runs, review gates)
-- Task statuses: draft → ready → running → reviewing → blocked → done → archived
-- Task phases: context → planning → implementation → spec_review → code_review → runtime_verification → final_summary
-- Review pipeline: 3 gates (spec_compliance, code_quality, runtime_verification)
+# Single package
+pnpm --filter @taskhelm/core run test
+pnpm --filter @taskhelm/web run typecheck
+pnpm --filter @taskhelm/web run dev          # Next dev server on :4100
+pnpm --filter @taskhelm/web run test:e2e     # Playwright (web only)
 
-## Disk Layout for Task Capsules
+# Single test file (Vitest)
+pnpm --filter @taskhelm/core exec vitest run path/to/file.test.ts
+pnpm --filter @taskhelm/core exec vitest path/to/file.test.ts -t "test name"
 
+# Run the supervisor loop directly (from packages/supervisor)
+pnpm --filter @taskhelm/supervisor run dev   # tsx watch src/index.ts
 ```
-projects/<project-slug>/
-  project.yaml
-  overview.md
-  policies.md
-  tasks/<task-id>/
-    task.yaml      # minimal structured state
-    context.md     # scope, assumptions, code pointers
-    plan.md        # implementation plan, verification checklist
-    handoff.md     # current status, blockers, next action
-    review.md      # findings by gate, recommendation
-    artifacts/
-```
+
+There is no `lint` step wired up (`turbo.json` defines the task but no package implements it). Do not add one without the user's say-so.
+
+## Tech Stack & Conventions That Aren't Obvious
+
+- **Node engine:** `>=22.14.0` (declared in root `package.json`). CI runs on Node 20 and 22.
+- **TypeScript:** strict mode, ESM (`"type": "module"`), `moduleResolution: "bundler"` (root `tsconfig.base.json`). Imports use **explicit `.js` extensions** for relative paths even in `.ts` source — required by the bundler resolver and the runtime's ESM loader. Do not strip them.
+- **SQLite:** `better-sqlite3`, marked as `serverExternalPackages` in `next.config.mjs` so Next does not bundle it. The webpack config also suppresses a known "Critical dependency" warning for it; keep both.
+- **Test runner:** Vitest in every package. Tests are colocated as `*.test.ts(x)` next to source in CLI/web/supervisor and under `tests/` mirrors of `src/` in core. Follow the existing convention per package.
+- **E2E:** Playwright, **web package only** (`@playwright/test`), via `pnpm --filter @taskhelm/web run test:e2e`.
+- **Web build is non-standard:** `pnpm --filter @taskhelm/web run build` runs `clean-runtime.mjs → next build → package-runtime.mjs`. The package step rewrites symlinks inside `.next/standalone`, materializes `node_modules` for `@taskhelm/*`, `better-sqlite3`, and `sharp`, copies static assets to three locations, and produces `packages/web/runtime/` plus a `taskhelm-web-runtime-<version>.tgz` bundle. Do not replace this pipeline with a plain `next build` — the published `taskhelm` package depends on the runtime layout it produces.
+- **Web is `output: 'standalone'`** with `outputFileTracingRoot` set to the repo root so Next traces workspace dependencies correctly.
+- **Layout pre-fetches DB on every render:** `packages/web/src/app/layout.tsx` is `force-dynamic` and runs migrations + reads projects synchronously. Any change that makes layout async or non-dynamic will break the sidebar.
+- **Default port:** 4100. Override via `TASKHELM_PORT` or `PORT` (`packages/cli/src/launcher/index.ts:11`). Invalid values silently fall back to 4100.
+
+## Domain Model (one-page summary)
+
+- `Project` — top-level boundary (repo root, slug, policies). Migrations 001, 013.
+- `Task` — primary execution unit attached to a project; owns a branch, worktree, allocated port, agent runs, and review gates. Migrations 002, 011, 012, 013. **Note:** `status` and `phase` columns were removed in migration 012 — task lifecycle is now derived from agent runs and review gates, not stored as enums on the row.
+- Three review gates per task: `spec_compliance`, `code_quality`, `runtime_verification`.
+- `agent_runs` — append-only history of dispatched agents (implementer, reviewer).
+- `dev_servers` — pooled, max-concurrency, warm vs sleeping (`packages/supervisor/src/dev-pool.ts`).
+- `events`, `notifications`, `locks` — supervisor coordination tables.
+- Migrations live at `packages/core/src/db/migrations/NNN_*.sql` and are applied in numeric order by `runMigrations`. Add new ones with the next sequence number; never edit applied ones.
 
 ## V1 Autonomy Boundary
 
@@ -61,30 +79,32 @@ projects/<project-slug>/
 
 **Not allowed by default:** push branches, merge, create PR/MR, mutate external ticket systems.
 
-## Key Design Decisions
+## Project-Scoped Agent Rules
 
-- Single-user first (no auth/RBAC in v1)
-- Dev servers are pooled with max concurrency — warm vs sleeping states
-- Supervisor updates SQLite first, then refreshes markdown artifacts
-- Local-first context is a core requirement — standalone must work on day one
-- CLI supports `--json` output for automation; table output by default
+`.claude/rules/` and `AGENTS.md` add two project rules on top of the global ones:
+
+- **`ui-ux-priority`** — UI/UX work must go through the `ui-ux-pro-max` plugin first; do not hand-write components without consulting it.
+- **`post-turn-review`** — after each turn that produces code changes, run the code-review agent/skill on the changed files and fix CRITICAL/HIGH issues before moving on.
+- **Disabled MCPs in this project (`AGENTS.md`):** do not call `pencil`, `supabase`, or `magic` MCP tools.
 
 ## Document Map
 
-Read these in order for full context:
-- `docs/13-session-context-dump.md` — quickstart handoff from brainstorming session
+Read in this order for full design context (everything under `docs/` is the v1 spec):
+
+- `docs/13-session-context-dump.md` — quickstart handoff
 - `docs/02-v1-architecture.md` — system layers
 - `docs/06-domain-model.md` — entities and state machines
-- `docs/07-sqlite-schema.md` — all runtime tables
+- `docs/07-sqlite-schema.md` — runtime tables (note: spec predates migration 012's status/phase removal)
+- `docs/08-task-capsule-spec.md` — markdown/yaml capsule format
 - `docs/09-supervisor-event-model.md` — event-driven automation
 - `docs/10-cli-spec.md` — CLI command groups
 - `docs/11-web-dashboard-spec.md` — dashboard screens
-- `docs/04-init-roadmap.md` — phased implementation plan (Phase 0-6)
+- `docs/04-init-roadmap.md` — phased implementation plan
 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **TaskHelm** (816 symbols, 1762 relationships, 61 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **TaskHelm** (1521 symbols, 2999 relationships, 115 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
