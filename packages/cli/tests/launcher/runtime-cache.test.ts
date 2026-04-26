@@ -57,6 +57,30 @@ describe('runtime cache helpers', () => {
     expect(getBundledRuntimeCandidates('/opt/taskhelm/node_modules/@taskhelm/cli')).toContain(
       '/opt/taskhelm/runtime/standalone/server.js',
     )
+    expect(getBundledRuntimeCandidates('/opt/taskhelm/node_modules/@taskhelm/cli')).toContain(
+      '/opt/taskhelm/packages/web/runtime/standalone/packages/web/server.js',
+    )
+    expect(getBundledRuntimeCandidates('/opt/taskhelm/node_modules/@taskhelm/cli')).toContain(
+      '/opt/taskhelm/packages/web/runtime/standalone/server.js',
+    )
+  })
+
+  it('resolves the bundled runtime root from the packaged web runtime layout', async () => {
+    const packagedRuntimeRoot = mkdtempSync(join(tmpdir(), 'taskhelm-packaged-runtime-'))
+    const entrypoint = join(packagedRuntimeRoot, 'standalone', 'packages', 'web', 'server.js')
+    mkdirSync(join(packagedRuntimeRoot, 'standalone', 'packages', 'web'), { recursive: true })
+    writeFileSync(entrypoint, 'console.log("runtime")')
+    writeFileSync(
+      join(packagedRuntimeRoot, 'manifest.json'),
+      JSON.stringify({ entrypointCandidates: ['standalone/packages/web/server.js'] }),
+    )
+    process.env.TASKHELM_BUNDLED_RUNTIME_ENTRYPOINT = entrypoint
+
+    const { getBundledRuntimeRoot } = await import('../../src/launcher/runtime-cache.js')
+
+    expect(getBundledRuntimeRoot()).toBe(packagedRuntimeRoot)
+
+    rmSync(packagedRuntimeRoot, { recursive: true, force: true })
   })
 
   it('resolves the owning taskhelm package root from the installed cli path', async () => {

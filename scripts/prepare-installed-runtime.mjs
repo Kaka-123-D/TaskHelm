@@ -3,7 +3,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync } from
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
-import { basename, dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import { mkdtempSync } from 'node:fs'
 
 const packageRoot = resolve(fileURLToPath(new URL('..', import.meta.url)))
@@ -16,7 +16,7 @@ function findInstallNodeModulesRoot(fromPath) {
 
   while (true) {
     if (basename(current) === 'node_modules') {
-      fallbackNodeModulesRoot = current
+      fallbackNodeModulesRoot ||= current
       if (existsSync(join(current, '.pnpm'))) {
         return current
       }
@@ -123,6 +123,8 @@ function resolveInstalledDependencyRoot(dependency) {
 function main() {
   const { runtimeRoot, version } = parseArgs(process.argv)
 
+  console.error(`[taskhelm] Preparing local web runtime${version ? ` ${version}` : ''}...`)
+
   assertExists(webRoot, 'web workspace')
   assertExists(nextBin, 'Next.js runtime build binary')
   assertExists(installNodeModulesRoot, 'installed node_modules root')
@@ -131,18 +133,21 @@ function main() {
   const stageRoot = mkdtempSync(join(tmpdir(), 'taskhelm-runtime-prepare-'))
 
   try {
+    console.error('[taskhelm] Staging package assets...')
     cpSync(packageRoot, stageRoot, {
       recursive: true,
       dereference: true,
       filter: sourcePath => {
-        const normalized = sourcePath.replace(/\\/g, '/')
-        if (normalized.includes('/packages/web/.next')) return false
-        if (normalized.includes('/packages/web/runtime')) return false
-        if (normalized.endsWith('/.git')) return false
+        const relativeSourcePath = relative(packageRoot, sourcePath).replace(/\\/g, '/')
+        if (relativeSourcePath === 'node_modules' || relativeSourcePath.startsWith('node_modules/')) return false
+        if (relativeSourcePath === 'packages/web/.next' || relativeSourcePath.startsWith('packages/web/.next/')) return false
+        if (relativeSourcePath === 'packages/web/runtime' || relativeSourcePath.startsWith('packages/web/runtime/')) return false
+        if (relativeSourcePath === '.git' || relativeSourcePath.startsWith('.git/')) return false
         return true
       },
     })
 
+    console.error('[taskhelm] Linking installed dependencies...')
     cpSync(installNodeModulesRoot, join(stageRoot, 'node_modules'), {
       recursive: true,
       dereference: false,
@@ -161,6 +166,7 @@ function main() {
       runNodeScript(cleanRuntimeScript, [], stageWebRoot)
     }
 
+    console.error('[taskhelm] Building web runtime. This can take a minute on first launch...')
     execFileSync(process.execPath, [stageNextBin, 'build'], {
       cwd: stageWebRoot,
       stdio: 'inherit',
@@ -171,7 +177,9 @@ function main() {
       },
     })
 
+    console.error('[taskhelm] Caching prepared runtime...')
     runNodeScript(packageRuntimeScript, ['--output', runtimeRoot, '--skip-archive'], stageWebRoot)
+    console.error(`[taskhelm] Runtime ready at ${runtimeRoot}`)
   } finally {
     rmSync(stageRoot, { recursive: true, force: true })
   }

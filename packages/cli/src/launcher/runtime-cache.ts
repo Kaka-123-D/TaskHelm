@@ -79,6 +79,8 @@ export function getBundledRuntimeCandidates(cliRoot: string = getCliPackageRoot(
     resolve(cliRoot, '..', '..', 'runtime', 'standalone', 'server.js'),
     resolve(cliRoot, '..', '..', '..', 'runtime', 'standalone', 'packages', 'web', 'server.js'),
     resolve(cliRoot, '..', '..', '..', 'runtime', 'standalone', 'server.js'),
+    resolve(cliRoot, '..', '..', '..', 'packages', 'web', 'runtime', 'standalone', 'packages', 'web', 'server.js'),
+    resolve(cliRoot, '..', '..', '..', 'packages', 'web', 'runtime', 'standalone', 'server.js'),
     resolve(cliRoot, '..', '..', 'web', 'runtime', 'standalone', 'packages', 'web', 'server.js'),
     resolve(cliRoot, '..', '..', 'web', 'runtime', 'standalone', 'server.js'),
     resolve(cliRoot, '..', '..', 'web', '.next', 'standalone', 'packages', 'web', 'server.js'),
@@ -136,11 +138,27 @@ export function getBundledRuntimeRoot(): string | null {
   const entrypoint = getBundledRuntimeEntrypoint()
   if (!entrypoint) return null
 
-  if (entrypoint.endsWith('packages/web/server.js')) {
+  const normalizedEntrypoint = entrypoint.replace(/\\/g, '/')
+
+  if (normalizedEntrypoint.endsWith('/standalone/packages/web/server.js')) {
+    const runtimeRoot = resolve(dirname(entrypoint), '..', '..', '..')
+    if (existsSync(join(runtimeRoot, 'manifest.json'))) {
+      return runtimeRoot
+    }
+  }
+
+  if (normalizedEntrypoint.endsWith('/standalone/server.js')) {
+    const runtimeRoot = resolve(dirname(entrypoint), '..')
+    if (existsSync(join(runtimeRoot, 'manifest.json'))) {
+      return runtimeRoot
+    }
+  }
+
+  if (normalizedEntrypoint.endsWith('/packages/web/server.js')) {
     return resolve(dirname(entrypoint), '..', '..')
   }
 
-  if (entrypoint.endsWith('server.js')) {
+  if (normalizedEntrypoint.endsWith('/server.js')) {
     return dirname(entrypoint)
   }
 
