@@ -1647,3 +1647,144 @@ input {
     opacity: 0.85;
   }
 }
+
+/* Onboarding Help button + welcome modal */
+.app-sidebar-help-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.44);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  margin-top: auto;
+}
+
+.app-sidebar-help-button:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.app-sidebar-help-button-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--accent-muted);
+  color: var(--accent-ink);
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 0.78rem;
+}
+
+.welcome-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.welcome-modal-progress {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.welcome-modal-progress-dot {
+  width: 32px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--surface-inset);
+  transition: background 0.2s ease;
+}
+
+.welcome-modal-progress-dot[data-done='true'] {
+  background: var(--primary);
+  opacity: 0.5;
+}
+
+.welcome-modal-progress-dot[data-active='true'] {
+  background: var(--primary);
+  opacity: 1;
+}
+
+.welcome-modal-section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.welcome-modal-section-body {
+  color: var(--text-secondary);
+}
+
+.welcome-modal-section-body p {
+  margin: 0 0 10px 0;
+}
+
+.welcome-modal-section-body p:last-child {
+  margin-bottom: 0;
+}
+
+.welcome-modal-section-body code {
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 0.82em;
+  background: var(--surface-inset);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--text-primary);
+}
+
+.welcome-modal-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.welcome-modal-list li {
+  color: var(--text-secondary);
+}
+
+.welcome-modal-list li strong {
+  color: var(--text-primary);
+}
+
+.welcome-modal-pre {
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.welcome-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.welcome-modal-step-counter {
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}

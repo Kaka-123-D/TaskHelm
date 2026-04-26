@@ -73,6 +73,60 @@ describe('ContextFilePreview', () => {
     expect(markup).not.toContain('[@/media/demo.mp4]')
   })
 
+  it('resolves vault refs by suffix when user pastes path from project root', () => {
+    const file: PersistedContextVaultFile = {
+      relativePath: 'docs/context.md',
+      absolutePath: '/tmp/docs/context.md',
+      content: '[@tasks/LRC-12752/tickets/LRC-12752/gyazo/abc.png]',
+      category: 'markdown',
+      mediaType: 'text/markdown',
+    }
+    const files: readonly PersistedContextVaultFile[] = [
+      file,
+      {
+        // vault was picked at LRC-12752/, so this file's relativePath omits the tasks/LRC-12752/ prefix
+        relativePath: 'tickets/LRC-12752/gyazo/abc.png',
+        absolutePath: '/tmp/LRC-12752/tickets/LRC-12752/gyazo/abc.png',
+        content: 'data:image/png;base64,SUFFIX-MATCH',
+        category: 'image',
+        mediaType: 'image/png',
+      },
+    ]
+
+    const markup = renderToStaticMarkup(
+      <ContextFilePreview file={file} files={files} />,
+    )
+
+    expect(markup).toContain('src="data:image/png;base64,SUFFIX-MATCH"')
+    expect(markup).not.toContain('[@tasks/LRC-12752/tickets/LRC-12752/gyazo/abc.png]')
+  })
+
+  it('resolves vault refs by suffix when user pastes a shorter path', () => {
+    const file: PersistedContextVaultFile = {
+      relativePath: 'docs/context.md',
+      absolutePath: '/tmp/docs/context.md',
+      content: '[@gyazo/abc.png]',
+      category: 'markdown',
+      mediaType: 'text/markdown',
+    }
+    const files: readonly PersistedContextVaultFile[] = [
+      file,
+      {
+        relativePath: 'tickets/LRC-12752/gyazo/abc.png',
+        absolutePath: '/tmp/LRC-12752/tickets/LRC-12752/gyazo/abc.png',
+        content: 'data:image/png;base64,SHORT-REF',
+        category: 'image',
+        mediaType: 'image/png',
+      },
+    ]
+
+    const markup = renderToStaticMarkup(
+      <ContextFilePreview file={file} files={files} />,
+    )
+
+    expect(markup).toContain('src="data:image/png;base64,SHORT-REF"')
+  })
+
   it('renders asset references without leading slash ([@path] form)', () => {
     const file: PersistedContextVaultFile = {
       relativePath: 'docs/context.md',

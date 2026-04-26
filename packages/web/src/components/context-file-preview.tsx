@@ -37,6 +37,36 @@ function buildVaultFileMap(files: readonly PersistedContextVaultFile[]): Map<str
   )
 }
 
+// Resolve a markdown reference path to a vault file. Tries:
+//   1. exact match — vault path === ref path
+//   2. ref ends with vault path — user wrote a longer path from project root,
+//      vault was picked at a deeper subdir (e.g. ref `tasks/X/img.png` matches
+//      vault file `img.png` if picked dir is the parent of img.png)
+//   3. vault path ends with ref — user wrote a shorter relative path, vault
+//      was picked at a higher dir (e.g. ref `gyazo/x.png` matches vault file
+//      `tickets/LRC/gyazo/x.png`)
+// When multiple candidates would match by suffix, prefers the longest path
+// (most specific) to reduce ambiguity.
+function resolveVaultReference(
+  refPath: string,
+  fileMap: Map<string, PersistedContextVaultFile>,
+): PersistedContextVaultFile | undefined {
+  const exact = fileMap.get(refPath)
+  if (exact) return exact
+
+  let bestMatch: PersistedContextVaultFile | undefined
+  let bestLength = -1
+  for (const [vaultPath, file] of fileMap) {
+    const matches =
+      refPath.endsWith('/' + vaultPath) || vaultPath.endsWith('/' + refPath)
+    if (matches && vaultPath.length > bestLength) {
+      bestMatch = file
+      bestLength = vaultPath.length
+    }
+  }
+  return bestMatch
+}
+
 function splitMarkdownAssetReferences(
   content: string,
   files: readonly PersistedContextVaultFile[],
@@ -50,7 +80,7 @@ function splitMarkdownAssetReferences(
     const matchIndex = match.index ?? 0
     const rawReference = match[0]
     const relativePath = normalizeVaultReferencePath(match[1] ?? '')
-    const referencedFile = fileMap.get(relativePath)
+    const referencedFile = resolveVaultReference(relativePath, fileMap)
     const referencedCategory = referencedFile?.category ?? (
       referencedFile ? classifyContextVaultFile(referencedFile.relativePath).category : 'unsupported'
     )

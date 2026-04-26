@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { GlassModal } from '@/components/design-system/glass-modal'
 import { GlassInput } from '@/components/design-system/glass-input'
@@ -35,7 +35,9 @@ export function CreateProjectForm() {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<FormState>(INITIAL_STATE)
   const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [isFetching, setIsFetching] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const submitting = isFetching || isPending
   const router = useRouter()
 
   const updateField = useCallback(
@@ -66,7 +68,7 @@ export function CreateProjectForm() {
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    setSubmitting(true)
+    setIsFetching(true)
     try {
       const body: Record<string, string | undefined> = {
         name: form.name,
@@ -86,13 +88,15 @@ export function CreateProjectForm() {
         const data = await res.json()
         throw new Error(data.error ?? 'Failed to create project')
       }
-      setForm(INITIAL_STATE)
-      setOpen(false)
-      router.refresh()
+      startTransition(() => {
+        router.refresh()
+        setForm(INITIAL_STATE)
+        setOpen(false)
+      })
     } catch (err) {
       setError((err as Error).message)
     } finally {
-      setSubmitting(false)
+      setIsFetching(false)
     }
   }, [form, router])
 

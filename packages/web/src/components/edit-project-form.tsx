@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Project } from '@taskhelm/core'
 import { GlassModal } from '@/components/design-system/glass-modal'
@@ -29,7 +29,9 @@ export function EditProjectForm({ project }: EditProjectFormProps) {
     maxDevServers: String(project.max_active_dev_servers),
   })
   const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [isFetching, setIsFetching] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const submitting = isFetching || isPending
   const router = useRouter()
 
   const updateField = useCallback(
@@ -42,7 +44,7 @@ export function EditProjectForm({ project }: EditProjectFormProps) {
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    setSubmitting(true)
+    setIsFetching(true)
     try {
       const body: Record<string, string | number> = { name: form.name }
       body.description = form.description || ''
@@ -59,12 +61,14 @@ export function EditProjectForm({ project }: EditProjectFormProps) {
         const data = await res.json()
         throw new Error(data.error ?? 'Failed to update project')
       }
-      setOpen(false)
-      router.refresh()
+      startTransition(() => {
+        router.refresh()
+        setOpen(false)
+      })
     } catch (err) {
       setError((err as Error).message)
     } finally {
-      setSubmitting(false)
+      setIsFetching(false)
     }
   }, [form, project.slug, router])
 

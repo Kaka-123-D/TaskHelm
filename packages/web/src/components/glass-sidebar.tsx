@@ -113,6 +113,16 @@ export function GlassSidebar({ recentProjects = [] }: GlassSidebarProps) {
           </div>
         </div>
       )}
+
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new Event('taskhelm:open-onboarding'))}
+        className="app-sidebar-help-button"
+        aria-label="Open TaskHelm guide"
+      >
+        <span className="app-sidebar-help-button-icon">?</span>
+        <span>How TaskHelm works</span>
+      </button>
     </aside>
   )
 }

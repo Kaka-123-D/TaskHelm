@@ -1,6 +1,6 @@
 {
   "name": "@taskhelm/cli",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "CLI for TaskHelm — manage projects, tasks, workspaces, dev servers, and agent runs from your terminal.",
   "keywords": ["taskhelm", "cli", "ai-agents", "developer-tools", "local-first"],
   "type": "module",

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { GlassSidebar } from '@/components/glass-sidebar'
+import { OnboardingTrigger } from '@/components/welcome-modal'
 import { ProjectRepository } from '@taskhelm/core'
 import { getDb } from '@/lib/db'
 
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
         </div>
+        <OnboardingTrigger />
       </body>
     </html>
   )

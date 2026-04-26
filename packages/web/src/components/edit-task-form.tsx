@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Task } from '@taskhelm/core'
 import { GlassModal } from '@/components/design-system/glass-modal'
@@ -43,7 +43,9 @@ export function EditTaskForm({ task, projectSlug: _projectSlug }: EditTaskFormPr
     priority: String(task.priority),
   })
   const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [isFetching, setIsFetching] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const submitting = isFetching || isPending
   const router = useRouter()
 
   const updateField = useCallback(
@@ -56,7 +58,7 @@ export function EditTaskForm({ task, projectSlug: _projectSlug }: EditTaskFormPr
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    setSubmitting(true)
+    setIsFetching(true)
     try {
       let referLink: string | null
       try {
@@ -79,12 +81,14 @@ export function EditTaskForm({ task, projectSlug: _projectSlug }: EditTaskFormPr
         const data = await res.json()
         throw new Error(data.error ?? 'Failed to update task')
       }
-      setOpen(false)
-      router.refresh()
+      startTransition(() => {
+        router.refresh()
+        setOpen(false)
+      })
     } catch (err) {
       setError((err as Error).message)
     } finally {
-      setSubmitting(false)
+      setIsFetching(false)
     }
   }, [form, task.id, router])
 
