@@ -11,7 +11,7 @@ import { basename } from 'node:path'
 export const program = new Command()
   .name('taskhelm')
   .description('Autonomous AI engineering manager for solo operators')
-  .version('0.1.9')
+  .version('0.1.10')
 
 registerProjectCommands(program)
 registerTaskCommands(program)

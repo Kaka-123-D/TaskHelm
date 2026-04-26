@@ -13,7 +13,7 @@ and pooled dev servers — from one workbench, on your machine.
 [![node](https://img.shields.io/node/v/taskhelm.svg?color=2f6df6&style=flat-square)](./package.json)
 [![GitHub stars](https://img.shields.io/github/stars/Kaka-123-D/TaskHelm?style=flat-square&color=f5a623)](https://github.com/Kaka-123-D/TaskHelm/stargazers)
 
-<img src="https://raw.githubusercontent.com/Kaka-123-D/TaskHelm/main/project-detail-workbench.png" alt="TaskHelm project workbench" width="900" />
+<img src="https://raw.githubusercontent.com/Kaka-123-D/TaskHelm/main/demo-04-project-detail.png" alt="TaskHelm project workbench" width="900" />
 
 </div>
 
@@ -147,22 +147,22 @@ don't sit polling a chat window.
 <table>
 <tr>
 <td width="50%" align="center">
-<img src="https://raw.githubusercontent.com/Kaka-123-D/TaskHelm/main/task-detail-workbench.png" alt="Task detail cockpit" />
-<br><sub><b>Task cockpit</b> — context, workspace, dev server in one pane</sub>
+<img src="https://raw.githubusercontent.com/Kaka-123-D/TaskHelm/main/demo-06-task-detail-hero.png" alt="Task cockpit hero" />
+<br><sub><b>Task cockpit</b> — refer link, branch, worktree, port, dev state in one hero</sub>
 </td>
 <td width="50%" align="center">
-<img src="https://raw.githubusercontent.com/Kaka-123-D/TaskHelm/main/dev-pool-workbench.png" alt="Dev server pool" />
-<br><sub><b>Dev pool</b> — pooled local runtimes across projects</sub>
+<img src="https://raw.githubusercontent.com/Kaka-123-D/TaskHelm/main/demo-08-task-detail-vault.png" alt="Context vault preview" />
+<br><sub><b>Context vault</b> — link any folder, preview markdown + assets inline</sub>
 </td>
 </tr>
 <tr>
 <td width="50%" align="center">
-<img src="https://raw.githubusercontent.com/Kaka-123-D/TaskHelm/main/port-conflict-modal-016.png" alt="Port conflict modal" />
-<br><sub><b>Port conflict</b> — inspect the squatter, Kill &amp; Start in one click</sub>
+<img src="https://raw.githubusercontent.com/Kaka-123-D/TaskHelm/main/demo-05-dev-pool.png" alt="Dev server pool" />
+<br><sub><b>Dev pool</b> — runtime inventory across all projects, jump straight to owner task</sub>
 </td>
 <td width="50%" align="center">
-<img src="https://raw.githubusercontent.com/Kaka-123-D/TaskHelm/main/project-detail-workbench.png" alt="Project workspace" />
-<br><sub><b>Project workspace</b> — all tasks, runtime metadata at a glance</sub>
+<img src="https://raw.githubusercontent.com/Kaka-123-D/TaskHelm/main/demo-02-welcome-vault-syntax.png" alt="In-app onboarding modal" />
+<br><sub><b>In-app onboarding</b> — 4-step guide auto-shown on first run; reopen anytime from sidebar</sub>
 </td>
 </tr>
 </table>
