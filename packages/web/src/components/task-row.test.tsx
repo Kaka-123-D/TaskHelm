@@ -35,6 +35,12 @@ vi.mock('motion/react', () => ({
       transition?: unknown
     }) => <div {...props}>{children}</div>,
   },
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}))
+
+vi.mock('@/components/design-system/glass-modal', () => ({
+  GlassModal: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
+    open ? <div data-slot="glass-modal">{children}</div> : null,
 }))
 
 vi.mock('@/components/delete-confirm', () => ({

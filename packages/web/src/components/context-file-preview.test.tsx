@@ -73,6 +73,42 @@ describe('ContextFilePreview', () => {
     expect(markup).not.toContain('[@/media/demo.mp4]')
   })
 
+  it('renders asset references without leading slash ([@path] form)', () => {
+    const file: PersistedContextVaultFile = {
+      relativePath: 'docs/context.md',
+      absolutePath: '/tmp/docs/context.md',
+      content: '[@tasks/LRC-12424/gyazo/clip.mp4]\n\n[@customer/tickets/spec.png]',
+      category: 'markdown',
+      mediaType: 'text/markdown',
+    }
+    const files: readonly PersistedContextVaultFile[] = [
+      file,
+      {
+        relativePath: 'tasks/LRC-12424/gyazo/clip.mp4',
+        absolutePath: '/tmp/tasks/LRC-12424/gyazo/clip.mp4',
+        content: 'data:video/mp4;base64,VVV',
+        category: 'video',
+        mediaType: 'video/mp4',
+      },
+      {
+        relativePath: 'customer/tickets/spec.png',
+        absolutePath: '/tmp/customer/tickets/spec.png',
+        content: 'data:image/png;base64,III',
+        category: 'image',
+        mediaType: 'image/png',
+      },
+    ]
+
+    const markup = renderToStaticMarkup(
+      <ContextFilePreview file={file} files={files} />,
+    )
+
+    expect(markup).toContain('src="data:video/mp4;base64,VVV"')
+    expect(markup).toContain('src="data:image/png;base64,III"')
+    expect(markup).not.toContain('[@tasks/LRC-12424/gyazo/clip.mp4]')
+    expect(markup).not.toContain('[@customer/tickets/spec.png]')
+  })
+
   it('renders image files as images', () => {
     const file: PersistedContextVaultFile = {
       relativePath: 'images/diagram.png',

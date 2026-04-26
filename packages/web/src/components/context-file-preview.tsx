@@ -43,7 +43,7 @@ function splitMarkdownAssetReferences(
 ): readonly MarkdownSegment[] {
   const fileMap = buildVaultFileMap(files)
   const segments: MarkdownSegment[] = []
-  const referencePattern = /\[@\/([^\]\r\n]+)\]/g
+  const referencePattern = /\[@\/?([^\]\r\n]+)\]/g
   let cursor = 0
 
   for (const match of content.matchAll(referencePattern)) {

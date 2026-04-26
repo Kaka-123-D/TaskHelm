@@ -1,3 +1,20 @@
+function PanelSkeleton({ height }: { height: number }) {
+  return (
+    <div
+      className="task-row-surface"
+      style={{ minHeight: height, display: 'flex', flexDirection: 'column', gap: 12 }}
+    >
+      <div className="skeleton-block" style={{ height: 14, width: 120 }} />
+      <div className="skeleton-block" style={{ height: 10, width: '85%' }} />
+      <div className="skeleton-block" style={{ height: 10, width: '70%' }} />
+      <div style={{ marginTop: 'auto', display: 'flex', gap: 8 }}>
+        <div className="skeleton-block" style={{ height: 28, width: 80, borderRadius: 10 }} />
+        <div className="skeleton-block" style={{ height: 28, width: 72, borderRadius: 10 }} />
+      </div>
+    </div>
+  )
+}
+
 export default function Loading() {
   return (
     <div className="workbench-page-shell" aria-busy="true" aria-live="polite">
@@ -19,13 +36,14 @@ export default function Loading() {
           ))}
         </div>
       </section>
-      <div className="task-detail-section">
-        <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 320px)' }}>
-          <div className="skeleton-block" style={{ height: 360 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div className="skeleton-block" style={{ height: 160 }} />
-            <div className="skeleton-block" style={{ height: 180 }} />
-          </div>
+      <div
+        className="task-detail-section"
+        style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 320px)' }}
+      >
+        <PanelSkeleton height={320} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <PanelSkeleton height={160} />
+          <PanelSkeleton height={180} />
         </div>
       </div>
     </div>
