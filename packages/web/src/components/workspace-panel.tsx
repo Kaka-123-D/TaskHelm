@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Task } from '@taskhelm/core'
 import { GlassButton } from '@/components/design-system/glass-button'
@@ -32,7 +32,9 @@ interface WorkspacePanelProps {
 }
 
 export function WorkspacePanel({ task }: WorkspacePanelProps) {
-  const [loading, setLoading] = useState(false)
+  const [isFetching, setIsFetching] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const loading = isFetching || isPending
   const [error, setError] = useState<string | null>(null)
   const [settingsLoading, setSettingsLoading] = useState(true)
   const [workspaceName, setWorkspaceName] = useState(task.workspace_name ?? '')
@@ -104,7 +106,7 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
   }, [autoPullBaseBranch, baseBranch, detectedSubrepos, subrepoBranches, workspaceBranch, workspaceName])
 
   const handleSave = useCallback(async () => {
-    setLoading(true)
+    setIsFetching(true)
     setError(null)
     setRecoverableBaseBranchError(null)
     try {
@@ -117,16 +119,16 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
         const data = await res.json()
         throw new Error(data.error ?? 'Failed to save workspace settings')
       }
-      router.refresh()
+      startTransition(() => router.refresh())
     } catch (err) {
       setError((err as Error).message)
     } finally {
-      setLoading(false)
+      setIsFetching(false)
     }
   }, [buildWorkspacePayload, router, task.id])
 
   const handleInit = useCallback(async () => {
-    setLoading(true)
+    setIsFetching(true)
     setError(null)
     setRecoverableBaseBranchError(null)
     try {
@@ -145,16 +147,16 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
         }
         throw new Error(data.error ?? 'Failed to init workspace')
       }
-      router.refresh()
+      startTransition(() => router.refresh())
     } catch (err) {
       setError((err as Error).message)
     } finally {
-      setLoading(false)
+      setIsFetching(false)
     }
   }, [buildWorkspacePayload, router, selectedExistingWorktreePath, task.id])
 
   const handleCleanup = useCallback(async () => {
-    setLoading(true)
+    setIsFetching(true)
     setError(null)
     setRecoverableBaseBranchError(null)
     try {
@@ -163,11 +165,11 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
         const data = await res.json()
         throw new Error(data.error ?? 'Failed to cleanup workspace')
       }
-      router.refresh()
+      startTransition(() => router.refresh())
     } catch (err) {
       setError((err as Error).message)
     } finally {
-      setLoading(false)
+      setIsFetching(false)
     }
   }, [task.id, router])
 
@@ -187,7 +189,7 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
   )
 
   const handleRetryWithForceRefresh = useCallback(async () => {
-    setLoading(true)
+    setIsFetching(true)
     setError(null)
     try {
       const res = await fetch(`/api/tasks/${task.id}/workspace`, {
@@ -204,11 +206,11 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
         throw new Error(data.error ?? 'Failed to init workspace after force refresh')
       }
       setRecoverableBaseBranchError(null)
-      router.refresh()
+      startTransition(() => router.refresh())
     } catch (err) {
       setError((err as Error).message)
     } finally {
-      setLoading(false)
+      setIsFetching(false)
     }
   }, [buildWorkspacePayload, router, selectedExistingWorktreePath, task.id])
 

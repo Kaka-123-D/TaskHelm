@@ -1618,3 +1618,14 @@ input {
     width: 100%;
   }
 }
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.85; }
+}
+
+.skeleton-block {
+  background: var(--glass-surface, rgba(255, 255, 255, 0.04));
+  border-radius: 8px;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}

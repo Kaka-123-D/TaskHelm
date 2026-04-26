@@ -3,7 +3,7 @@
 import type { Task } from '@taskhelm/core'
 import Link from 'next/link'
 import { motion } from 'motion/react'
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { DeleteConfirm } from '@/components/delete-confirm'
 import { GlassButton } from '@/components/design-system/glass-button'
@@ -17,8 +17,10 @@ interface TaskRowProps {
 
 export function TaskRow({ task, projectSlug }: TaskRowProps) {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const [isFetching, setIsFetching] = useState(false)
+  const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const loading = isFetching || isPending
   const isRunning = task.dev_server_state === 'running' || task.dev_server_state === 'warm'
   const branchLabel = task.branch_name ?? task.workspace_branch ?? 'No branch'
   const worktreeLabel = task.workspace_name ?? 'No workspace'
@@ -26,7 +28,7 @@ export function TaskRow({ task, projectSlug }: TaskRowProps) {
     task.port != null ? `:${task.port}` : task.preferred_port != null ? `:${task.preferred_port}` : null
 
   const handleStart = useCallback(async () => {
-    setLoading(true)
+    setIsFetching(true)
     setError(null)
     try {
       const response = await fetch(`/api/tasks/${task.id}/dev`, {
@@ -40,16 +42,16 @@ export function TaskRow({ task, projectSlug }: TaskRowProps) {
         const payload = await response.json()
         throw new Error(payload.error ?? 'Failed to start dev server')
       }
-      router.refresh()
+      startTransition(() => router.refresh())
     } catch (err) {
       setError((err as Error).message)
     } finally {
-      setLoading(false)
+      setIsFetching(false)
     }
   }, [router, task.id, task.preferred_port])
 
   const handleStop = useCallback(async () => {
-    setLoading(true)
+    setIsFetching(true)
     setError(null)
     try {
       const response = await fetch(`/api/tasks/${task.id}/dev`, { method: 'DELETE' })
@@ -57,11 +59,11 @@ export function TaskRow({ task, projectSlug }: TaskRowProps) {
         const payload = await response.json()
         throw new Error(payload.error ?? 'Failed to stop dev server')
       }
-      router.refresh()
+      startTransition(() => router.refresh())
     } catch (err) {
       setError((err as Error).message)
     } finally {
-      setLoading(false)
+      setIsFetching(false)
     }
   }, [router, task.id])
 

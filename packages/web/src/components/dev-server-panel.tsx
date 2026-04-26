@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Task } from '@taskhelm/core'
 import { GlassButton } from '@/components/design-system/glass-button'
@@ -157,7 +157,9 @@ export function DevServerPanelView({
 }
 
 export function DevServerPanel({ task }: DevServerPanelProps) {
-  const [loading, setLoading] = useState(false)
+  const [isFetching, setIsFetching] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const loading = isFetching || isPending
   const [error, setError] = useState<string | null>(null)
   const [conflict, setConflict] = useState<ExternalPortConflict | null>(null)
   const router = useRouter()
@@ -166,7 +168,7 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
   )
 
   const handleSavePreferredPort = useCallback(async () => {
-    setLoading(true)
+    setIsFetching(true)
     setError(null)
     setConflict(null)
     try {
@@ -181,16 +183,16 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
         const data = await res.json()
         throw new Error(data.error ?? 'Failed to save preferred port')
       }
-      router.refresh()
+      startTransition(() => router.refresh())
     } catch (err) {
       setError((err as Error).message)
     } finally {
-      setLoading(false)
+      setIsFetching(false)
     }
   }, [preferredPort, router, task.id])
 
   const handleStart = useCallback(async () => {
-    setLoading(true)
+    setIsFetching(true)
     setError(null)
     setConflict(null)
     try {
@@ -209,16 +211,16 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
         }
         throw new Error(data.error ?? 'Failed to start dev server')
       }
-      router.refresh()
+      startTransition(() => router.refresh())
     } catch (err) {
       setError((err as Error).message)
     } finally {
-      setLoading(false)
+      setIsFetching(false)
     }
   }, [preferredPort, router, task.id])
 
   const handleStop = useCallback(async () => {
-    setLoading(true)
+    setIsFetching(true)
     setError(null)
     setConflict(null)
     try {
@@ -227,11 +229,11 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
         const data = await res.json()
         throw new Error(data.error ?? 'Failed to stop dev server')
       }
-      router.refresh()
+      startTransition(() => router.refresh())
     } catch (err) {
       setError((err as Error).message)
     } finally {
-      setLoading(false)
+      setIsFetching(false)
     }
   }, [task.id, router])
 
@@ -240,7 +242,7 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
       return
     }
 
-    setLoading(true)
+    setIsFetching(true)
     setError(null)
     try {
       const res = await fetch(`/api/tasks/${task.id}/dev`, {
@@ -256,11 +258,11 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
         throw new Error(data.error ?? 'Failed to stop external process')
       }
       setConflict(null)
-      router.refresh()
+      startTransition(() => router.refresh())
     } catch (err) {
       setError((err as Error).message)
     } finally {
-      setLoading(false)
+      setIsFetching(false)
     }
   }, [conflict, router, task.id])
 
