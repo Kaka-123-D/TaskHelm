@@ -31,3 +31,20 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Local AI tooling — machine-specific config & session captures
+.codex/
+.claude/settings.json
+.claude/settings.local.json
+.claude/skills/
+.claude/scheduled_tasks.lock
+.playwright-mcp/
+.superpowers/
+codex-backup.txt
+
+# Old design exploration screenshots (kept locally, not tracked)
+qa-*.png
+projects-posthog-*.png
+loverec-*.png
+shimmer-frame-*.png
+task-list-after-*.png
