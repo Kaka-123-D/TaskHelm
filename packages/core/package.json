@@ -1,6 +1,8 @@
 {
   "name": "@taskhelm/core",
-  "version": "0.1.7",
+  "version": "0.1.8",
+  "description": "Core domain model, SQLite repositories, capsule I/O, and workspace utilities for TaskHelm.",
+  "keywords": ["taskhelm", "sqlite", "domain-model", "git-worktree", "local-first"],
   "type": "module",
   "repository": {
     "type": "git",

@@ -1,6 +1,24 @@
 {
   "name": "taskhelm",
-  "version": "0.1.7",
+  "version": "0.1.8",
+  "description": "Local-first AI engineering manager for solo operators — coordinate multi-project work across branches, worktrees, agents, review gates, and pooled dev servers from one workbench.",
+  "keywords": [
+    "ai-agents",
+    "developer-tools",
+    "local-first",
+    "engineering-manager",
+    "git-worktree",
+    "dev-server",
+    "task-management",
+    "agent-orchestration",
+    "claude-code",
+    "monorepo",
+    "nextjs",
+    "cli",
+    "sqlite",
+    "supervisor",
+    "workbench"
+  ],
   "private": false,
   "type": "module",
   "repository": {
