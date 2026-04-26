@@ -52,7 +52,7 @@ export function startDevServer(options: StartServerOptions): DevServer {
     cwd,
     detached: true,
     stdio: 'ignore',
-    env: { ...process.env, PORT: String(port) },
+    env: { ...process.env, NODE_ENV: 'development', PORT: String(port) },
   })
 
   child.unref()

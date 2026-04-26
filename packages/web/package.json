@@ -1,6 +1,6 @@
 {
   "name": "@taskhelm/web",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "scripts": {
     "build": "node scripts/clean-runtime.mjs && next build && node scripts/package-runtime.mjs",

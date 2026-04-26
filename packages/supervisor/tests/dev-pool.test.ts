@@ -21,6 +21,16 @@ let task: Task
 // Track spawned PIDs for cleanup
 const spawnedPids: number[] = []
 
+async function waitForFile(filePath: string, timeoutMs = 1000): Promise<void> {
+  const startedAt = Date.now()
+  while (Date.now() - startedAt < timeoutMs) {
+    if (fs.existsSync(filePath)) return
+    await new Promise(resolve => setTimeout(resolve, 25))
+  }
+
+  throw new Error(`Timed out waiting for file: ${filePath}`)
+}
+
 beforeEach(() => {
   db = createDatabase(TEST_DB)
   runMigrations(db)
@@ -96,6 +106,47 @@ describe('startDevServer', () => {
     expect(found).not.toBeNull()
     expect(found!.status).toBe('running')
     expect(found!.pid).toBe(devServer.pid)
+  })
+
+  it('does not leak TaskHelm production NODE_ENV into child dev servers', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'taskhelm-dev-env-'))
+    const scriptPath = path.join(tempDir, 'capture-env.js')
+    const outputPath = path.join(tempDir, 'node-env.txt')
+    const originalNodeEnv = process.env.NODE_ENV
+
+    fs.writeFileSync(
+      scriptPath,
+      [
+        "const { writeFileSync } = require('node:fs')",
+        `writeFileSync(${JSON.stringify(outputPath)}, process.env.NODE_ENV ?? '')`,
+        'setTimeout(() => {}, 60000)',
+      ].join('\n')
+    )
+
+    process.env.NODE_ENV = 'production'
+
+    try {
+      const devServer = startDevServer({
+        db,
+        projectId: project.id,
+        taskId: task.id,
+        devCommand: `node ${scriptPath}`,
+        cwd: tempDir,
+        port: 19203,
+      })
+
+      if (devServer.pid) spawnedPids.push(devServer.pid)
+
+      await waitForFile(outputPath)
+      expect(fs.readFileSync(outputPath, 'utf-8')).toBe('development')
+    } finally {
+      if (originalNodeEnv === undefined) {
+        delete process.env.NODE_ENV
+      } else {
+        process.env.NODE_ENV = originalNodeEnv
+      }
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
   })
 
   it('throws when project not found', () => {
