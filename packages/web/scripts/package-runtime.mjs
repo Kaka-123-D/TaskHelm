@@ -155,6 +155,12 @@ function materializeRuntimeNodeModules(rootDir) {
   }
 }
 
+function copyStaticAssets(sourceStaticDir, destinationStaticDir) {
+  rmSync(destinationStaticDir, { recursive: true, force: true })
+  mkdirSync(destinationStaticDir, { recursive: true })
+  cpSync(sourceStaticDir, destinationStaticDir, { recursive: true })
+}
+
 function writeRuntimeManifest(outputDir, bundleArtifact, sha256) {
   writeFileSync(
     join(outputDir, 'manifest.json'),
@@ -194,8 +200,9 @@ function main() {
   materializeRuntimeNodeModules(outputStandaloneDir)
 
   if (existsSync(staticDir)) {
-    mkdirSync(join(outputDir, 'static'), { recursive: true })
-    cpSync(staticDir, join(outputDir, 'static'), { recursive: true })
+    copyStaticAssets(staticDir, join(outputStandaloneDir, 'packages', 'web', '.next', 'static'))
+    copyStaticAssets(staticDir, join(outputStandaloneDir, '.next', 'static'))
+    copyStaticAssets(staticDir, join(outputDir, 'static'))
   }
 
   if (skipArchive) {

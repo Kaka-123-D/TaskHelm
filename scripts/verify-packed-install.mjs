@@ -190,6 +190,30 @@ async function waitForServer(url, timeoutMs = 90000) {
   throw new Error(`Packed install verification server did not become ready at ${url}`)
 }
 
+async function assertStaticAssetsLoad(url) {
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error(`Packed install verification root page returned ${response.status} at ${url}`)
+  }
+
+  const html = await response.text()
+  const staticAssetPaths = [...html.matchAll(/["'](\/_next\/static\/(?:css|chunks)\/[^"']+)["']/g)]
+    .map(match => match[1])
+    .filter(Boolean)
+  const uniqueStaticAssetPaths = [...new Set(staticAssetPaths)]
+
+  if (uniqueStaticAssetPaths.length === 0) {
+    throw new Error('Packed install verification page did not reference any Next static CSS or chunk assets')
+  }
+
+  for (const assetPath of uniqueStaticAssetPaths.slice(0, 8)) {
+    const assetResponse = await fetch(new URL(assetPath, url))
+    if (!assetResponse.ok) {
+      throw new Error(`Packed install verification static asset returned ${assetResponse.status}: ${assetPath}`)
+    }
+  }
+}
+
 async function main() {
   const { coreTarball, supervisorTarball, cliTarball, taskhelmTarball, port } = parseArgs(process.argv)
   const installRoot = mkdtempSync(join(tmpdir(), 'taskhelm-packed-install-'))
@@ -237,7 +261,9 @@ async function main() {
     })
 
     try {
-      await waitForServer(`http://127.0.0.1:${port}`)
+      const url = `http://127.0.0.1:${port}`
+      await waitForServer(url)
+      await assertStaticAssetsLoad(url)
       process.stdout.write(`Packed install verification passed at http://127.0.0.1:${port}\n`)
     } catch (error) {
       if (stdoutLog) {
