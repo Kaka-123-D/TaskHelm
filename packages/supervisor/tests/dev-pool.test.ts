@@ -11,7 +11,7 @@ import {
 } from '@taskhelm/core'
 import type Database from 'better-sqlite3'
 import type { Project, Task } from '@taskhelm/core'
-import { startDevServer, stopDevServer, getPoolStatus } from '../src/dev-pool.js'
+import { startDevServer, stopDevServer, getPoolStatus, buildChildEnv } from '../src/dev-pool.js'
 
 const TEST_DB = path.join(import.meta.dirname, '__test_dev_pool__.db')
 let db: Database.Database
@@ -144,6 +144,84 @@ describe('startDevServer', () => {
         delete process.env.NODE_ENV
       } else {
         process.env.NODE_ENV = originalNodeEnv
+      }
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('strips Next.js standalone runtime env vars before spawning child dev servers', () => {
+    const parentEnv: NodeJS.ProcessEnv = {
+      PATH: '/usr/bin',
+      NODE_ENV: 'production',
+      HOSTNAME: '127.0.0.1',
+      KEEP_ALIVE_TIMEOUT: '60000',
+      __NEXT_PRIVATE_STANDALONE_CONFIG: '{"foo":1}',
+      __NEXT_PRIVATE_PREBUNDLED_REACT: '1',
+      NEXT_RUNTIME: 'nodejs',
+      USER_DEFINED: 'keep-me',
+    }
+
+    const childEnv = buildChildEnv(parentEnv, 4242)
+
+    expect(childEnv.HOSTNAME).toBeUndefined()
+    expect(childEnv.KEEP_ALIVE_TIMEOUT).toBeUndefined()
+    expect(childEnv.__NEXT_PRIVATE_STANDALONE_CONFIG).toBeUndefined()
+    expect(childEnv.__NEXT_PRIVATE_PREBUNDLED_REACT).toBeUndefined()
+    expect(childEnv.NEXT_RUNTIME).toBeUndefined()
+    expect(childEnv.USER_DEFINED).toBe('keep-me')
+    expect(childEnv.PATH).toBe('/usr/bin')
+    expect(childEnv.NODE_ENV).toBe('development')
+    expect(childEnv.PORT).toBe('4242')
+  })
+
+  it('does not leak __NEXT_PRIVATE_STANDALONE_CONFIG into spawned child dev servers', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'taskhelm-dev-next-'))
+    const scriptPath = path.join(tempDir, 'capture-next-config.js')
+    const outputPath = path.join(tempDir, 'next-config.txt')
+    const originalConfig = process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
+    const originalHostname = process.env.HOSTNAME
+
+    fs.writeFileSync(
+      scriptPath,
+      [
+        "const { writeFileSync } = require('node:fs')",
+        `writeFileSync(${JSON.stringify(outputPath)}, JSON.stringify({ config: process.env.__NEXT_PRIVATE_STANDALONE_CONFIG ?? null, hostname: process.env.HOSTNAME ?? null }))`,
+        'setTimeout(() => {}, 60000)',
+      ].join('\n')
+    )
+
+    process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = '{"experimental":{"turbopack":{"root":"/tmp/gone"}}}'
+    process.env.HOSTNAME = '127.0.0.1'
+
+    try {
+      const devServer = startDevServer({
+        db,
+        projectId: project.id,
+        taskId: task.id,
+        devCommand: `node ${scriptPath}`,
+        cwd: tempDir,
+        port: 19204,
+      })
+
+      if (devServer.pid) spawnedPids.push(devServer.pid)
+
+      await waitForFile(outputPath)
+      const captured = JSON.parse(fs.readFileSync(outputPath, 'utf-8')) as {
+        config: string | null
+        hostname: string | null
+      }
+      expect(captured.config).toBeNull()
+      expect(captured.hostname).toBeNull()
+    } finally {
+      if (originalConfig === undefined) {
+        delete process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
+      } else {
+        process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = originalConfig
+      }
+      if (originalHostname === undefined) {
+        delete process.env.HOSTNAME
+      } else {
+        process.env.HOSTNAME = originalHostname
       }
       fs.rmSync(tempDir, { recursive: true, force: true })
     }

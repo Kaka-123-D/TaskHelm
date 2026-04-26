@@ -15,6 +15,35 @@ export interface StartServerOptions {
   readonly healthUrl?: string
 }
 
+// Strip env vars that the TaskHelm Next standalone runtime injects into its own
+// process. These belong to TaskHelm's Next 15 build and break user dev servers
+// that inherit them — most importantly __NEXT_PRIVATE_STANDALONE_CONFIG, which
+// makes a child `next dev` think it is a Next 15 standalone server with a
+// config schema it cannot parse.
+const LEAKY_ENV_PREFIXES = ['__NEXT_PRIVATE_', 'NEXT_RUNTIME']
+const LEAKY_ENV_KEYS = new Set(['HOSTNAME', 'KEEP_ALIVE_TIMEOUT'])
+
+export function buildChildEnv(
+  parentEnv: NodeJS.ProcessEnv,
+  port: number,
+): NodeJS.ProcessEnv {
+  const next: NodeJS.ProcessEnv = { ...parentEnv }
+
+  for (const key of Object.keys(next)) {
+    if (LEAKY_ENV_KEYS.has(key)) {
+      delete next[key]
+      continue
+    }
+    if (LEAKY_ENV_PREFIXES.some(prefix => key.startsWith(prefix))) {
+      delete next[key]
+    }
+  }
+
+  next.NODE_ENV = 'development'
+  next.PORT = String(port)
+  return next
+}
+
 export function startDevServer(options: StartServerOptions): DevServer {
   const { db, projectId, taskId, devCommand, cwd, port, healthUrl } = options
 
@@ -52,7 +81,7 @@ export function startDevServer(options: StartServerOptions): DevServer {
     cwd,
     detached: true,
     stdio: 'ignore',
-    env: { ...process.env, NODE_ENV: 'development', PORT: String(port) },
+    env: buildChildEnv(process.env, port),
   })
 
   child.unref()
