@@ -81,7 +81,7 @@ There is no `lint` step wired up (`turbo.json` defines the task but no package i
 
 ## Project-Scoped Agent Rules
 
-`.claude/rules/` and `AGENTS.md` add two project rules on top of the global ones:
+`AGENTS.md` adds two project rules on top of the global ones:
 
 - **`ui-ux-priority`** — UI/UX work must go through the `ui-ux-pro-max` plugin first; do not hand-write components without consulting it.
 - **`post-turn-review`** — after each turn that produces code changes, run the code-review agent/skill on the changed files and fix CRITICAL/HIGH issues before moving on.
