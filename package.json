@@ -1,6 +1,6 @@
 {
   "name": "taskhelm",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Local-first AI engineering manager for solo operators — coordinate multi-project work across branches, worktrees, agents, review gates, and pooled dev servers from one workbench.",
   "keywords": [
     "ai-agents",

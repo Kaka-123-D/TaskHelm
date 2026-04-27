@@ -1,8 +1,14 @@
 {
   "name": "@taskhelm/cli",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "CLI for TaskHelm — manage projects, tasks, workspaces, dev servers, and agent runs from your terminal.",
-  "keywords": ["taskhelm", "cli", "ai-agents", "developer-tools", "local-first"],
+  "keywords": [
+    "taskhelm",
+    "cli",
+    "ai-agents",
+    "developer-tools",
+    "local-first"
+  ],
   "type": "module",
   "repository": {
     "type": "git",
@@ -20,7 +26,9 @@
     "dist",
     "package.json"
   ],
-  "bin": { "taskhelm-cli": "dist/bin/taskhelm.js" },
+  "bin": {
+    "taskhelm-cli": "dist/bin/taskhelm.js"
+  },
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
