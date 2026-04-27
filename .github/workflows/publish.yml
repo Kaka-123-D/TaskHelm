@@ -32,10 +32,10 @@ jobs:
       - name: Read versions
         id: versions
         run: |
-          echo "root=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
-          echo "core=$(node -p \"require('./packages/core/package.json').version\")" >> "$GITHUB_OUTPUT"
-          echo "supervisor=$(node -p \"require('./packages/supervisor/package.json').version\")" >> "$GITHUB_OUTPUT"
-          echo "cli=$(node -p \"require('./packages/cli/package.json').version\")" >> "$GITHUB_OUTPUT"
+          echo "root=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "core=$(node -p "require('./packages/core/package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "supervisor=$(node -p "require('./packages/supervisor/package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "cli=$(node -p "require('./packages/cli/package.json').version")" >> "$GITHUB_OUTPUT"
 
       - run: pnpm install --frozen-lockfile
 
