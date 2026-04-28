@@ -67,13 +67,33 @@ jobs:
           --port 4122
 
       - name: Publish @taskhelm/core
-        run: pnpm --filter @taskhelm/core publish --access public --provenance --no-git-checks
+        run: |
+          if [ "$(npm view @taskhelm/core@${{ steps.versions.outputs.core }} version 2>/dev/null)" = "${{ steps.versions.outputs.core }}" ]; then
+            echo "@taskhelm/core@${{ steps.versions.outputs.core }} already on registry — skipping"
+          else
+            pnpm --filter @taskhelm/core publish --access public --provenance --no-git-checks
+          fi
 
       - name: Publish @taskhelm/supervisor
-        run: pnpm --filter @taskhelm/supervisor publish --access public --provenance --no-git-checks
+        run: |
+          if [ "$(npm view @taskhelm/supervisor@${{ steps.versions.outputs.supervisor }} version 2>/dev/null)" = "${{ steps.versions.outputs.supervisor }}" ]; then
+            echo "@taskhelm/supervisor@${{ steps.versions.outputs.supervisor }} already on registry — skipping"
+          else
+            pnpm --filter @taskhelm/supervisor publish --access public --provenance --no-git-checks
+          fi
 
       - name: Publish @taskhelm/cli
-        run: pnpm --filter @taskhelm/cli publish --access public --provenance --no-git-checks
+        run: |
+          if [ "$(npm view @taskhelm/cli@${{ steps.versions.outputs.cli }} version 2>/dev/null)" = "${{ steps.versions.outputs.cli }}" ]; then
+            echo "@taskhelm/cli@${{ steps.versions.outputs.cli }} already on registry — skipping"
+          else
+            pnpm --filter @taskhelm/cli publish --access public --provenance --no-git-checks
+          fi
 
       - name: Publish taskhelm
-        run: pnpm publish --access public --provenance --no-git-checks
+        run: |
+          if [ "$(npm view taskhelm@${{ steps.versions.outputs.root }} version 2>/dev/null)" = "${{ steps.versions.outputs.root }}" ]; then
+            echo "taskhelm@${{ steps.versions.outputs.root }} already on registry — skipping"
+          else
+            pnpm publish --access public --provenance --no-git-checks
+          fi
