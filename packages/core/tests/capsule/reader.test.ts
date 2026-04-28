@@ -43,7 +43,6 @@ const baseTask: Task = {
   context_vault_sources_json: null,
   context_vault_files_json: null,
   context_vault_selected_file: null,
-  current_agent_run_id: null,
   latest_blocker: null,
   created_at: '2026-04-11T10:00:00.000Z',
   updated_at: '2026-04-11T10:00:00.000Z',

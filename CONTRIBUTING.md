@@ -24,7 +24,7 @@ TaskHelm is a pnpm monorepo managed by Turborepo:
 | Package | Description |
 |---------|-------------|
 | `packages/core` | Domain model, SQLite repositories, workspace utilities |
-| `packages/supervisor` | Supervisor daemon — scheduler, dispatcher, phase machine, notifications |
+| `packages/supervisor` | Dev-server pool + crash-recovery helpers |
 | `packages/cli` | CLI interface (`taskhelm` command) |
 | `packages/web` | Next.js web dashboard |
 

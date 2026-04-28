@@ -1,12 +1,6 @@
 import type { Command } from 'commander'
 import chalk from 'chalk'
-import {
-  ProjectRepository,
-  TaskRepository,
-  ReviewGateRepository,
-  AgentRunRepository,
-  writeCapsule,
-} from '@taskhelm/core'
+import { ProjectRepository, TaskRepository, writeCapsule } from '@taskhelm/core'
 import { getDb } from '../db.js'
 import { formatJson } from '../formatters/json.js'
 import { formatTasksTable, formatTaskDetail } from '../formatters/table.js'
@@ -108,8 +102,6 @@ export function registerTaskCommands(program: Command): void {
       const db = getDb()
       try {
         const taskRepo = new TaskRepository(db)
-        const gateRepo = new ReviewGateRepository(db)
-        const agentRunRepo = new AgentRunRepository(db)
 
         const task = taskRepo.findById(id)
         if (!task) {
@@ -117,16 +109,12 @@ export function registerTaskCommands(program: Command): void {
           process.exit(1)
         }
 
-        const gates = gateRepo.findByTaskId(task.id)
-        const runs = agentRunRepo.findByTaskId(task.id)
-        const activeRun = runs.find((r) => r.status === 'running') ?? null
-
         if (opts.json) {
-          console.log(formatJson({ ...task, review_gates: gates, active_agent_run: activeRun }))
+          console.log(formatJson(task))
           return
         }
 
-        console.log(formatTaskDetail(task, gates, activeRun))
+        console.log(formatTaskDetail(task))
       } catch (error) {
         console.error(chalk.red('Error showing task:'), (error as Error).message)
         process.exit(1)

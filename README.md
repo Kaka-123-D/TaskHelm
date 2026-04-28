@@ -2,10 +2,10 @@
 
 # TaskHelm
 
-**Local-first AI engineering manager for solo operators.**
+**Local-first visual workbench for parallel git-worktree work.**
 
-Coordinate parallel work across projects, tasks, branches, worktrees, agents, review gates,
-and pooled dev servers — from one workbench, on your machine.
+Stop juggling `git worktree add`, `lsof -i`, and four terminal tabs. Manage every task,
+branch, worktree, port, and dev server from one dashboard on your machine.
 
 [![npm version](https://img.shields.io/npm/v/taskhelm.svg?color=f5a623&label=taskhelm&style=flat-square)](https://www.npmjs.com/package/taskhelm)
 [![npm downloads](https://img.shields.io/npm/dm/taskhelm.svg?color=f5a623&style=flat-square)](https://www.npmjs.com/package/taskhelm)
@@ -21,24 +21,25 @@ and pooled dev servers — from one workbench, on your machine.
 
 ## Why TaskHelm
 
-AI coding assistants are great at *one* file, *one* branch, *one* task. The moment you try to run several
-streams of work in parallel — five tickets, three repos, two review pipelines, a pooled dev server — the
+The git-worktree workflow is the right answer for running multiple branches in parallel — but the
+existing tooling is all CLI. You memorize commands, juggle terminals, and keep a private mental map of
+which branch lives at which path on which port. As soon as you have four or five tasks in flight, the
 coordination layer becomes a person. You.
 
-**TaskHelm is that coordination layer.** It's the local control plane your editor doesn't have:
+**TaskHelm replaces that mental map with a UI.** It's the local control plane for parallel-worktree
+development:
 
-| Today, without TaskHelm | With TaskHelm |
+| Without TaskHelm | With TaskHelm |
 |---|---|
-| Context lives inside chat sessions and dies with them | Each task owns a Markdown/YAML capsule on disk that survives crashes, restarts, and context resets |
-| Worktree state is in your head | Branch, worktree, port, dev server, agent runs, review gates all tracked in one SQLite layer |
+| `git worktree add ../foo feat/foo`, `cd ../foo`, `pnpm i`, `lsof -i :3001`, … repeat per task | One click creates branch + worktree + port for a task |
+| Which task is on which branch? Which worktree is at which path? Which port? | All visible in a single dashboard, sortable per project |
 | Dev servers eat all your laptop's RAM | Pooled with max concurrency — warm vs sleeping, kill external port squatters from the UI |
-| You manually poll "did the agent finish?" | A supervisor loop watches runs, transitions tasks, and surfaces blockers |
-| Plans (Markdown) and runtime (DB) drift apart | Hybrid model: human-readable capsules + machine-readable runtime, kept in sync |
-| Review is ad-hoc and inconsistent | 3 explicit gates per task — spec compliance, code quality, runtime verification |
+| External process squatting your port? `kill -9 $(lsof -ti :3001)` | Modal shows PID / command / user / cwd, one-click **Kill & Start** |
+| Plans and notes live in chat sessions and die with them | Each task owns a Markdown folder on disk that survives crashes, restarts, and tool resets |
 
 TaskHelm is built for **single operators running many things at once** — solo CTOs, technical founders,
-staff engineers acting as their own manager. v1 is open source, MIT, and works entirely offline against
-your local filesystem.
+staff engineers acting as their own manager. Open source, MIT, works entirely offline against your
+local filesystem.
 
 > Read [`docs/01-product-vision.md`](./docs/01-product-vision.md) for the full design rationale.
 
@@ -76,20 +77,10 @@ npm tarball — about 60–90 seconds, then cached for subsequent boots. No exte
 <tr>
 <td width="50%" valign="top">
 
-### Projects & task capsules
-Group work by project first. Each task gets its own folder on disk:
-
-```
-projects/<slug>/tasks/<id>/
-  task.yaml      # minimal structured state
-  context.md     # scope, assumptions, code pointers
-  plan.md        # implementation plan + checks
-  handoff.md     # current status, blockers
-  review.md      # findings by gate
-  artifacts/
-```
-
-Versionable in Git, readable without TaskHelm.
+### Worktree-aware task list
+Per project, every task shows its branch, worktree path, and allocated
+port at a glance. Sortable, searchable, and the source of truth for
+"what's running where".
 
 </td>
 <td width="50%" valign="top">
@@ -113,28 +104,28 @@ dashboard pops a modal showing PID / command / user / cwd with a one-click
 </td>
 <td width="50%" valign="top">
 
-### Agent orchestration
-Implementer and reviewer agents are first-class **runs** attached to a task.
-Append-only history. Shell adapter today; pluggable for future Claude Code /
-Codex / Cursor adapters.
+### Task context capsules
+Each task has its own folder on disk: `context.md`, `plan.md`, `handoff.md`,
+plus a free-form `artifacts/` tree. Versionable in Git, readable without
+TaskHelm, and survive any crash or restart.
 
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
 
-### 3-gate review pipeline
-Every task passes through `spec_compliance` → `code_quality` →
-`runtime_verification`. Findings persisted per gate; recommendations surface
-in the task cockpit.
+### Context vault preview
+Link any folder into a task and TaskHelm renders Markdown notes inline
+with embedded images, videos, and diagrams. `[@path]` references resolve
+across the linked tree.
 
 </td>
 <td width="50%" valign="top">
 
-### Supervisor daemon
-Local event loop that watches state, dispatches agents, transitions tasks,
-recovers runtime state after crashes, and emits notifications — so you
-don't sit polling a chat window.
+### CLI parity
+Every dashboard action is also a CLI command — `project`, `task`,
+`workspace`, `dev` groups. The CLI and the dashboard read/write the same
+SQLite file, so you can mix freely.
 
 </td>
 </tr>
@@ -179,42 +170,39 @@ don't sit polling a chat window.
      └────────┬───────┘
               ▼
       ┌──────────────┐
-      │  Supervisor  │   event loop, scheduler, dispatcher,
-      ├──────────────┤   recovery, notifier, dev-pool
-      │  SQLite (WAL)│   runtime state — tasks, agent_runs, review_gates,
-      ├──────────────┤   dev_servers, events, notifications, locks
-      │ Disk capsules│   Markdown + YAML — context, plan, handoff, review
-      └──────────────┘
+      │  SQLite (WAL)│   runtime state — projects, tasks,
+      ├──────────────┤   dev_servers, locks, events, notifications
+      │ Disk capsules│   Markdown + YAML — context, plan, handoff,
+      └──────────────┘   artifacts (per-task folders)
 ```
 
 Two complementary storage layers — **SQLite** for runtime truth, **Markdown/YAML** for human-readable
-context that survives outside the tool. The supervisor updates SQLite first, then refreshes the Markdown
-artifacts.
+context that survives outside the tool. Every dashboard mutation updates SQLite first; capsule files
+on disk are kept in sync alongside.
 
 | Package | npm | Role |
 |---|---|---|
 | [`taskhelm`](https://www.npmjs.com/package/taskhelm) | [![v](https://img.shields.io/npm/v/taskhelm.svg?style=flat-square)](https://www.npmjs.com/package/taskhelm) | Launcher — preps runtime, opens dashboard |
-| [`@taskhelm/cli`](https://www.npmjs.com/package/@taskhelm/cli) | [![v](https://img.shields.io/npm/v/@taskhelm/cli.svg?style=flat-square)](https://www.npmjs.com/package/@taskhelm/cli) | Commander CLI (`project`, `task`, `workspace`, `dev`, `agent`) |
+| [`@taskhelm/cli`](https://www.npmjs.com/package/@taskhelm/cli) | [![v](https://img.shields.io/npm/v/@taskhelm/cli.svg?style=flat-square)](https://www.npmjs.com/package/@taskhelm/cli) | Commander CLI (`project`, `task`, `workspace`, `dev`) |
 | [`@taskhelm/core`](https://www.npmjs.com/package/@taskhelm/core) | [![v](https://img.shields.io/npm/v/@taskhelm/core.svg?style=flat-square)](https://www.npmjs.com/package/@taskhelm/core) | Domain model, SQLite repos, migrations, workspace utils |
-| [`@taskhelm/supervisor`](https://www.npmjs.com/package/@taskhelm/supervisor) | [![v](https://img.shields.io/npm/v/@taskhelm/supervisor.svg?style=flat-square)](https://www.npmjs.com/package/@taskhelm/supervisor) | Event loop, dispatcher, dev-pool, recovery |
+| [`@taskhelm/supervisor`](https://www.npmjs.com/package/@taskhelm/supervisor) | [![v](https://img.shields.io/npm/v/@taskhelm/supervisor.svg?style=flat-square)](https://www.npmjs.com/package/@taskhelm/supervisor) | Dev-server pool + crash recovery |
 
 Stack: **Next.js 15 + React 19** (dashboard) · **Commander** (CLI) · **better-sqlite3** (state, WAL) ·
 **TypeScript 5.7 strict** · **pnpm + Turborepo** · **Vitest + Playwright** (tests).
 
 ---
 
-## V1 autonomy boundary
+## Autonomy boundary
 
 | Allowed by default | Not allowed by default |
 |---|---|
 | Create branch / worktree | Push branches |
-| Allocate ports & dispatch agents | Merge or rebase shared branches |
+| Allocate ports & start dev servers | Merge or rebase shared branches |
 | Edit code inside worktrees | Open / close PRs |
 | Run local dev / test commands | Mutate external ticket systems |
-| Run review pipeline | Anything that touches a remote you didn't explicitly authorize |
-| Update task artifacts (capsules) | |
+| Update task capsules and notes | Anything that touches a remote you didn't explicitly authorize |
 
-The autonomy line is intentional. v1 is built so you'd trust running it unattended on your laptop, not so
+The line is intentional. TaskHelm is built so you'd trust running it unattended on your laptop, not so
 it can ship to prod for you.
 
 ---
@@ -245,7 +233,6 @@ architectural conventions agents must follow when editing this repo.
 | [`docs/06-domain-model.md`](./docs/06-domain-model.md) | Entities and state machines |
 | [`docs/07-sqlite-schema.md`](./docs/07-sqlite-schema.md) | All runtime tables |
 | [`docs/08-task-capsule-spec.md`](./docs/08-task-capsule-spec.md) | Markdown/YAML capsule format |
-| [`docs/09-supervisor-event-model.md`](./docs/09-supervisor-event-model.md) | Event-driven automation |
 | [`docs/10-cli-spec.md`](./docs/10-cli-spec.md) | CLI command groups |
 | [`docs/11-web-dashboard-spec.md`](./docs/11-web-dashboard-spec.md) | Dashboard screens |
 | [`docs/04-init-roadmap.md`](./docs/04-init-roadmap.md) | Phased implementation plan |
@@ -255,11 +242,10 @@ architectural conventions agents must follow when editing this repo.
 ## Status
 
 TaskHelm is in **active early development** — building toward a stable v1 cut. The runtime, dashboard,
-CLI, supervisor, dev pool, and review pipeline are functional and can be used today. APIs may change
-between minor versions until v1.0.0.
+CLI, dev pool, and context vault are functional today. APIs may change between minor versions until v1.0.0.
 
-What's next: pluggable agent adapters (Claude Code, Codex, Cursor), richer notification surfaces, and a
-spec-down compiler for review gates. See [`docs/04-init-roadmap.md`](./docs/04-init-roadmap.md).
+What's next: richer worktree visualization (graph view), better stale-worktree cleanup, multi-repo
+projects, and a "switch task" command palette. See [`docs/04-init-roadmap.md`](./docs/04-init-roadmap.md).
 
 ---
 
@@ -279,9 +265,9 @@ next person fighting the same coordination problem.
 Issues, ideas, and PRs are all welcome. Especially valuable:
 
 - Bug reports with a `~/.taskhelm/taskhelm.db` path and the steps that reproduced
-- Adapters for other agents (Claude Code, Codex, Cursor, …)
-- Reviewer prompts for the 3 review gates
-- Improvements to the supervisor's recovery semantics
+- UX improvements to the worktree task list and dev-pool views
+- Better stale-worktree detection / cleanup heuristics
+- Multi-repo / monorepo subrepo handling
 
 Start with [CONTRIBUTING.md](./CONTRIBUTING.md). For larger changes, open an issue first so we can align
 on shape before you build.

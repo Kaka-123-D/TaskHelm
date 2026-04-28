@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-TaskHelm is an autonomous AI engineering manager for solo operators — a local control plane that manages projects, tasks, branches, worktrees, agents, review pipelines, and dev servers. It ships as two npm binaries:
+TaskHelm is a local-first visual workbench for parallel git-worktree work. It manages projects, tasks, branches, worktrees, ports, and a pooled set of dev servers from one dashboard — replacing the usual `git worktree` + `lsof` + four-terminals workflow with a UI. It ships as two npm binaries:
 
 - `taskhelm` — launcher that boots the local web dashboard on `http://127.0.0.1:4100` (default). On first run it prepares a Next.js standalone runtime under `~/.taskhelm/runtime/<version>` from assets shipped inside the npm tarball (see `scripts/prepare-installed-runtime.mjs`).
 - `taskhelm-cli` — CLI-only entrypoint. Same Commander program, but does not auto-launch the dashboard (see `packages/cli/src/launcher/argv.ts` and `bin/taskhelm.js`).
@@ -20,8 +20,8 @@ pnpm workspace + Turborepo, four packages:
 | Package | Role |
 |---------|------|
 | `@taskhelm/core` | Domain model, SQLite repos, migrations, capsule I/O, workspace utilities (branch/worktree/port). All other packages depend on this. |
-| `@taskhelm/supervisor` | Event loop (`runOneCycle`), scheduler, dispatcher, dev-pool, recovery, notifier. Spawns agents via `agents/shell-adapter.ts`. |
-| `@taskhelm/cli` | Commander CLI (`project`, `task`, `workspace`, `dev`, `agent` groups) plus the launcher (`launcher/`) that prepares and starts the web runtime. |
+| `@taskhelm/supervisor` | Dev-server pool (`startDevServer` / `stopDevServer` / `getPoolStatus`) and crash-recovery helpers (`recoverOnStartup`). |
+| `@taskhelm/cli` | Commander CLI (`project`, `task`, `workspace`, `dev` groups) plus the launcher (`launcher/`) that prepares and starts the web runtime. |
 | `@taskhelm/web` | Next.js 15 App Router dashboard (React 19, Tailwind v4). Reads/writes the same SQLite via `@taskhelm/core`. |
 
 Build dependency order is enforced by Turbo (`^build`). The root `pnpm run build` calls `scripts/build-workspaces.mjs`, which runs `pnpm run build` in each package sequentially in this order: **core → supervisor → cli → web**. It strips `npm_*`/`PNPM_*`/`INIT_CWD` env vars before each subprocess to prevent pnpm-script env leakage; preserve that behavior.
@@ -44,9 +44,6 @@ pnpm --filter @taskhelm/web run test:e2e     # Playwright (web only)
 # Single test file (Vitest)
 pnpm --filter @taskhelm/core exec vitest run path/to/file.test.ts
 pnpm --filter @taskhelm/core exec vitest path/to/file.test.ts -t "test name"
-
-# Run the supervisor loop directly (from packages/supervisor)
-pnpm --filter @taskhelm/supervisor run dev   # tsx watch src/index.ts
 ```
 
 There is no `lint` step wired up (`turbo.json` defines the task but no package implements it). Do not add one without the user's say-so.
@@ -66,16 +63,14 @@ There is no `lint` step wired up (`turbo.json` defines the task but no package i
 ## Domain Model (one-page summary)
 
 - `Project` — top-level boundary (repo root, slug, policies). Migrations 001, 013.
-- `Task` — primary execution unit attached to a project; owns a branch, worktree, allocated port, agent runs, and review gates. Migrations 002, 011, 012, 013. **Note:** `status` and `phase` columns were removed in migration 012 — task lifecycle is now derived from agent runs and review gates, not stored as enums on the row.
-- Three review gates per task: `spec_compliance`, `code_quality`, `runtime_verification`.
-- `agent_runs` — append-only history of dispatched agents (implementer, reviewer).
+- `Task` — primary unit attached to a project; owns a branch, worktree path, allocated port, and a context-vault. Migrations 002, 011, 012, 013, 014. **Note:** `status` and `phase` columns were removed in migration 012; the AI-agent dispatch + 3-gate review pipeline tables (`agent_runs`, `review_gates`) and the `current_agent_run_id` task column were dropped in migration 014.
 - `dev_servers` — pooled, max-concurrency, warm vs sleeping (`packages/supervisor/src/dev-pool.ts`).
-- `events`, `notifications`, `locks` — supervisor coordination tables.
+- `events`, `notifications`, `locks` — generic coordination tables. Currently dormant after the agent-feature removal; kept as forward-compatible infra.
 - Migrations live at `packages/core/src/db/migrations/NNN_*.sql` and are applied in numeric order by `runMigrations`. Add new ones with the next sequence number; never edit applied ones.
 
-## V1 Autonomy Boundary
+## Autonomy Boundary
 
-**Allowed:** create branch/worktree, dispatch agents, edit code, run local dev/test commands, run review pipeline, update task artifacts.
+**Allowed:** create branch/worktree, allocate ports, start/stop dev servers, edit code in worktrees, run local dev/test commands, update task capsules.
 
 **Not allowed by default:** push branches, merge, create PR/MR, mutate external ticket systems.
 
@@ -93,11 +88,10 @@ Read in this order for full design context (everything under `docs/` is the v1 s
 
 - `docs/13-session-context-dump.md` — quickstart handoff
 - `docs/02-v1-architecture.md` — system layers
-- `docs/06-domain-model.md` — entities and state machines
-- `docs/07-sqlite-schema.md` — runtime tables (note: spec predates migration 012's status/phase removal)
+- `docs/06-domain-model.md` — entities and state machines (note: spec predates migrations 012 and 014)
+- `docs/07-sqlite-schema.md` — runtime tables (note: spec predates migrations 012 and 014)
 - `docs/08-task-capsule-spec.md` — markdown/yaml capsule format
-- `docs/09-supervisor-event-model.md` — event-driven automation
-- `docs/10-cli-spec.md` — CLI command groups
+- `docs/10-cli-spec.md` — CLI command groups (note: spec predates removal of the `agent` group)
 - `docs/11-web-dashboard-spec.md` — dashboard screens
 - `docs/04-init-roadmap.md` — phased implementation plan
 

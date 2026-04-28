@@ -61,7 +61,7 @@ describe('EventRepository', () => {
       expect(() => {
         repo.append({ entity_type: 'project', entity_id: 'proj-1', event_type: 'project.created' })
         repo.append({ entity_type: 'task', entity_id: 'task-1', event_type: 'task.started' })
-        repo.append({ entity_type: 'agent_run', entity_id: 'run-1', event_type: 'run.completed' })
+        repo.append({ entity_type: 'dev_server', entity_id: 'srv-1', event_type: 'server.started' })
       }).not.toThrow()
     })
   })

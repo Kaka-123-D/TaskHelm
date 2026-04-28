@@ -2,7 +2,6 @@ import type Database from 'better-sqlite3'
 
 export interface RecoveryResult {
   readonly repairedServers: number
-  readonly repairedRuns: number
 }
 
 type DevServerRow = {
@@ -11,16 +10,6 @@ type DevServerRow = {
   status: string
 }
 
-type AgentRunRow = {
-  id: string
-  task_id: string
-  status: string
-}
-
-/**
- * Returns true if the process with the given PID is alive.
- * Uses signal 0 which checks existence without sending a signal.
- */
 function isPidAlive(pid: number): boolean {
   try {
     process.kill(pid, 0)
@@ -31,25 +20,14 @@ function isPidAlive(pid: number): boolean {
 }
 
 /**
- * Called once on supervisor startup to repair any state left over from a
- * previous crash or unclean shutdown:
- *
- * 1. Find dev_servers with status 'running' or 'starting'.
- *    For each, check if the PID is still alive. If dead, mark as 'failed'.
- *
- * 2. Find agent_runs with status 'running'. These were interrupted mid-execution.
- *    Mark them as 'failed' with error "Supervisor restarted".
- *
- * 3. For tasks whose current_agent_run_id points to a now-failed run,
- *    clear current_agent_run_id and preserve the latest blocker message.
+ * Called once on startup to repair dev_server rows that were left in
+ * 'running' or 'starting' after an unclean shutdown — if the recorded PID
+ * is gone, mark the row as 'failed' so the dashboard reflects reality.
  */
 export function recoverOnStartup(db: Database.Database): RecoveryResult {
   const now = new Date().toISOString()
   let repairedServers = 0
-  let repairedRuns = 0
 
-  // Step 1: Repair stale dev servers
-  const liveStatuses = ['running', 'starting']
   const staleServers = db
     .prepare(
       `SELECT id, pid, status FROM dev_servers WHERE status IN ('running', 'starting')`
@@ -67,39 +45,5 @@ export function recoverOnStartup(db: Database.Database): RecoveryResult {
     }
   }
 
-  // Suppress unused variable warning — liveStatuses is intentionally kept for readability
-  void liveStatuses
-
-  // Step 2: Repair interrupted agent runs
-  const interruptedRuns = db
-    .prepare(`SELECT id, task_id, status FROM agent_runs WHERE status = 'running'`)
-    .all() as AgentRunRow[]
-
-  const repairedRunIds = new Set<string>()
-
-  for (const run of interruptedRuns) {
-    db.prepare(
-      `UPDATE agent_runs
-       SET status = 'failed', error_message = 'Supervisor restarted', finished_at = ?
-       WHERE id = ?`
-    ).run(now, run.id)
-
-    repairedRunIds.add(run.id)
-    repairedRuns++
-  }
-
-  // Step 3: For tasks pointing to a now-failed run, clear the run pointer.
-  if (repairedRunIds.size > 0) {
-    const placeholders = Array.from(repairedRunIds)
-      .map(() => '?')
-      .join(', ')
-
-    db.prepare(
-      `UPDATE tasks
-       SET current_agent_run_id = NULL, latest_blocker = COALESCE(latest_blocker, 'Supervisor restarted'), updated_at = ?
-       WHERE current_agent_run_id IN (${placeholders})`
-    ).run(now, ...Array.from(repairedRunIds))
-  }
-
-  return { repairedServers, repairedRuns }
+  return { repairedServers }
 }

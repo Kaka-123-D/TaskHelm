@@ -1,5 +1,5 @@
 import Table from 'cli-table3'
-import type { Project, Task, ReviewGate, AgentRun } from '@taskhelm/core'
+import type { Project, Task } from '@taskhelm/core'
 
 export function formatProjectsTable(
   projects: readonly Project[],
@@ -69,11 +69,7 @@ export function formatTasksTable(tasks: readonly Task[]): string {
   return table.toString()
 }
 
-export function formatTaskDetail(
-  task: Task,
-  gates: readonly ReviewGate[],
-  activeRun: AgentRun | null
-): string {
+export function formatTaskDetail(task: Task): string {
   const table = new Table()
 
   const rows: Array<[string, string]> = [
@@ -96,27 +92,5 @@ export function formatTaskDetail(
     table.push({ [key]: value })
   }
 
-  let output = table.toString()
-
-  if (gates.length > 0) {
-    const gatesTable = new Table({
-      head: ['gate_type', 'status', 'result', 'opened_at', 'closed_at'],
-    })
-    for (const g of gates) {
-      gatesTable.push([
-        g.gate_type,
-        g.status,
-        g.result ?? '',
-        g.opened_at ?? '',
-        g.closed_at ?? '',
-      ])
-    }
-    output += '\n\nReview Gates:\n' + gatesTable.toString()
-  }
-
-  if (activeRun != null) {
-    output += `\n\nActive Agent Run: ${activeRun.id} (${activeRun.kind} / ${activeRun.status})`
-  }
-
-  return output
+  return table.toString()
 }

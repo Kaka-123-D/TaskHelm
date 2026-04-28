@@ -29,7 +29,6 @@ export interface UpdateTaskInput {
   readonly context_vault_sources_json?: string | null
   readonly context_vault_files_json?: string | null
   readonly context_vault_selected_file?: string | null
-  readonly current_agent_run_id?: string
   readonly latest_blocker?: string | null
 }
 
@@ -53,7 +52,6 @@ type TaskRow = {
   context_vault_sources_json: string | null
   context_vault_files_json: string | null
   context_vault_selected_file: string | null
-  current_agent_run_id: string | null
   latest_blocker: string | null
   created_at: string
   updated_at: string
@@ -80,7 +78,6 @@ function rowToTask(row: TaskRow): Task {
     context_vault_sources_json: row.context_vault_sources_json,
     context_vault_files_json: row.context_vault_files_json,
     context_vault_selected_file: row.context_vault_selected_file,
-    current_agent_run_id: row.current_agent_run_id,
     latest_blocker: row.latest_blocker,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -102,14 +99,14 @@ export class TaskRepository {
           branch_name, workspace_name, workspace_branch, workspace_subrepo_branches_json, preferred_port,
           worktree_path, port, dev_server_state,
           context_vault_root_path, context_vault_sources_json, context_vault_files_json, context_vault_selected_file,
-          current_agent_run_id, latest_blocker, created_at, updated_at
+          latest_blocker, created_at, updated_at
         ) VALUES (
           @id, @project_id, @key, @title, @goal,
           @refer_link, @priority,
           @branch_name, @workspace_name, @workspace_branch, @workspace_subrepo_branches_json, @preferred_port,
           @worktree_path, @port, @dev_server_state,
           @context_vault_root_path, @context_vault_sources_json, @context_vault_files_json, @context_vault_selected_file,
-          @current_agent_run_id, @latest_blocker, @created_at, @updated_at
+          @latest_blocker, @created_at, @updated_at
         )`
       )
       .run({
@@ -132,7 +129,6 @@ export class TaskRepository {
         context_vault_sources_json: null,
         context_vault_files_json: null,
         context_vault_selected_file: null,
-        current_agent_run_id: null,
         latest_blocker: null,
         created_at: now,
         updated_at: now,
@@ -182,7 +178,6 @@ export class TaskRepository {
           context_vault_sources_json = @context_vault_sources_json,
           context_vault_files_json = @context_vault_files_json,
           context_vault_selected_file = @context_vault_selected_file,
-          current_agent_run_id = @current_agent_run_id,
           latest_blocker = @latest_blocker,
           updated_at = @updated_at
         WHERE id = @id`
@@ -228,10 +223,6 @@ export class TaskRepository {
           input.context_vault_selected_file !== undefined
             ? input.context_vault_selected_file
             : existing.context_vault_selected_file,
-        current_agent_run_id:
-          input.current_agent_run_id !== undefined
-            ? input.current_agent_run_id
-            : existing.current_agent_run_id,
         latest_blocker:
           input.latest_blocker !== undefined ? input.latest_blocker : existing.latest_blocker,
         updated_at: now,

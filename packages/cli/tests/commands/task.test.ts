@@ -7,8 +7,6 @@ import {
   runMigrations,
   ProjectRepository,
   TaskRepository,
-  ReviewGateRepository,
-  AgentRunRepository,
   writeCapsule,
 } from '@taskhelm/core'
 import type Database from 'better-sqlite3'
@@ -177,32 +175,5 @@ describe('Task CLI commands', () => {
       expect(taskRepo.findById('nonexistent-id')).toBeNull()
     })
 
-    it('shows review gates for a task', () => {
-      const taskRepo = new TaskRepository(db)
-      const gateRepo = new ReviewGateRepository(db)
-
-      const task = taskRepo.create({ project_id: project.id, title: 'Reviewed Task' })
-      gateRepo.create({ task_id: task.id, gate_type: 'spec_compliance' })
-      gateRepo.create({ task_id: task.id, gate_type: 'code_quality' })
-
-      const gates = gateRepo.findByTaskId(task.id)
-      expect(gates.length).toBe(2)
-      expect(gates[0].gate_type).toBe('spec_compliance')
-      expect(gates[1].gate_type).toBe('code_quality')
-    })
-
-    it('shows active agent run for a task', () => {
-      const taskRepo = new TaskRepository(db)
-      const agentRunRepo = new AgentRunRepository(db)
-
-      const task = taskRepo.create({ project_id: project.id, title: 'Agent Task' })
-      const run = agentRunRepo.create({ task_id: task.id, kind: 'implementer' })
-      agentRunRepo.start(run.id)
-
-      const runs = agentRunRepo.findByTaskId(task.id)
-      const activeRun = runs.find((r) => r.status === 'running') ?? null
-      expect(activeRun).not.toBeNull()
-      expect(activeRun!.kind).toBe('implementer')
-    })
   })
 })

@@ -1,13 +1,12 @@
 {
   "name": "@taskhelm/supervisor",
-  "version": "0.1.11",
-  "description": "Event loop, scheduler, dispatcher, and dev-server pool for TaskHelm.",
+  "version": "0.1.12",
+  "description": "Dev-server pool and crash-recovery helpers for TaskHelm.",
   "keywords": [
     "taskhelm",
-    "supervisor",
-    "scheduler",
     "dev-server",
-    "ai-agents"
+    "git-worktree",
+    "local-first"
   ],
   "type": "module",
   "repository": {

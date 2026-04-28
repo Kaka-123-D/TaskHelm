@@ -71,9 +71,6 @@ export async function DELETE(_request: Request, { params }: Params) {
         db.prepare('SELECT id FROM tasks WHERE project_id = ?').all(projectId) as Array<{ id: string }>
       ).map(row => row.id)
 
-      deleteByIds(db, 'agent_runs', 'task_id', taskIds)
-      deleteByIds(db, 'review_gates', 'task_id', taskIds)
-
       if (taskIds.length > 0) {
         deleteByIds(db, 'notifications', 'task_id', taskIds)
         const taskPlaceholders = taskIds.map(() => '?').join(', ')

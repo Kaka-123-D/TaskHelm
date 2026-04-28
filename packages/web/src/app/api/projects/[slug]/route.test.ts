@@ -49,16 +49,6 @@ describe('DELETE /api/projects/[slug]', () => {
     })
 
     db.prepare(
-      `INSERT INTO agent_runs (id, task_id, kind, role, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run('agent-1', task.id, 'dispatch', 'worker', 'running', new Date().toISOString())
-
-    db.prepare(
-      `INSERT INTO review_gates (id, task_id, gate_type, status)
-       VALUES (?, ?, ?, ?)`,
-    ).run('gate-1', task.id, 'qa', 'open')
-
-    db.prepare(
       `INSERT INTO notifications (id, task_id, project_id, level, channel, title, status, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run('notif-1', task.id, project.id, 'info', 'in_app', 'Hello', 'pending', new Date().toISOString())
@@ -80,8 +70,6 @@ describe('DELETE /api/projects/[slug]', () => {
     expect(taskRepo.findById(task.id)).toBeNull()
     expect(devServerRepo.findByProjectId(project.id)).toHaveLength(0)
 
-    expect(db.prepare('SELECT COUNT(*) AS count FROM agent_runs WHERE task_id = ?').get(task.id)).toEqual({ count: 0 })
-    expect(db.prepare('SELECT COUNT(*) AS count FROM review_gates WHERE task_id = ?').get(task.id)).toEqual({ count: 0 })
     expect(db.prepare('SELECT COUNT(*) AS count FROM notifications WHERE project_id = ? OR task_id = ?').get(project.id, task.id)).toEqual({ count: 0 })
     expect(db.prepare('SELECT COUNT(*) AS count FROM events WHERE entity_type = ? AND entity_id = ?').get('project', project.id)).toEqual({ count: 0 })
   })

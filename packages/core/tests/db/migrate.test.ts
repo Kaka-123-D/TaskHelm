@@ -38,26 +38,24 @@ describe('runMigrations', () => {
     db.close()
   })
 
-  it('creates all 8 domain tables', () => {
+  it('creates the expected domain tables and drops removed ones', () => {
     const db = createDatabase(TEST_DB_PATH)
     runMigrations(db)
 
-    const expectedTables = [
-      'projects',
-      'tasks',
-      'agent_runs',
-      'review_gates',
-      'dev_servers',
-      'notifications',
-      'locks',
-      'events',
-    ]
-
+    const expectedTables = ['projects', 'tasks', 'dev_servers', 'notifications', 'locks', 'events']
     for (const table of expectedTables) {
       const row = db.prepare(
         `SELECT name FROM sqlite_master WHERE type='table' AND name='${table}'`
       ).get()
       expect(row, `expected table "${table}" to exist`).toBeTruthy()
+    }
+
+    const removedTables = ['agent_runs', 'review_gates']
+    for (const table of removedTables) {
+      const row = db.prepare(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name='${table}'`
+      ).get()
+      expect(row, `expected table "${table}" to be dropped`).toBeFalsy()
     }
 
     db.close()
@@ -68,13 +66,14 @@ describe('runMigrations', () => {
     runMigrations(db)
 
     const rows = db.prepare('SELECT filename FROM _migrations ORDER BY filename').all() as Array<{ filename: string }>
-    expect(rows.length).toBe(13)
+    expect(rows.length).toBe(14)
     expect(rows[0].filename).toMatch(/001_projects/)
     expect(rows[8].filename).toMatch(/009_/)
     expect(rows[9].filename).toMatch(/010_local_context_schema_cleanup/)
     expect(rows[10].filename).toMatch(/011_task_runtime_preferences/)
     expect(rows[11].filename).toMatch(/012_remove_task_status_and_phase/)
     expect(rows[12].filename).toMatch(/013_project_command_and_task_refer_link_cleanup/)
+    expect(rows[13].filename).toMatch(/014_drop_agent_runs_and_review_gates/)
     db.close()
   })
 
@@ -117,7 +116,6 @@ describe('runMigrations', () => {
       'context_vault_sources_json',
       'context_vault_files_json',
       'context_vault_selected_file',
-      'current_agent_run_id',
       'latest_blocker',
       'created_at',
       'updated_at',
@@ -326,7 +324,7 @@ describe('runMigrations', () => {
     expect(taskColumns.map(column => column.name)).not.toContain('source_type')
 
     const rows = db.prepare('SELECT filename FROM _migrations ORDER BY filename').all() as Array<{ filename: string }>
-    expect(rows.at(-1)?.filename).toBe('013_project_command_and_task_refer_link_cleanup.sql')
+    expect(rows.at(-1)?.filename).toBe('014_drop_agent_runs_and_review_gates.sql')
     db.close()
   })
 })

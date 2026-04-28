@@ -1,5 +1,8 @@
 # TaskHelm Session Context Dump
 
+> **Note (v0.1.12+):** This document predates the removal of the AI-agent dispatch + 3-gate review pipeline. Sections referencing `agent_runs`, `review_gates`, `current_agent_run_id`, `runOneCycle`, the dispatcher, the scheduler, the supervisor event loop, or the `agent` CLI group no longer reflect the codebase. The rest of the doc — projects, tasks, worktrees, dev-pool, capsules — is still accurate.
+
+
 ## Purpose
 
 This file is the handoff for future sessions started from `~/Documents/TaskHelm`.

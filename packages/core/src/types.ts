@@ -1,37 +1,5 @@
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
-export const AgentRunKind = {
-  implementer: 'implementer',
-  spec_review: 'spec_review',
-  code_review: 'code_review',
-  runtime_verify: 'runtime_verify',
-  manager_summary: 'manager_summary',
-} as const
-export type AgentRunKindValue = (typeof AgentRunKind)[keyof typeof AgentRunKind]
-
-export const AgentRunStatus = {
-  pending: 'pending',
-  running: 'running',
-  completed: 'completed',
-  failed: 'failed',
-} as const
-export type AgentRunStatusValue = (typeof AgentRunStatus)[keyof typeof AgentRunStatus]
-
-export const ReviewGateType = {
-  spec_compliance: 'spec_compliance',
-  code_quality: 'code_quality',
-  runtime_verification: 'runtime_verification',
-} as const
-export type ReviewGateTypeValue = (typeof ReviewGateType)[keyof typeof ReviewGateType]
-
-export const ReviewGateStatus = {
-  pending: 'pending',
-  open: 'open',
-  passed: 'passed',
-  failed: 'failed',
-} as const
-export type ReviewGateStatusValue = (typeof ReviewGateStatus)[keyof typeof ReviewGateStatus]
-
 export const DevServerStatus = {
   warm: 'warm',
   sleeping: 'sleeping',
@@ -88,35 +56,9 @@ export interface Task {
   readonly context_vault_sources_json: string | null
   readonly context_vault_files_json: string | null
   readonly context_vault_selected_file: string | null
-  readonly current_agent_run_id: string | null
   readonly latest_blocker: string | null
   readonly created_at: string
   readonly updated_at: string
-}
-
-export interface AgentRun {
-  readonly id: string
-  readonly task_id: string
-  readonly kind: AgentRunKindValue
-  readonly role: string | null
-  readonly status: AgentRunStatusValue
-  readonly input_ref: string | null
-  readonly output_ref: string | null
-  readonly error_message: string | null
-  readonly started_at: string | null
-  readonly finished_at: string | null
-  readonly created_at: string
-}
-
-export interface ReviewGate {
-  readonly id: string
-  readonly task_id: string
-  readonly gate_type: ReviewGateTypeValue
-  readonly status: ReviewGateStatusValue
-  readonly result: string | null
-  readonly notes_ref: string | null
-  readonly opened_at: string | null
-  readonly closed_at: string | null
 }
 
 export interface DevServer {

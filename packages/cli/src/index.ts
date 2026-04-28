@@ -3,21 +3,19 @@ import { registerProjectCommands } from './commands/project.js'
 import { registerTaskCommands } from './commands/task.js'
 import { registerWorkspaceCommands } from './commands/workspace.js'
 import { registerDevCommands } from './commands/dev.js'
-import { registerAgentCommands } from './commands/agent.js'
 import { shouldLaunchApp } from './launcher/argv.js'
 import { launchTaskHelmApp } from './launcher/index.js'
 import { basename } from 'node:path'
 
 export const program = new Command()
   .name('taskhelm')
-  .description('Autonomous AI engineering manager for solo operators')
-  .version('0.1.10')
+  .description('Local-first visual workbench for parallel git-worktree work')
+  .version('0.1.12')
 
 registerProjectCommands(program)
 registerTaskCommands(program)
 registerWorkspaceCommands(program)
 registerDevCommands(program)
-registerAgentCommands(program)
 
 export interface MainOptions {
   readonly launchAppByDefault?: boolean

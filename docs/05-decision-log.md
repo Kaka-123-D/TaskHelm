@@ -73,3 +73,11 @@ Not allowed by default:
 - dashboard as primary source of truth
 - local notifications for timely awareness
 - chat connectors as optional add-ons
+
+## Scope Cut: AI-Agent Dispatch + 3-Gate Review (2026-04-28)
+
+The `agent_runs` table, `review_gates` table, `current_agent_run_id` task
+column, supervisor `runOneCycle` event loop, dispatcher, scheduler, shell
+agent adapter, and `agent` CLI group were removed in v0.1.12. TaskHelm
+focuses solely on visual coordination of parallel git-worktree work; agent
+dispatch and review pipelines are out of scope. See migration `014_*.sql`.
