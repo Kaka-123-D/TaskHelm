@@ -60,6 +60,7 @@ export interface TaskDetailPanelsViewProps {
   readonly forceFileListMode?: 'full' | 'popover' | 'collapsed'
   readonly loading?: boolean
   readonly error?: string | null
+  readonly forceFullscreen?: boolean
   readonly onSelectFile: (name: string) => void
   readonly onToggleFileListCollapse: () => void
   readonly onOpenExplorer: () => void
@@ -82,6 +83,7 @@ export function TaskDetailPanelsView({
   forceFileListMode,
   loading = false,
   error = null,
+  forceFullscreen,
   onSelectFile,
   onToggleFileListCollapse,
   onOpenExplorer,
@@ -93,6 +95,38 @@ export function TaskDetailPanelsView({
   const [layoutMode, setLayoutMode] = useState<'desktop' | 'stacked'>(forceLayoutMode ?? 'desktop')
   const [autoCompactList, setAutoCompactList] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [fullscreen, setFullscreen] = useState<boolean>(forceFullscreen ?? false)
+  const [fullscreenListCollapsed, setFullscreenListCollapsed] = useState(false)
+
+  const toggleFullscreen = useCallback(() => {
+    setFullscreen(current => !current)
+  }, [])
+
+  useEffect(() => {
+    if (typeof forceFullscreen === 'boolean') {
+      setFullscreen(forceFullscreen)
+    }
+  }, [forceFullscreen])
+
+  useEffect(() => {
+    if (!fullscreen) {
+      return
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setFullscreen(false)
+      }
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [fullscreen])
 
   useEffect(() => {
     if (forceLayoutMode) {
@@ -175,15 +209,27 @@ export function TaskDetailPanelsView({
           </div>
 
           <div className="task-pane-body flex flex-col gap-4">
-            {showInitialLoading ? <p className="text-sm text-[var(--text-muted)]">Loading execution surface...</p> : null}
+            {showInitialLoading ? (
+              <div className="context-vault-initial-loading" role="status" aria-live="polite">
+                <span className="context-vault-initial-loading-spinner" aria-hidden="true" />
+                <div className="context-vault-initial-loading-copy">
+                  <div className="task-pane-label">Loading Context Vault</div>
+                  <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+                    Reading linked context files from your local filesystem.
+                  </p>
+                </div>
+              </div>
+            ) : null}
             {error ? <div className="utility-panel-error !mt-0">{error}</div> : null}
-            {statusMessage ? (
+            {!showInitialLoading && statusMessage ? (
               <div className="context-vault-browser-selection">
                 <div className="task-pane-label">Status</div>
                 <div className="mt-2 text-sm text-[var(--text-secondary)]">{statusMessage}</div>
               </div>
             ) : null}
 
+            {!showInitialLoading ? (
+            <>
             <div className="context-vault-state-card">
               <div>
                 <div className="task-pane-label">
@@ -268,9 +314,17 @@ export function TaskDetailPanelsView({
                     ) : null}
                   </div>
                 ) : null}
-                <ContextFilePreview file={selectedRecord} files={files} />
+                <ContextFilePreview
+                  file={selectedRecord}
+                  files={files}
+                  isFullscreen={fullscreen}
+                  onToggleFullscreen={toggleFullscreen}
+                  onSelectFile={onSelectFile}
+                />
               </div>
             </div>
+            </>
+            ) : null}
           </div>
         </div>
       </div>
@@ -278,6 +332,55 @@ export function TaskDetailPanelsView({
         <WorkspacePanel task={task} />
         <DevServerPanel task={task} />
       </div>
+      {fullscreen ? (
+        <div
+          className="context-vault-fullscreen"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Context vault fullscreen preview"
+        >
+          <div className="context-vault-fullscreen-toolbar">
+            <div className="context-vault-fullscreen-title">
+              <span className="context-vault-fullscreen-eyebrow">Context Vault — {project.name}</span>
+              <span className="context-vault-fullscreen-path">
+                {rootPath ?? `${files.length} file${files.length === 1 ? '' : 's'} loaded`}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="context-file-list-icon-toggle"
+              aria-label="Exit fullscreen preview"
+              title="Exit fullscreen (Esc)"
+              onClick={toggleFullscreen}
+            >
+              <span aria-hidden="true">✕</span>
+            </button>
+          </div>
+          <div
+            className="context-vault-fullscreen-body"
+            data-list-collapsed={fullscreenListCollapsed ? 'true' : 'false'}
+          >
+            <div className="context-vault-fullscreen-list">
+              <ContextFileList
+                files={files}
+                selectedFile={selectedFile}
+                displayMode={fullscreenListCollapsed ? 'collapsed' : 'full'}
+                onSelect={onSelectFile}
+                onToggleCollapse={() => setFullscreenListCollapsed(current => !current)}
+              />
+            </div>
+            <div className="context-vault-fullscreen-preview">
+              <ContextFilePreview
+                file={selectedRecord}
+                files={files}
+                isFullscreen
+                onToggleFullscreen={toggleFullscreen}
+                onSelectFile={onSelectFile}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { defaultUrlTransform, type UrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { classifyContextVaultFile } from '@/lib/context-vault/file-preview'
 import type { PersistedContextVaultFile } from '@/lib/context-vault/persisted-vault'
@@ -10,6 +10,22 @@ import type { PersistedContextVaultFile } from '@/lib/context-vault/persisted-va
 interface ContextFilePreviewProps {
   readonly file: PersistedContextVaultFile | null
   readonly files?: readonly PersistedContextVaultFile[]
+  readonly isFullscreen?: boolean
+  readonly onToggleFullscreen?: () => void
+  readonly onSelectFile?: (relativePath: string) => void
+}
+
+const VAULT_LINK_PROTOCOL = 'taskhelm-vault:'
+
+function escapeMarkdownLinkText(text: string): string {
+  return text.replace(/[\\`*_{}\[\]()#+\-.!|]/g, match => `\\${match}`)
+}
+
+const vaultUrlTransform: UrlTransform = url => {
+  if (url.startsWith(VAULT_LINK_PROTOCOL)) {
+    return url
+  }
+  return defaultUrlTransform(url)
 }
 
 interface MarkdownSegment {
@@ -74,35 +90,47 @@ function splitMarkdownAssetReferences(
   const fileMap = buildVaultFileMap(files)
   const segments: MarkdownSegment[] = []
   const referencePattern = /\[@\/?([^\]\r\n]+)\]/g
+  let buffer = ''
   let cursor = 0
 
   for (const match of content.matchAll(referencePattern)) {
     const matchIndex = match.index ?? 0
     const rawReference = match[0]
-    const relativePath = normalizeVaultReferencePath(match[1] ?? '')
+    const innerReference = match[1] ?? ''
+    const relativePath = normalizeVaultReferencePath(innerReference)
     const referencedFile = resolveVaultReference(relativePath, fileMap)
     const referencedCategory = referencedFile?.category ?? (
       referencedFile ? classifyContextVaultFile(referencedFile.relativePath).category : 'unsupported'
     )
-
-    if (matchIndex > cursor) {
-      segments.push({ type: 'markdown', value: content.slice(cursor, matchIndex) })
-    }
-
-    if (
-      referencedFile?.content &&
+    const isInlineAsset =
+      Boolean(referencedFile?.content) &&
       (referencedCategory === 'image' || referencedCategory === 'video')
-    ) {
+
+    buffer += content.slice(cursor, matchIndex)
+
+    if (isInlineAsset && referencedFile) {
+      if (buffer.length > 0) {
+        segments.push({ type: 'markdown', value: buffer })
+        buffer = ''
+      }
       segments.push({ type: 'asset', value: rawReference, file: referencedFile })
+    } else if (referencedFile) {
+      const linkText = escapeMarkdownLinkText(innerReference)
+      const linkHref = `${VAULT_LINK_PROTOCOL}${encodeURI(referencedFile.relativePath)}`
+      buffer += `[${linkText}](${linkHref})`
     } else {
-      segments.push({ type: 'markdown', value: rawReference })
+      buffer += rawReference
     }
 
     cursor = matchIndex + rawReference.length
   }
 
   if (cursor < content.length) {
-    segments.push({ type: 'markdown', value: content.slice(cursor) })
+    buffer += content.slice(cursor)
+  }
+
+  if (buffer.length > 0) {
+    segments.push({ type: 'markdown', value: buffer })
   }
 
   return segments.length > 0 ? segments : [{ type: 'markdown', value: content }]
@@ -160,9 +188,11 @@ function MermaidBlock({ chart }: { readonly chart: string }) {
 function MarkdownPreview({
   content,
   files,
+  onSelectFile,
 }: {
   readonly content: string
   readonly files: readonly PersistedContextVaultFile[]
+  readonly onSelectFile?: (relativePath: string) => void
 }) {
   const segments = splitMarkdownAssetReferences(content, files)
 
@@ -202,6 +232,7 @@ function MarkdownPreview({
           <ReactMarkdown
             key={`${segment.value}-${index}`}
             remarkPlugins={[remarkGfm]}
+            urlTransform={vaultUrlTransform}
             components={{
               ul: ({ children }) => (
                 <ul className="context-preview-list context-preview-list--unordered">{children}</ul>
@@ -210,17 +241,38 @@ function MarkdownPreview({
                 <ol className="context-preview-list context-preview-list--ordered">{children}</ol>
               ),
               li: ({ children }) => <li className="context-preview-list-item">{children}</li>,
-              a: ({ href, children, ...props }) => (
-                <a
-                  {...props}
-                  href={href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="context-preview-link"
-                >
-                  {children}
-                </a>
-              ),
+              a: ({ href, children, ...props }) => {
+                if (typeof href === 'string' && href.startsWith(VAULT_LINK_PROTOCOL)) {
+                  const targetPath = decodeURI(href.slice(VAULT_LINK_PROTOCOL.length))
+                  if (onSelectFile) {
+                    return (
+                      <button
+                        type="button"
+                        className="context-preview-link context-preview-vault-link"
+                        onClick={() => onSelectFile(targetPath)}
+                      >
+                        {children}
+                      </button>
+                    )
+                  }
+                  return (
+                    <span className="context-preview-link context-preview-vault-link" aria-disabled="true">
+                      {children}
+                    </span>
+                  )
+                }
+                return (
+                  <a
+                    {...props}
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="context-preview-link"
+                  >
+                    {children}
+                  </a>
+                )
+              },
               pre: ({ children }) => <div className="context-preview-pre">{children}</div>,
               table: ({ children }) => (
                 <div className="context-preview-table-wrap">
@@ -265,7 +317,13 @@ function MarkdownPreview({
   )
 }
 
-export function ContextFilePreview({ file, files = file ? [file] : [] }: ContextFilePreviewProps) {
+export function ContextFilePreview({
+  file,
+  files = file ? [file] : [],
+  isFullscreen = false,
+  onToggleFullscreen,
+  onSelectFile,
+}: ContextFilePreviewProps) {
   const preview = file ? classifyContextVaultFile(file.relativePath) : null
   const resolvedCategory = file?.category ?? preview?.category ?? 'unsupported'
   const content = file?.content ?? null
@@ -276,14 +334,27 @@ export function ContextFilePreview({ file, files = file ? [file] : [] }: Context
       style={{ background: 'rgba(255,255,255,0.42)', borderColor: 'var(--border)' }}
     >
       <div className="context-file-preview-toolbar border-b" style={{ borderColor: 'var(--border)' }}>
-        <div className="font-mono text-xs text-[var(--text-muted)] ml-[3rem]">
+        <div className="font-mono text-xs text-[var(--text-muted)] ml-[3rem] truncate">
           {file?.relativePath ?? 'Preview'}
         </div>
-        {file ? (
-          <span className="context-vault-bind-badge">
-            {resolvedCategory === 'markdown' ? 'md' : resolvedCategory}
-          </span>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {file ? (
+            <span className="context-vault-bind-badge">
+              {resolvedCategory === 'markdown' ? 'md' : resolvedCategory}
+            </span>
+          ) : null}
+          {onToggleFullscreen ? (
+            <button
+              type="button"
+              className="context-file-list-icon-toggle"
+              aria-label={isFullscreen ? 'Exit fullscreen preview' : 'Open fullscreen preview'}
+              title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+              onClick={onToggleFullscreen}
+            >
+              <span aria-hidden="true">{isFullscreen ? '✕' : '⛶'}</span>
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="context-file-preview-viewport">
@@ -302,7 +373,7 @@ export function ContextFilePreview({ file, files = file ? [file] : [] }: Context
               </div>
             ) : resolvedCategory === 'markdown' ? (
               <div className="context-preview-markdown">
-                <MarkdownPreview content={content} files={files} />
+                <MarkdownPreview content={content} files={files} onSelectFile={onSelectFile} />
               </div>
             ) : resolvedCategory === 'image' ? (
               <div className="context-preview-image-frame">
