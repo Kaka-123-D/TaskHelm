@@ -1,6 +1,6 @@
 {
   "name": "@taskhelm/core",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "Core domain model, SQLite repositories, capsule I/O, and workspace utilities for TaskHelm.",
   "keywords": [
     "taskhelm",
