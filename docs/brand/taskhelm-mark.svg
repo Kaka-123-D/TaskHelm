@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="TaskHelm">
+  <title>TaskHelm</title>
+  <line x1="44" y1="204" x2="212" y2="204" stroke="#f5a623" stroke-width="14"/>
+  <line x1="128" y1="204" x2="60" y2="84" stroke="#f5a623" stroke-width="14"/>
+  <line x1="128" y1="204" x2="128" y2="52" stroke="#f5a623" stroke-width="14"/>
+  <line x1="128" y1="204" x2="196" y2="84" stroke="#f5a623" stroke-width="14"/>
+  <circle cx="128" cy="204" r="18" fill="#f5a623"/>
+  <circle cx="60" cy="84" r="22" fill="#2f6df6"/>
+  <circle cx="128" cy="52" r="22" fill="#2f6df6"/>
+  <circle cx="196" cy="84" r="22" fill="#2f6df6"/>
+</svg>

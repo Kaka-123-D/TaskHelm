@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 160" fill="none" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="TaskHelm">
+  <title>TaskHelm</title>
+  <g transform="translate(20 20)">
+    <line x1="20.6" y1="95.6" x2="99.4" y2="95.6" stroke="#f5a623" stroke-width="6.6"/>
+    <line x1="60" y1="95.6" x2="28.1" y2="39.4" stroke="#f5a623" stroke-width="6.6"/>
+    <line x1="60" y1="95.6" x2="60" y2="24.4" stroke="#f5a623" stroke-width="6.6"/>
+    <line x1="60" y1="95.6" x2="91.9" y2="39.4" stroke="#f5a623" stroke-width="6.6"/>
+    <circle cx="60" cy="95.6" r="8.4" fill="#f5a623"/>
+    <circle cx="28.1" cy="39.4" r="10.3" fill="#2f6df6"/>
+    <circle cx="60" cy="24.4" r="10.3" fill="#2f6df6"/>
+    <circle cx="91.9" cy="39.4" r="10.3" fill="#2f6df6"/>
+  </g>
+  <text x="170" y="103" font-family="-apple-system, 'SF Pro Display', 'Inter', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="68" font-weight="700" fill="#1f1c14" letter-spacing="-2.4">Task<tspan fill="#f5a623">Helm</tspan></text>
+</svg>
