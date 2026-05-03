@@ -6,11 +6,29 @@ import { createDatabase, runMigrations, ProjectRepository, TaskRepository } from
 const TEST_DB = path.join(import.meta.dirname, '__test_dev_route__.db')
 let db: ReturnType<typeof createDatabase>
 
-const startDevServer = vi.fn((_options: unknown) => ({
-  id: 'dev-server-1',
-  pid: 1234,
-  port: 4555,
-}))
+type DiagnosticsResult = {
+  devServer: {
+    id: string
+    pid: number | null
+    port: number
+    status: 'running' | 'failed' | 'stopped' | 'starting' | 'warm' | 'sleeping'
+    log_path: string | null
+  }
+  errorMessage: string | null
+}
+
+const startDevServerWithDiagnostics = vi.fn<(_options: unknown) => Promise<DiagnosticsResult>>(
+  async (_options: unknown) => ({
+    devServer: {
+      id: 'dev-server-1',
+      pid: 1234,
+      port: 4555,
+      status: 'running',
+      log_path: '/tmp/taskhelm/logs/dev-server-1.log',
+    },
+    errorMessage: null,
+  }),
+)
 
 const stopDevServer = vi.fn((_db: unknown, _serverId: unknown) => undefined)
 const isPortAvailable = vi.fn<(port: number) => Promise<boolean>>(async (_port: number) => true)
@@ -34,7 +52,7 @@ vi.mock('@/lib/db', () => ({
 }))
 
 vi.mock('@taskhelm/supervisor', () => ({
-  startDevServer: (options: unknown) => startDevServer(options),
+  startDevServerWithDiagnostics: (options: unknown) => startDevServerWithDiagnostics(options),
   stopDevServer: (db: unknown, serverId: unknown) => stopDevServer(db, serverId),
 }))
 
@@ -54,12 +72,17 @@ vi.mock('@/lib/dev/external-port', () => ({
 beforeEach(() => {
   db = createDatabase(TEST_DB)
   runMigrations(db)
-  startDevServer.mockReset()
-  startDevServer.mockImplementation((_options: unknown) => ({
-    id: 'dev-server-1',
-    pid: 1234,
-    port: 4555,
-  }))
+  startDevServerWithDiagnostics.mockReset()
+  startDevServerWithDiagnostics.mockResolvedValue({
+    devServer: {
+      id: 'dev-server-1',
+      pid: 1234,
+      port: 4555,
+      status: 'running',
+      log_path: '/tmp/taskhelm/logs/dev-server-1.log',
+    },
+    errorMessage: null,
+  })
   stopDevServer.mockReset()
   stopDevServer.mockImplementation((_db: unknown, _serverId: unknown) => undefined)
   isPortAvailable.mockReset()
@@ -96,10 +119,15 @@ describe('POST /api/tasks/[taskId]/dev', () => {
     })
     taskRepo.update(task.id, { worktree_path: '/repo/alpha/.worktrees/alpha-ui' })
 
-    startDevServer.mockReturnValueOnce({
-      id: 'dev-server-1',
-      pid: 1234,
-      port: 4555,
+    startDevServerWithDiagnostics.mockResolvedValueOnce({
+      devServer: {
+        id: 'dev-server-1',
+        pid: 1234,
+        port: 4555,
+        status: 'running',
+        log_path: '/tmp/log/dev-server-1.log',
+      },
+      errorMessage: null,
     })
 
     const { POST } = await import('./route')
@@ -112,7 +140,7 @@ describe('POST /api/tasks/[taskId]/dev', () => {
     )
 
     expect(response.status).toBe(201)
-    expect(startDevServer).toHaveBeenCalledWith(
+    expect(startDevServerWithDiagnostics).toHaveBeenCalledWith(
       expect.objectContaining({ port: 4555 }),
     )
     expect(taskRepo.findById(task.id)).toMatchObject({
@@ -199,7 +227,7 @@ describe('POST /api/tasks/[taskId]/dev', () => {
         cwd: '/tmp/external-app',
       },
     })
-    expect(startDevServer).not.toHaveBeenCalled()
+    expect(startDevServerWithDiagnostics).not.toHaveBeenCalled()
   })
 
   it('reclaims a stale stopped dev server row before starting on the preferred port', async () => {
@@ -221,10 +249,15 @@ describe('POST /api/tasks/[taskId]/dev', () => {
        VALUES ('stale-stopped', ?, 'other-task', 4555, 'stopped', ?, ?)`
     ).run(project.id, new Date().toISOString(), new Date().toISOString())
 
-    startDevServer.mockReturnValueOnce({
-      id: 'dev-server-2',
-      pid: 2234,
-      port: 4555,
+    startDevServerWithDiagnostics.mockResolvedValueOnce({
+      devServer: {
+        id: 'dev-server-2',
+        pid: 2234,
+        port: 4555,
+        status: 'running',
+        log_path: '/tmp/log/dev-server-2.log',
+      },
+      errorMessage: null,
     })
 
     const { POST } = await import('./route')
@@ -240,6 +273,48 @@ describe('POST /api/tasks/[taskId]/dev', () => {
     expect(
       db.prepare('SELECT COUNT(*) as count FROM dev_servers WHERE id = ?').get('stale-stopped'),
     ).toMatchObject({ count: 0 })
+  })
+
+  it('returns 500 with error message and log path when the dev server fails to start', async () => {
+    const project = new ProjectRepository(db).create({
+      name: 'Alpha',
+      slug: 'alpha',
+      local_repo_root: '/repo/alpha',
+      dev_command: 'npm run dev',
+    })
+    const taskRepo = new TaskRepository(db)
+    const task = taskRepo.create({ project_id: project.id, title: 'Ship auth' })
+    taskRepo.update(task.id, { worktree_path: '/repo/alpha/.worktrees/alpha-ui' })
+
+    startDevServerWithDiagnostics.mockResolvedValueOnce({
+      devServer: {
+        id: 'dev-server-fail',
+        pid: 9999,
+        port: 4555,
+        status: 'failed',
+        log_path: '/tmp/log/dev-server-fail.log',
+      },
+      errorMessage: 'Process is alive but port 4555 is not in use. Last log output:\nnext dev -p 3333',
+    })
+
+    const { POST } = await import('./route')
+    const response = await POST(
+      new Request('http://localhost', {
+        method: 'POST',
+        body: JSON.stringify({ preferredPort: 4555 }),
+      }),
+      { params: Promise.resolve({ taskId: task.id }) },
+    )
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringContaining('port 4555'),
+      logPath: '/tmp/log/dev-server-fail.log',
+    })
+    expect(taskRepo.findById(task.id)).toMatchObject({
+      port: null,
+      dev_server_state: 'failed',
+    })
   })
 })
 
@@ -355,10 +430,15 @@ describe('DELETE /api/tasks/[taskId]/dev', () => {
 
     expect(stopResponse.status).toBe(200)
 
-    startDevServer.mockReturnValueOnce({
-      id: 'dev-server-2',
-      pid: 2234,
-      port: 4555,
+    startDevServerWithDiagnostics.mockResolvedValueOnce({
+      devServer: {
+        id: 'dev-server-2',
+        pid: 2234,
+        port: 4555,
+        status: 'running',
+        log_path: '/tmp/log/dev-server-2.log',
+      },
+      errorMessage: null,
     })
 
     const restartResponse = await route.POST(

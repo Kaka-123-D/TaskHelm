@@ -1,6 +1,10 @@
 import { spawn } from 'node:child_process'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import * as os from 'node:os'
 import * as http from 'node:http'
 import * as https from 'node:https'
+import * as net from 'node:net'
 import type Database from 'better-sqlite3'
 import { DevServerRepository, ProjectRepository } from '@taskhelm/core'
 import type { DevServer } from '@taskhelm/core'
@@ -13,6 +17,10 @@ export interface StartServerOptions {
   readonly cwd: string
   readonly port: number
   readonly healthUrl?: string
+  /** Directory for per-server log files. Defaults to `~/.taskhelm/logs`. */
+  readonly logsDir?: string
+  /** Delay (ms) before verifying the child is alive and the port is in use. */
+  readonly healthcheckDelayMs?: number
 }
 
 // Strip env vars that the TaskHelm Next standalone runtime injects into its own
@@ -22,6 +30,9 @@ export interface StartServerOptions {
 // config schema it cannot parse.
 const LEAKY_ENV_PREFIXES = ['__NEXT_PRIVATE_', 'NEXT_RUNTIME']
 const LEAKY_ENV_KEYS = new Set(['HOSTNAME', 'KEEP_ALIVE_TIMEOUT'])
+
+const DEFAULT_HEALTHCHECK_DELAY_MS = 3500
+const ERROR_LOG_TAIL_BYTES = 4096
 
 export function buildChildEnv(
   parentEnv: NodeJS.ProcessEnv,
@@ -44,8 +55,92 @@ export function buildChildEnv(
   return next
 }
 
-export function startDevServer(options: StartServerOptions): DevServer {
-  const { db, projectId, taskId, devCommand, cwd, port, healthUrl } = options
+/**
+ * Substitute {{port}} (case-insensitive) in a dev command template with the
+ * allocated port. Lets users write commands like `npm run dev -- -p {{port}}`
+ * to override scripts that hard-code a port.
+ */
+export function substitutePortPlaceholder(template: string, port: number): string {
+  return template.replace(/\{\{\s*port\s*\}\}/gi, String(port))
+}
+
+function defaultLogsDir(): string {
+  return path.join(os.homedir(), '.taskhelm', 'logs')
+}
+
+function isPidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function isPortBound(port: number): Promise<boolean> {
+  return new Promise(resolve => {
+    const probe = net.createServer()
+    probe.once('error', (err: NodeJS.ErrnoException) => {
+      resolve(err.code === 'EADDRINUSE')
+    })
+    probe.once('listening', () => {
+      probe.close(() => resolve(false))
+    })
+    probe.listen(port, '127.0.0.1')
+  })
+}
+
+function tailLogFile(logPath: string): string {
+  try {
+    const stat = fs.statSync(logPath)
+    const fd = fs.openSync(logPath, 'r')
+    try {
+      const length = Math.min(stat.size, ERROR_LOG_TAIL_BYTES)
+      const buf = Buffer.alloc(length)
+      fs.readSync(fd, buf, 0, length, Math.max(0, stat.size - length))
+      return buf.toString('utf-8').trim()
+    } finally {
+      fs.closeSync(fd)
+    }
+  } catch {
+    return ''
+  }
+}
+
+export interface StartDevServerResult {
+  readonly devServer: DevServer
+  readonly errorMessage: string | null
+}
+
+export async function startDevServer(
+  options: StartServerOptions
+): Promise<DevServer> {
+  const result = await startDevServerWithDiagnostics(options)
+  if (result.devServer.status === 'failed') {
+    throw new Error(result.errorMessage ?? 'Dev server failed to start')
+  }
+  return result.devServer
+}
+
+/**
+ * Lower-level entry point that returns the dev server row plus the error
+ * message captured from the log when the healthcheck fails. Callers (API,
+ * CLI) can use this to surface diagnostics to the user without re-querying.
+ */
+export async function startDevServerWithDiagnostics(
+  options: StartServerOptions
+): Promise<StartDevServerResult> {
+  const {
+    db,
+    projectId,
+    taskId,
+    devCommand,
+    cwd,
+    port,
+    healthUrl,
+    logsDir = defaultLogsDir(),
+    healthcheckDelayMs = DEFAULT_HEALTHCHECK_DELAY_MS,
+  } = options
 
   const projectRepo = new ProjectRepository(db)
   const project = projectRepo.findById(projectId)
@@ -63,7 +158,9 @@ export function startDevServer(options: StartServerOptions): DevServer {
     )
   }
 
-  // 2. Create dev_server record (status=starting)
+  // 2. Ensure logs dir, then create dev_server record
+  fs.mkdirSync(logsDir, { recursive: true })
+
   let devServer = devServerRepo.create({
     project_id: projectId,
     task_id: taskId,
@@ -72,30 +169,81 @@ export function startDevServer(options: StartServerOptions): DevServer {
     health_url: healthUrl,
   })
 
-  // 3. Spawn child process
-  const parts = devCommand.split(/\s+/)
+  const logPath = path.join(logsDir, `dev-server-${devServer.id}.log`)
+  // Persist the log path so the API/UI can point users to it even if the
+  // process never reaches the running state.
+  db.prepare('UPDATE dev_servers SET log_path = ? WHERE id = ?').run(logPath, devServer.id)
+
+  const logFd = fs.openSync(logPath, 'a')
+  fs.writeSync(
+    logFd,
+    `[taskhelm] ${new Date().toISOString()} starting "${devCommand}" (port ${port})\n`
+  )
+
+  // 3. Spawn child process with stdout/stderr piped to the log file
+  const renderedCommand = substitutePortPlaceholder(devCommand, port)
+  const parts = renderedCommand.trim().split(/\s+/)
   const cmd = parts[0]
   const args = parts.slice(1)
 
-  const child = spawn(cmd, args, {
-    cwd,
-    detached: true,
-    stdio: 'ignore',
-    env: buildChildEnv(process.env, port),
-  })
+  let child: ReturnType<typeof spawn>
+  try {
+    child = spawn(cmd, args, {
+      cwd,
+      detached: true,
+      stdio: ['ignore', logFd, logFd],
+      env: buildChildEnv(process.env, port),
+    })
+  } finally {
+    fs.closeSync(logFd)
+  }
 
   child.unref()
 
   if (child.pid === undefined) {
     devServerRepo.updateStatus(devServer.id, 'failed')
-    throw new Error(`Failed to spawn dev server process for command: ${devCommand}`)
+    const message = `Failed to spawn process for command: ${renderedCommand}`
+    devServer = devServerRepo.updateErrorMessage(devServer.id, message)
+    return { devServer, errorMessage: message }
   }
 
-  // 4. Update record with PID (status=running)
-  devServer = devServerRepo.updatePid(devServer.id, child.pid)
+  // 4. Mark as running with PID
+  const childPid = child.pid
+  devServerRepo.updatePid(devServer.id, childPid)
   devServer = devServerRepo.updateStatus(devServer.id, 'running')
 
-  return devServer
+  // 5. Delayed healthcheck — verify the child stayed alive AND bound the port
+  if (healthcheckDelayMs > 0) {
+    await new Promise(resolve => setTimeout(resolve, healthcheckDelayMs))
+
+    const alive = isPidAlive(childPid)
+    const bound = await isPortBound(port)
+
+    if (!alive || !bound) {
+      // Best-effort kill in case the process is alive but did not bind
+      if (alive) {
+        try {
+          process.kill(childPid, 'SIGTERM')
+        } catch {
+          // ignore
+        }
+      }
+
+      const tail = tailLogFile(logPath)
+      const reason = !alive
+        ? 'Process exited before healthcheck'
+        : `Process is alive but port ${port} is not in use`
+      const message = tail
+        ? `${reason}. Last log output:\n${tail}`
+        : `${reason}. See log: ${logPath}`
+
+      devServerRepo.updateErrorMessage(devServer.id, message)
+      devServer = devServerRepo.updateStatus(devServer.id, 'failed')
+      return { devServer, errorMessage: message }
+    }
+  }
+
+  return { devServer, errorMessage: null }
 }
 
 export function stopDevServer(db: Database.Database, serverId: string): void {

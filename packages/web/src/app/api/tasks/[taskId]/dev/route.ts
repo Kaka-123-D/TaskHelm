@@ -7,7 +7,7 @@ import {
   isPortAvailable,
   releasePort,
 } from '@taskhelm/core'
-import { startDevServer, stopDevServer } from '@taskhelm/supervisor'
+import { startDevServerWithDiagnostics, stopDevServer } from '@taskhelm/supervisor'
 import { getDb } from '@/lib/db'
 import { inspectListeningPort, killExternalProcessForPort } from '@/lib/dev/external-port'
 
@@ -101,7 +101,7 @@ export async function POST(request: Request, { params }: Params) {
       }
     }
 
-    const devServer = startDevServer({
+    const { devServer, errorMessage } = await startDevServerWithDiagnostics({
       db,
       projectId: project.id,
       taskId: task.id,
@@ -112,14 +112,27 @@ export async function POST(request: Request, { params }: Params) {
 
     taskRepo.update(task.id, {
       preferred_port: requestedPreferredPort ?? null,
-      port: devServer.port,
-      dev_server_state: 'running',
+      port: devServer.status === 'failed' ? null : devServer.port,
+      dev_server_state: devServer.status,
     })
+
+    if (devServer.status === 'failed') {
+      return NextResponse.json(
+        {
+          error: errorMessage ?? 'Dev server failed to start',
+          serverId: devServer.id,
+          logPath: devServer.log_path,
+          port: devServer.port,
+        },
+        { status: 500 },
+      )
+    }
 
     return NextResponse.json({
       port: devServer.port,
       pid: devServer.pid,
       serverId: devServer.id,
+      logPath: devServer.log_path,
     }, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 })

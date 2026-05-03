@@ -8,7 +8,11 @@ import {
   allocatePort,
   releasePort,
 } from '@taskhelm/core'
-import { startDevServer, stopDevServer, getPoolStatus } from '@taskhelm/supervisor'
+import {
+  startDevServerWithDiagnostics,
+  stopDevServer,
+  getPoolStatus,
+} from '@taskhelm/supervisor'
 import { getDb } from '../db.js'
 
 export function registerDevCommands(program: Command): void {
@@ -49,7 +53,7 @@ export function registerDevCommands(program: Command): void {
 
         const port = await allocatePort(db, project.id, task.id)
 
-        const devServer = startDevServer({
+        const { devServer, errorMessage } = await startDevServerWithDiagnostics({
           db,
           projectId: project.id,
           taskId: task.id,
@@ -59,13 +63,25 @@ export function registerDevCommands(program: Command): void {
         })
 
         taskRepo.update(task.id, {
-          port: devServer.port,
-          dev_server_state: 'running',
+          port: devServer.status === 'failed' ? undefined : devServer.port,
+          dev_server_state: devServer.status,
         })
+
+        if (devServer.status === 'failed') {
+          console.error(chalk.red('Dev server failed to start'))
+          if (errorMessage) console.error(errorMessage)
+          if (devServer.log_path) {
+            console.error(chalk.gray(`Log: ${devServer.log_path}`))
+          }
+          process.exit(1)
+        }
 
         console.log(chalk.green(`Dev server started on port ${devServer.port}`))
         console.log(`  PID:    ${chalk.cyan(String(devServer.pid ?? 'unknown'))}`)
         console.log(`  Server: ${chalk.cyan(devServer.id)}`)
+        if (devServer.log_path) {
+          console.log(`  Log:    ${chalk.gray(devServer.log_path)}`)
+        }
       } catch (error) {
         console.error(chalk.red('Error starting dev server:'), (error as Error).message)
         process.exit(1)

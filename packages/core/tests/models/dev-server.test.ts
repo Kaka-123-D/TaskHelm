@@ -46,8 +46,21 @@ describe('DevServerRepository.create', () => {
     expect(server.pid).toBeNull()
     expect(server.task_id).toBeNull()
     expect(server.health_url).toBeNull()
+    expect(server.log_path).toBeNull()
+    expect(server.error_message).toBeNull()
     expect(server.started_at).toBeTruthy()
     expect(server.stopped_at).toBeNull()
+  })
+
+  it('persists log_path when supplied', () => {
+    const repo = new DevServerRepository(db)
+    const server = repo.create({
+      project_id: projectId,
+      port: 3004,
+      log_path: '/tmp/log/dev-server.log',
+    })
+
+    expect(server.log_path).toBe('/tmp/log/dev-server.log')
   })
 
   it('creates a dev server with all optional fields', () => {
@@ -154,6 +167,24 @@ describe('DevServerRepository.updateStatus', () => {
   it('throws if server not found', () => {
     const repo = new DevServerRepository(db)
     expect(() => repo.updateStatus('nonexistent', 'running')).toThrow('DevServer not found')
+  })
+})
+
+describe('DevServerRepository.updateErrorMessage', () => {
+  it('sets and clears error_message', () => {
+    const repo = new DevServerRepository(db)
+    const server = repo.create({ project_id: projectId, port: 3045 })
+
+    const set = repo.updateErrorMessage(server.id, 'boom: missing dep')
+    expect(set.error_message).toBe('boom: missing dep')
+
+    const cleared = repo.updateErrorMessage(server.id, null)
+    expect(cleared.error_message).toBeNull()
+  })
+
+  it('throws if server not found', () => {
+    const repo = new DevServerRepository(db)
+    expect(() => repo.updateErrorMessage('nonexistent', 'x')).toThrow('DevServer not found')
   })
 })
 

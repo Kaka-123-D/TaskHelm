@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import * as fs from 'node:fs'
+import * as net from 'node:net'
 import * as path from 'node:path'
 import * as os from 'node:os'
 import {
@@ -11,12 +12,19 @@ import {
 } from '@taskhelm/core'
 import type Database from 'better-sqlite3'
 import type { Project, Task } from '@taskhelm/core'
-import { startDevServer, stopDevServer, getPoolStatus, buildChildEnv } from '../src/dev-pool.js'
+import {
+  startDevServer,
+  stopDevServer,
+  getPoolStatus,
+  buildChildEnv,
+  substitutePortPlaceholder,
+} from '../src/dev-pool.js'
 
 const TEST_DB = path.join(import.meta.dirname, '__test_dev_pool__.db')
 let db: Database.Database
 let project: Project
 let task: Task
+let logsDir: string
 
 // Track spawned PIDs for cleanup
 const spawnedPids: number[] = []
@@ -31,9 +39,25 @@ async function waitForFile(filePath: string, timeoutMs = 1000): Promise<void> {
   throw new Error(`Timed out waiting for file: ${filePath}`)
 }
 
+function listenOnPort(port: number): Promise<net.Server> {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer()
+    server.once('error', reject)
+    server.listen(port, '127.0.0.1', () => resolve(server))
+  })
+}
+
+function closeServer(server: net.Server): Promise<void> {
+  return new Promise(resolve => {
+    server.close(() => resolve())
+  })
+}
+
 beforeEach(() => {
   db = createDatabase(TEST_DB)
   runMigrations(db)
+
+  logsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'taskhelm-test-logs-'))
 
   const projectRepo = new ProjectRepository(db)
   project = projectRepo.create({
@@ -65,17 +89,43 @@ afterEach(() => {
       fs.unlinkSync(TEST_DB + ext)
     } catch {}
   }
+  fs.rmSync(logsDir, { recursive: true, force: true })
+})
+
+describe('substitutePortPlaceholder', () => {
+  it('replaces {{port}} with the allocated port', () => {
+    expect(substitutePortPlaceholder('npm run dev -- -p {{port}}', 1606)).toBe(
+      'npm run dev -- -p 1606'
+    )
+  })
+
+  it('handles whitespace and case variants', () => {
+    expect(substitutePortPlaceholder('next dev -p {{ Port }}', 4242)).toBe('next dev -p 4242')
+    expect(substitutePortPlaceholder('dev --port={{PORT}}', 3000)).toBe('dev --port=3000')
+  })
+
+  it('replaces multiple occurrences', () => {
+    expect(substitutePortPlaceholder('echo {{port}} && start --port {{port}}', 8080)).toBe(
+      'echo 8080 && start --port 8080'
+    )
+  })
+
+  it('leaves the command unchanged when no placeholder is present', () => {
+    expect(substitutePortPlaceholder('npm run dev', 5173)).toBe('npm run dev')
+  })
 })
 
 describe('startDevServer', () => {
-  it('creates a dev server record with status=running and valid PID', () => {
-    const devServer = startDevServer({
+  it('creates a dev server record with status=running and valid PID', async () => {
+    const devServer = await startDevServer({
       db,
       projectId: project.id,
       taskId: task.id,
       devCommand: 'node -e "setTimeout(()=>{},60000)"',
       cwd: os.tmpdir(),
       port: 19200,
+      logsDir,
+      healthcheckDelayMs: 0,
     })
 
     if (devServer.pid) spawnedPids.push(devServer.pid)
@@ -86,16 +136,19 @@ describe('startDevServer', () => {
     expect(devServer.port).toBe(19200)
     expect(devServer.status).toBe('running')
     expect(devServer.pid).toBeGreaterThan(0)
+    expect(devServer.log_path).toMatch(/dev-server-.*\.log$/)
   })
 
-  it('persists the dev server in DB', () => {
-    const devServer = startDevServer({
+  it('persists the dev server in DB with log_path set', async () => {
+    const devServer = await startDevServer({
       db,
       projectId: project.id,
       taskId: task.id,
       devCommand: 'node -e "setTimeout(()=>{},60000)"',
       cwd: os.tmpdir(),
       port: 19201,
+      logsDir,
+      healthcheckDelayMs: 0,
     })
 
     if (devServer.pid) spawnedPids.push(devServer.pid)
@@ -106,6 +159,8 @@ describe('startDevServer', () => {
     expect(found).not.toBeNull()
     expect(found!.status).toBe('running')
     expect(found!.pid).toBe(devServer.pid)
+    expect(found!.log_path).toBeTruthy()
+    expect(fs.existsSync(found!.log_path!)).toBe(true)
   })
 
   it('does not leak TaskHelm production NODE_ENV into child dev servers', async () => {
@@ -126,13 +181,15 @@ describe('startDevServer', () => {
     process.env.NODE_ENV = 'production'
 
     try {
-      const devServer = startDevServer({
+      const devServer = await startDevServer({
         db,
         projectId: project.id,
         taskId: task.id,
         devCommand: `node ${scriptPath}`,
         cwd: tempDir,
         port: 19203,
+        logsDir,
+        healthcheckDelayMs: 0,
       })
 
       if (devServer.pid) spawnedPids.push(devServer.pid)
@@ -194,13 +251,15 @@ describe('startDevServer', () => {
     process.env.HOSTNAME = '127.0.0.1'
 
     try {
-      const devServer = startDevServer({
+      const devServer = await startDevServer({
         db,
         projectId: project.id,
         taskId: task.id,
         devCommand: `node ${scriptPath}`,
         cwd: tempDir,
         port: 19204,
+        logsDir,
+        healthcheckDelayMs: 0,
       })
 
       if (devServer.pid) spawnedPids.push(devServer.pid)
@@ -227,8 +286,112 @@ describe('startDevServer', () => {
     }
   })
 
-  it('throws when project not found', () => {
-    expect(() =>
+  it('substitutes {{port}} in devCommand and writes child output to the log file', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'taskhelm-dev-portsub-'))
+    const scriptPath = path.join(tempDir, 'echo-port.js')
+    fs.writeFileSync(
+      scriptPath,
+      [
+        "console.log('hello from port=' + process.argv[2])",
+        'setTimeout(() => {}, 60000)',
+      ].join('\n'),
+    )
+
+    try {
+      const devServer = await startDevServer({
+        db,
+        projectId: project.id,
+        taskId: task.id,
+        devCommand: `node ${scriptPath} {{port}}`,
+        cwd: tempDir,
+        port: 19260,
+        logsDir,
+        healthcheckDelayMs: 0,
+      })
+
+      if (devServer.pid) spawnedPids.push(devServer.pid)
+
+      // Give the child a moment to flush stdout to the log
+      await new Promise(resolve => setTimeout(resolve, 200))
+
+      const logContents = fs.readFileSync(devServer.log_path!, 'utf-8')
+      expect(logContents).toContain('hello from port=19260')
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('marks the server as failed and persists error_message when the child exits before healthcheck', async () => {
+    const devServer = await startDevServer({
+      db,
+      projectId: project.id,
+      taskId: task.id,
+      devCommand: 'node -e "console.error(\'boom\'); process.exit(1)"',
+      cwd: os.tmpdir(),
+      port: 19261,
+      logsDir,
+      healthcheckDelayMs: 200,
+    }).catch((err: Error) => err)
+
+    expect(devServer).toBeInstanceOf(Error)
+    expect((devServer as Error).message).toMatch(/Process exited|boom/)
+
+    const repo = new DevServerRepository(db)
+    const all = repo.findByProjectId(project.id)
+    expect(all).toHaveLength(1)
+    expect(all[0].status).toBe('failed')
+    expect(all[0].error_message).toBeTruthy()
+    expect(all[0].log_path).toBeTruthy()
+  })
+
+  it('marks the server as failed when the child stays alive but never binds the port', async () => {
+    const devServer = await startDevServer({
+      db,
+      projectId: project.id,
+      taskId: task.id,
+      devCommand: 'sleep 60',
+      cwd: os.tmpdir(),
+      port: 19262,
+      logsDir,
+      healthcheckDelayMs: 250,
+    }).catch((err: Error) => err)
+
+    expect(devServer).toBeInstanceOf(Error)
+    expect((devServer as Error).message).toMatch(/port 19262 is not in use/i)
+
+    const repo = new DevServerRepository(db)
+    const all = repo.findByProjectId(project.id)
+    expect(all[0].status).toBe('failed')
+  })
+
+  it('passes the healthcheck when the child binds the expected port', async () => {
+    // Pre-bind port 19263 in the test process so the healthcheck (which
+    // verifies the port is in use AND the spawned PID is alive) can pass
+    // even though the spawned child does not actually listen.
+    const probe = await listenOnPort(19263)
+
+    try {
+      const devServer = await startDevServer({
+        db,
+        projectId: project.id,
+        taskId: task.id,
+        devCommand: 'sleep 60',
+        cwd: os.tmpdir(),
+        port: 19263,
+        logsDir,
+        healthcheckDelayMs: 200,
+      })
+
+      if (devServer.pid) spawnedPids.push(devServer.pid)
+
+      expect(devServer.status).toBe('running')
+    } finally {
+      await closeServer(probe)
+    }
+  })
+
+  it('throws when project not found', async () => {
+    await expect(
       startDevServer({
         db,
         projectId: 'nonexistent-project',
@@ -236,38 +399,44 @@ describe('startDevServer', () => {
         devCommand: 'node -e ""',
         cwd: os.tmpdir(),
         port: 19202,
+        logsDir,
+        healthcheckDelayMs: 0,
       })
-    ).toThrow('Project not found')
+    ).rejects.toThrow('Project not found')
   })
 
-  it('throws when max_active_dev_servers is exceeded', () => {
+  it('throws when max_active_dev_servers is exceeded', async () => {
     // max is 2, fill it up
-    const devServer1 = startDevServer({
+    const devServer1 = await startDevServer({
       db,
       projectId: project.id,
       taskId: task.id,
       devCommand: 'node -e "setTimeout(()=>{},60000)"',
       cwd: os.tmpdir(),
       port: 19210,
+      logsDir,
+      healthcheckDelayMs: 0,
     })
     if (devServer1.pid) spawnedPids.push(devServer1.pid)
 
     const taskRepo = new TaskRepository(db)
     const task2 = taskRepo.create({ project_id: project.id, title: 'Task 2' })
 
-    const devServer2 = startDevServer({
+    const devServer2 = await startDevServer({
       db,
       projectId: project.id,
       taskId: task2.id,
       devCommand: 'node -e "setTimeout(()=>{},60000)"',
       cwd: os.tmpdir(),
       port: 19211,
+      logsDir,
+      healthcheckDelayMs: 0,
     })
     if (devServer2.pid) spawnedPids.push(devServer2.pid)
 
     const task3 = taskRepo.create({ project_id: project.id, title: 'Task 3' })
 
-    expect(() =>
+    await expect(
       startDevServer({
         db,
         projectId: project.id,
@@ -275,20 +444,24 @@ describe('startDevServer', () => {
         devCommand: 'node -e "setTimeout(()=>{},60000)"',
         cwd: os.tmpdir(),
         port: 19212,
+        logsDir,
+        healthcheckDelayMs: 0,
       })
-    ).toThrow('Max active dev servers')
+    ).rejects.toThrow('Max active dev servers')
   })
 })
 
 describe('stopDevServer', () => {
   it('sets status to stopped in DB and sends kill signal', async () => {
-    const devServer = startDevServer({
+    const devServer = await startDevServer({
       db,
       projectId: project.id,
       taskId: task.id,
       devCommand: 'node -e "setTimeout(()=>{},60000)"',
       cwd: os.tmpdir(),
       port: 19220,
+      logsDir,
+      healthcheckDelayMs: 0,
     })
 
     const pid = devServer.pid!
@@ -326,14 +499,16 @@ describe('getPoolStatus', () => {
     expect(status.servers).toHaveLength(0)
   })
 
-  it('reflects started servers in pool status', () => {
-    const devServer = startDevServer({
+  it('reflects started servers in pool status', async () => {
+    const devServer = await startDevServer({
       db,
       projectId: project.id,
       taskId: task.id,
       devCommand: 'node -e "setTimeout(()=>{},60000)"',
       cwd: os.tmpdir(),
       port: 19230,
+      logsDir,
+      healthcheckDelayMs: 0,
     })
     if (devServer.pid) spawnedPids.push(devServer.pid)
 

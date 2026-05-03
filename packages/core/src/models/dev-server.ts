@@ -8,6 +8,7 @@ export interface CreateDevServerInput {
   readonly port: number
   readonly status?: string
   readonly health_url?: string
+  readonly log_path?: string
 }
 
 type DevServerRow = {
@@ -18,6 +19,8 @@ type DevServerRow = {
   pid: number | null
   status: string
   health_url: string | null
+  log_path: string | null
+  error_message: string | null
   started_at: string | null
   stopped_at: string | null
 }
@@ -31,6 +34,8 @@ function rowToDevServer(row: DevServerRow): DevServer {
     pid: row.pid,
     status: row.status as DevServerStatusValue,
     health_url: row.health_url,
+    log_path: row.log_path,
+    error_message: row.error_message,
     started_at: row.started_at,
     stopped_at: row.stopped_at,
   }
@@ -45,8 +50,8 @@ export class DevServerRepository {
 
     this.db
       .prepare(
-        `INSERT INTO dev_servers (id, project_id, task_id, port, pid, status, health_url, started_at, stopped_at)
-         VALUES (@id, @project_id, @task_id, @port, @pid, @status, @health_url, @started_at, @stopped_at)`
+        `INSERT INTO dev_servers (id, project_id, task_id, port, pid, status, health_url, log_path, error_message, started_at, stopped_at)
+         VALUES (@id, @project_id, @task_id, @port, @pid, @status, @health_url, @log_path, @error_message, @started_at, @stopped_at)`
       )
       .run({
         id,
@@ -56,6 +61,8 @@ export class DevServerRepository {
         pid: null,
         status: input.status ?? 'starting',
         health_url: input.health_url ?? null,
+        log_path: input.log_path ?? null,
+        error_message: null,
         started_at: now,
         stopped_at: null,
       })
@@ -101,7 +108,8 @@ export class DevServerRepository {
     }
 
     const now = new Date().toISOString()
-    const stoppedAt = status === 'stopped' ? now : existing.stopped_at
+    const stoppedAt =
+      status === 'stopped' || status === 'failed' ? now : existing.stopped_at
 
     this.db
       .prepare(
@@ -122,6 +130,22 @@ export class DevServerRepository {
     }
 
     this.db.prepare('UPDATE dev_servers SET pid = @pid WHERE id = @id').run({ id, pid })
+
+    const row = this.db
+      .prepare('SELECT * FROM dev_servers WHERE id = ?')
+      .get(id) as DevServerRow
+    return rowToDevServer(row)
+  }
+
+  updateErrorMessage(id: string, message: string | null): DevServer {
+    const existing = this.findById(id)
+    if (!existing) {
+      throw new Error(`DevServer not found: ${id}`)
+    }
+
+    this.db
+      .prepare('UPDATE dev_servers SET error_message = @error_message WHERE id = @id')
+      .run({ id, error_message: message })
 
     const row = this.db
       .prepare('SELECT * FROM dev_servers WHERE id = ?')

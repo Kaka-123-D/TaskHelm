@@ -39,6 +39,7 @@ describe('DevServerPanelView', () => {
         task={createTask()}
         loading={false}
         error={null}
+        startFailure={null}
         preferredPort="4555"
         conflict={{
           conflictType: 'external_port_in_use',
@@ -71,6 +72,7 @@ describe('DevServerPanelView', () => {
         task={createTask()}
         loading={false}
         error={null}
+        startFailure={null}
         preferredPort="4555"
         conflict={{
           conflictType: 'external_port_in_use',
@@ -91,5 +93,31 @@ describe('DevServerPanelView', () => {
     )
 
     expect(markup).not.toContain('Kill external process')
+  })
+
+  it('renders the start-failure block with error message and log path when present', () => {
+    const markup = renderToStaticMarkup(
+      <DevServerPanelView
+        task={createTask({ dev_server_state: 'failed' })}
+        loading={false}
+        error={null}
+        startFailure={{
+          message:
+            'Process is alive but port 1606 is not in use. Last log output:\n> next dev -p 3333',
+          logPath: '/Users/me/.taskhelm/logs/dev-server-abc.log',
+        }}
+        preferredPort="1606"
+        conflict={null}
+        onPreferredPortChange={() => {}}
+        onSavePreferredPort={() => {}}
+        onStart={() => {}}
+        onStop={() => {}}
+        onKillExternal={() => {}}
+      />,
+    )
+
+    expect(markup).toContain('Dev server failed to start')
+    expect(markup).toContain('port 1606 is not in use')
+    expect(markup).toContain('/Users/me/.taskhelm/logs/dev-server-abc.log')
   })
 })

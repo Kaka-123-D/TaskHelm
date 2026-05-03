@@ -129,7 +129,12 @@ export function CreateProjectForm() {
             <GlassInput label="Slug *" value={form.slug} onChange={e => updateField('slug', e.target.value)} placeholder="my-project" />
             <GlassInput label="Description" value={form.description} onChange={e => updateField('description', e.target.value)} placeholder="Optional description" />
             <GlassInput label="Default Branch" value={form.defaultBranch} onChange={e => updateField('defaultBranch', e.target.value)} placeholder="main" />
-            <GlassInput label="Dev Command" value={form.devCommand} onChange={e => updateField('devCommand', e.target.value)} placeholder="npm run dev" />
+            <div>
+              <GlassInput label="Dev Command" value={form.devCommand} onChange={e => updateField('devCommand', e.target.value)} placeholder="npm run dev -- -p {{port}}" />
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                Use <code>{'{{port}}'}</code> to inject the allocated port when your script hard-codes one.
+              </p>
+            </div>
             <GlassInput label="Install Command" value={form.installCommand} onChange={e => updateField('installCommand', e.target.value)} placeholder="npm install" />
           </div>
 

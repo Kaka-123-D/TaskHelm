@@ -69,6 +69,8 @@ export interface DevServer {
   readonly pid: number | null
   readonly status: DevServerStatusValue
   readonly health_url: string | null
+  readonly log_path: string | null
+  readonly error_message: string | null
   readonly started_at: string | null
   readonly stopped_at: string | null
 }

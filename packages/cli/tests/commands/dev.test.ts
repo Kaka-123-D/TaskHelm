@@ -68,14 +68,15 @@ describe('dev start / stop flow (DB state)', () => {
     db.close()
   })
 
-  it('startDevServer creates a running dev server in DB', () => {
-    const devServer = startDevServer({
+  it('startDevServer creates a running dev server in DB', async () => {
+    const devServer = await startDevServer({
       db,
       projectId: project.id,
       taskId: task.id,
       devCommand: 'node -e "setTimeout(()=>{},60000)"',
       cwd: os.tmpdir(),
       port: 19300,
+      healthcheckDelayMs: 0,
     })
 
     if (devServer.pid) spawnedPids.push(devServer.pid)
@@ -89,14 +90,15 @@ describe('dev start / stop flow (DB state)', () => {
     expect(found!.task_id).toBe(task.id)
   })
 
-  it('task can be updated with port and dev_server_state after start', () => {
-    const devServer = startDevServer({
+  it('task can be updated with port and dev_server_state after start', async () => {
+    const devServer = await startDevServer({
       db,
       projectId: project.id,
       taskId: task.id,
       devCommand: 'node -e "setTimeout(()=>{},60000)"',
       cwd: os.tmpdir(),
       port: 19301,
+      healthcheckDelayMs: 0,
     })
 
     if (devServer.pid) spawnedPids.push(devServer.pid)
@@ -112,13 +114,14 @@ describe('dev start / stop flow (DB state)', () => {
   })
 
   it('stopDevServer marks server as stopped and process is killed', async () => {
-    const devServer = startDevServer({
+    const devServer = await startDevServer({
       db,
       projectId: project.id,
       taskId: task.id,
       devCommand: 'node -e "setTimeout(()=>{},60000)"',
       cwd: os.tmpdir(),
       port: 19302,
+      healthcheckDelayMs: 0,
     })
 
     const pid = devServer.pid!
@@ -141,14 +144,15 @@ describe('dev start / stop flow (DB state)', () => {
     expect(alive).toBe(false)
   })
 
-  it('task can be cleared of port/dev_server_state after stop', () => {
-    const devServer = startDevServer({
+  it('task can be cleared of port/dev_server_state after stop', async () => {
+    const devServer = await startDevServer({
       db,
       projectId: project.id,
       taskId: task.id,
       devCommand: 'node -e "setTimeout(()=>{},60000)"',
       cwd: os.tmpdir(),
       port: 19303,
+      healthcheckDelayMs: 0,
     })
 
     if (devServer.pid) spawnedPids.push(devServer.pid)
@@ -201,7 +205,7 @@ describe('dev pool status', () => {
     expect(max).toBe(3)
   })
 
-  it('enforces max_active_dev_servers limit (max=1)', () => {
+  it('enforces max_active_dev_servers limit (max=1)', async () => {
     const projectRepo = new ProjectRepository(db)
     const strictProject = projectRepo.create({
       name: 'Strict Project',
@@ -214,17 +218,18 @@ describe('dev pool status', () => {
     const t1 = taskRepo.create({ project_id: strictProject.id, title: 'T1' })
     const t2 = taskRepo.create({ project_id: strictProject.id, title: 'T2' })
 
-    const devServer = startDevServer({
+    const devServer = await startDevServer({
       db,
       projectId: strictProject.id,
       taskId: t1.id,
       devCommand: 'node -e "setTimeout(()=>{},60000)"',
       cwd: os.tmpdir(),
       port: 19310,
+      healthcheckDelayMs: 0,
     })
     if (devServer.pid) spawnedPids.push(devServer.pid)
 
-    expect(() =>
+    await expect(
       startDevServer({
         db,
         projectId: strictProject.id,
@@ -232,7 +237,8 @@ describe('dev pool status', () => {
         devCommand: 'node -e "setTimeout(()=>{},60000)"',
         cwd: os.tmpdir(),
         port: 19311,
+        healthcheckDelayMs: 0,
       })
-    ).toThrow('Max active dev servers')
+    ).rejects.toThrow('Max active dev servers')
   })
 })

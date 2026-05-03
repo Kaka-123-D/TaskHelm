@@ -18,6 +18,11 @@ export interface ExternalPortConflict {
   } | null
 }
 
+export interface StartFailureDetails {
+  readonly message: string
+  readonly logPath: string | null
+}
+
 interface DevServerPanelProps {
   readonly task: Task
 }
@@ -26,6 +31,7 @@ export interface DevServerPanelViewProps {
   readonly task: Task
   readonly loading: boolean
   readonly error: string | null
+  readonly startFailure: StartFailureDetails | null
   readonly preferredPort: string
   readonly conflict: ExternalPortConflict | null
   readonly onPreferredPortChange: (value: string) => void
@@ -39,6 +45,7 @@ export function DevServerPanelView({
   task,
   loading,
   error,
+  startFailure,
   preferredPort,
   conflict,
   onPreferredPortChange,
@@ -96,7 +103,24 @@ export function DevServerPanelView({
         </div>
       ) : null}
 
-      {error && !conflict ? <div className="utility-panel-error">{error}</div> : null}
+      {startFailure && !conflict ? (
+        <div className="utility-panel-error">
+          <div className="font-semibold">Dev server failed to start</div>
+          <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-xs leading-5">
+            {startFailure.message}
+          </pre>
+          {startFailure.logPath ? (
+            <div className="mt-2 text-xs opacity-80">
+              <strong>Log:</strong>{' '}
+              <code className="break-all">{startFailure.logPath}</code>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {error && !conflict && !startFailure ? (
+        <div className="utility-panel-error">{error}</div>
+      ) : null}
 
       <div className="mb-3">
         <GlassInput
@@ -162,6 +186,7 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
   const loading = isFetching || isPending
   const [error, setError] = useState<string | null>(null)
   const [conflict, setConflict] = useState<ExternalPortConflict | null>(null)
+  const [startFailure, setStartFailure] = useState<StartFailureDetails | null>(null)
   const router = useRouter()
   const [preferredPort, setPreferredPort] = useState(
     task.preferred_port != null ? String(task.preferred_port) : '',
@@ -195,6 +220,7 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
     setIsFetching(true)
     setError(null)
     setConflict(null)
+    setStartFailure(null)
     try {
       const res = await fetch(`/api/tasks/${task.id}/dev`, {
         method: 'POST',
@@ -207,6 +233,14 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
       if (!res.ok) {
         if (res.status === 409 && data.conflictType === 'external_port_in_use') {
           setConflict(data as ExternalPortConflict)
+          return
+        }
+        if (res.status === 500 && typeof data.logPath === 'string') {
+          setStartFailure({
+            message: data.error ?? 'Dev server failed to start',
+            logPath: data.logPath,
+          })
+          startTransition(() => router.refresh())
           return
         }
         throw new Error(data.error ?? 'Failed to start dev server')
@@ -271,11 +305,13 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
       task={task}
       loading={loading}
       error={error}
+      startFailure={startFailure}
       preferredPort={preferredPort}
       conflict={conflict}
       onPreferredPortChange={value => {
         setPreferredPort(value)
         setConflict(null)
+        setStartFailure(null)
       }}
       onSavePreferredPort={handleSavePreferredPort}
       onStart={handleStart}

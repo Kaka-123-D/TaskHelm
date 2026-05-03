@@ -88,7 +88,13 @@ export function EditProjectForm({ project }: EditProjectFormProps) {
           <div className="space-y-3">
             <GlassInput label="Name" value={form.name} onChange={e => updateField('name', e.target.value)} placeholder="Project name" />
             <GlassInput label="Description" value={form.description} onChange={e => updateField('description', e.target.value)} placeholder="Description" />
-            <GlassInput label="Dev Command" value={form.devCommand} onChange={e => updateField('devCommand', e.target.value)} placeholder="npm run dev" />
+            <div>
+              <GlassInput label="Dev Command" value={form.devCommand} onChange={e => updateField('devCommand', e.target.value)} placeholder="npm run dev -- -p {{port}}" />
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                Use <code>{'{{port}}'}</code> to inject the allocated port (e.g.{' '}
+                <code>npm run dev -- -p {'{{port}}'}</code>) when your script hard-codes one.
+              </p>
+            </div>
             <GlassInput label="Install Command" value={form.installCommand} onChange={e => updateField('installCommand', e.target.value)} placeholder="npm install" />
             <GlassInput label="Max Dev Servers" type="number" value={form.maxDevServers} onChange={e => updateField('maxDevServers', e.target.value)} placeholder="3" />
           </div>

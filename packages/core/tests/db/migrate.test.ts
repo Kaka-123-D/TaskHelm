@@ -66,7 +66,7 @@ describe('runMigrations', () => {
     runMigrations(db)
 
     const rows = db.prepare('SELECT filename FROM _migrations ORDER BY filename').all() as Array<{ filename: string }>
-    expect(rows.length).toBe(14)
+    expect(rows.length).toBe(15)
     expect(rows[0].filename).toMatch(/001_projects/)
     expect(rows[8].filename).toMatch(/009_/)
     expect(rows[9].filename).toMatch(/010_local_context_schema_cleanup/)
@@ -74,6 +74,19 @@ describe('runMigrations', () => {
     expect(rows[11].filename).toMatch(/012_remove_task_status_and_phase/)
     expect(rows[12].filename).toMatch(/013_project_command_and_task_refer_link_cleanup/)
     expect(rows[13].filename).toMatch(/014_drop_agent_runs_and_review_gates/)
+    expect(rows[14].filename).toMatch(/015_dev_server_logs_and_errors/)
+    db.close()
+  })
+
+  it('adds log_path and error_message columns to dev_servers (migration 015)', () => {
+    const db = createDatabase(TEST_DB_PATH)
+    runMigrations(db)
+
+    const columns = db.prepare('PRAGMA table_info(dev_servers)').all() as Array<{ name: string }>
+    const names = columns.map(column => column.name)
+    expect(names).toContain('log_path')
+    expect(names).toContain('error_message')
+
     db.close()
   })
 
@@ -324,7 +337,7 @@ describe('runMigrations', () => {
     expect(taskColumns.map(column => column.name)).not.toContain('source_type')
 
     const rows = db.prepare('SELECT filename FROM _migrations ORDER BY filename').all() as Array<{ filename: string }>
-    expect(rows.at(-1)?.filename).toBe('014_drop_agent_runs_and_review_gates.sql')
+    expect(rows.at(-1)?.filename).toBe('015_dev_server_logs_and_errors.sql')
     db.close()
   })
 })

@@ -10,7 +10,7 @@ import { basename } from 'node:path'
 export const program = new Command()
   .name('taskhelm')
   .description('Local-first visual workbench for parallel git-worktree work')
-  .version('0.1.13')
+  .version('0.1.14')
 
 registerProjectCommands(program)
 registerTaskCommands(program)
