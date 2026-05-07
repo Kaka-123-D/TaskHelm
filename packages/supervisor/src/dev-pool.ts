@@ -77,17 +77,35 @@ function isPidAlive(pid: number): boolean {
   }
 }
 
-function isPortBound(port: number): Promise<boolean> {
+// Probe whether a port is currently accepting TCP connections on either the
+// IPv4 or IPv6 loopback. We can't use listen()-based detection: when the dev
+// server binds only `::1` (IPv6 loopback) — common for Next.js on macOS — a
+// listen() probe on `127.0.0.1` succeeds and falsely reports the port free.
+// Connecting works regardless of which loopback the server chose.
+function tryConnect(host: string, port: number, timeoutMs: number): Promise<boolean> {
   return new Promise(resolve => {
-    const probe = net.createServer()
-    probe.once('error', (err: NodeJS.ErrnoException) => {
-      resolve(err.code === 'EADDRINUSE')
-    })
-    probe.once('listening', () => {
-      probe.close(() => resolve(false))
-    })
-    probe.listen(port, '127.0.0.1')
+    const socket = new net.Socket()
+    let settled = false
+    const finish = (bound: boolean): void => {
+      if (settled) return
+      settled = true
+      socket.destroy()
+      resolve(bound)
+    }
+    socket.setTimeout(timeoutMs)
+    socket.once('connect', () => finish(true))
+    socket.once('error', () => finish(false))
+    socket.once('timeout', () => finish(false))
+    socket.connect(port, host)
   })
+}
+
+async function isPortBound(port: number, timeoutMs = 1000): Promise<boolean> {
+  const results = await Promise.all([
+    tryConnect('127.0.0.1', port, timeoutMs),
+    tryConnect('::1', port, timeoutMs),
+  ])
+  return results.some(Boolean)
 }
 
 function tailLogFile(logPath: string): string {

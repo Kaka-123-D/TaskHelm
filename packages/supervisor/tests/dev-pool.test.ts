@@ -39,11 +39,11 @@ async function waitForFile(filePath: string, timeoutMs = 1000): Promise<void> {
   throw new Error(`Timed out waiting for file: ${filePath}`)
 }
 
-function listenOnPort(port: number): Promise<net.Server> {
+function listenOnPort(port: number, host = '127.0.0.1'): Promise<net.Server> {
   return new Promise((resolve, reject) => {
     const server = net.createServer()
     server.once('error', reject)
-    server.listen(port, '127.0.0.1', () => resolve(server))
+    server.listen(port, host, () => resolve(server))
   })
 }
 
@@ -378,6 +378,32 @@ describe('startDevServer', () => {
         devCommand: 'sleep 60',
         cwd: os.tmpdir(),
         port: 19263,
+        logsDir,
+        healthcheckDelayMs: 200,
+      })
+
+      if (devServer.pid) spawnedPids.push(devServer.pid)
+
+      expect(devServer.status).toBe('running')
+    } finally {
+      await closeServer(probe)
+    }
+  })
+
+  // Regression test for v0.1.14: Next.js on macOS binds `::1` only. The
+  // pre-fix probe used listen() on `127.0.0.1` and falsely reported the
+  // port free, marking the dev server as failed.
+  it('passes the healthcheck when the child binds only IPv6 loopback (::1)', async () => {
+    const probe = await listenOnPort(19264, '::1')
+
+    try {
+      const devServer = await startDevServer({
+        db,
+        projectId: project.id,
+        taskId: task.id,
+        devCommand: 'sleep 60',
+        cwd: os.tmpdir(),
+        port: 19264,
         logsDir,
         healthcheckDelayMs: 200,
       })
