@@ -1,6 +1,6 @@
 {
   "name": "taskhelm",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "description": "Local-first visual workbench for parallel git-worktree work — manage tasks, branches, worktrees, ports, and pooled dev servers from one dashboard on your machine.",
   "keywords": [
     "git-worktree",

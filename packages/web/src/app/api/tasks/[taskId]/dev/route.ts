@@ -56,17 +56,23 @@ export async function POST(request: Request, { params }: Params) {
     const requestedPreferredPort =
       body.preferredPort !== undefined ? body.preferredPort : task.preferred_port
 
+    // Statuses that mean the row no longer holds the port: the process has
+    // exited (stopped) or never came up (failed). We can safely evict the row
+    // — the UNIQUE port key would otherwise block a fresh start.
+    const RECLAIMABLE_STATUSES = new Set(['stopped', 'failed'])
+
     const port =
       requestedPreferredPort != null
         ? (() => {
             const reserved = devServerRepo.findByPort(requestedPreferredPort)
             if (reserved) {
-              if (reserved.status !== 'stopped') {
+              if (!RECLAIMABLE_STATUSES.has(reserved.status)) {
                 throw new Error(`Preferred port ${requestedPreferredPort} is not available`)
               }
 
-              // Older TaskHelm versions left stopped dev server rows behind, which
-              // still occupy the UNIQUE port key. Reclaim them before starting.
+              // Reclaim stale rows (stopped explicitly OR marked failed by the
+              // healthcheck / startup recovery). The actual port is free; only
+              // the DB row needs to go.
               devServerRepo.delete(reserved.id)
             }
             return requestedPreferredPort

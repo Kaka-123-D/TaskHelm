@@ -230,6 +230,58 @@ describe('POST /api/tasks/[taskId]/dev', () => {
     expect(startDevServerWithDiagnostics).not.toHaveBeenCalled()
   })
 
+  it('reclaims a stale failed dev server row before starting on the preferred port', async () => {
+    // Regression test for v0.1.14/0.1.15: when a previous start attempt left a
+    // row with status='failed' (e.g. healthcheck timed out, recovery marked it
+    // dead), retrying on the same preferred port falsely returned
+    // "Preferred port X is not available". Failed rows must be reclaimed too.
+    const project = new ProjectRepository(db).create({
+      name: 'Alpha',
+      slug: 'alpha',
+      local_repo_root: '/repo/alpha',
+      dev_command: 'pnpm dev',
+    })
+    const taskRepo = new TaskRepository(db)
+    const task = taskRepo.create({ project_id: project.id, title: 'Ship auth' })
+    taskRepo.update(task.id, { worktree_path: '/repo/alpha/.worktrees/alpha-ui' })
+
+    db.prepare(
+      `INSERT INTO dev_servers (id, project_id, task_id, port, status, started_at, stopped_at, error_message)
+       VALUES ('stale-failed', ?, ?, 12752, 'failed', ?, ?, ?)`
+    ).run(
+      project.id,
+      task.id,
+      new Date().toISOString(),
+      new Date().toISOString(),
+      'Process exited before healthcheck',
+    )
+
+    startDevServerWithDiagnostics.mockResolvedValueOnce({
+      devServer: {
+        id: 'dev-server-3',
+        pid: 4242,
+        port: 12752,
+        status: 'running',
+        log_path: '/tmp/log/dev-server-3.log',
+      },
+      errorMessage: null,
+    })
+
+    const { POST } = await import('./route')
+    const response = await POST(
+      new Request('http://localhost', {
+        method: 'POST',
+        body: JSON.stringify({ preferredPort: 12752 }),
+      }),
+      { params: Promise.resolve({ taskId: task.id }) },
+    )
+
+    expect(response.status).toBe(201)
+    expect(
+      db.prepare('SELECT COUNT(*) as count FROM dev_servers WHERE id = ?').get('stale-failed'),
+    ).toMatchObject({ count: 0 })
+  })
+
   it('reclaims a stale stopped dev server row before starting on the preferred port', async () => {
     const project = new ProjectRepository(db).create({
       name: 'Alpha',
