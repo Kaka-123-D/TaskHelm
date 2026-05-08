@@ -9,9 +9,7 @@ TaskHelm is a local-first visual workbench for parallel git-worktree work. It ma
 - `taskhelm` — launcher that boots the local web dashboard on `http://127.0.0.1:4100` (default). On first run it prepares a Next.js standalone runtime under `~/.taskhelm/runtime/<version>` from assets shipped inside the npm tarball (see `scripts/prepare-installed-runtime.mjs`).
 - `taskhelm-cli` — CLI-only entrypoint. Same Commander program, but does not auto-launch the dashboard (see `packages/cli/src/launcher/argv.ts` and `bin/taskhelm.js`).
 
-State lives in two places:
-- **SQLite** at `~/.taskhelm/taskhelm.db` (override with `TASKHELM_DB`) — runtime state, WAL mode, migrations applied on every `getDb()` call.
-- **Markdown/YAML capsules** on disk per project/task — human-readable, git-versionable.
+State lives in **SQLite** at `~/.taskhelm/taskhelm.db` (override with `TASKHELM_DB`) — runtime state, WAL mode, migrations applied on every `getDb()` call. The legacy Markdown/YAML "task capsule" feature was removed in v0.1.17; nothing is written into the user's project repo any more.
 
 ## Workspace Layout
 
@@ -19,7 +17,7 @@ pnpm workspace + Turborepo, four packages:
 
 | Package | Role |
 |---------|------|
-| `@taskhelm/core` | Domain model, SQLite repos, migrations, capsule I/O, workspace utilities (branch/worktree/port). All other packages depend on this. |
+| `@taskhelm/core` | Domain model, SQLite repos, migrations, workspace utilities (branch/worktree/port). All other packages depend on this. |
 | `@taskhelm/supervisor` | Dev-server pool (`startDevServer` / `stopDevServer` / `getPoolStatus`) and crash-recovery helpers (`recoverOnStartup`). |
 | `@taskhelm/cli` | Commander CLI (`project`, `task`, `workspace`, `dev` groups) plus the launcher (`launcher/`) that prepares and starts the web runtime. |
 | `@taskhelm/web` | Next.js 15 App Router dashboard (React 19, Tailwind v4). Reads/writes the same SQLite via `@taskhelm/core`. |
@@ -70,7 +68,7 @@ There is no `lint` step wired up (`turbo.json` defines the task but no package i
 
 ## Autonomy Boundary
 
-**Allowed:** create branch/worktree, allocate ports, start/stop dev servers, edit code in worktrees, run local dev/test commands, update task capsules.
+**Allowed:** create branch/worktree, allocate ports, start/stop dev servers, edit code in worktrees, run local dev/test commands, update task records in the SQLite DB.
 
 **Not allowed by default:** push branches, merge, create PR/MR, mutate external ticket systems.
 
@@ -90,7 +88,7 @@ Read in this order for full design context (everything under `docs/` is the v1 s
 - `docs/02-v1-architecture.md` — system layers
 - `docs/06-domain-model.md` — entities and state machines (note: spec predates migrations 012 and 014)
 - `docs/07-sqlite-schema.md` — runtime tables (note: spec predates migrations 012 and 014)
-- `docs/08-task-capsule-spec.md` — markdown/yaml capsule format
+- `docs/08-task-capsule-spec.md` — DEPRECATED, the capsule feature was removed in v0.1.17
 - `docs/10-cli-spec.md` — CLI command groups (note: spec predates removal of the `agent` group)
 - `docs/11-web-dashboard-spec.md` — dashboard screens
 - `docs/04-init-roadmap.md` — phased implementation plan
@@ -98,7 +96,7 @@ Read in this order for full design context (everything under `docs/` is the v1 s
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **TaskHelm** (1553 symbols, 3047 relationships, 118 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **TaskHelm** (1496 symbols, 2845 relationships, 114 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

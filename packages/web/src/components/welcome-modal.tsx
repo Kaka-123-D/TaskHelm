@@ -30,8 +30,7 @@ const SECTIONS: ReadonlyArray<{
           branch and dev command.
         </li>
         <li>
-          <strong>Create a task</strong> — give it a title, goal, optional refer link. The task starts
-          life as a Markdown/YAML capsule on disk.
+          <strong>Create a task</strong> — give it a title, goal, and optional refer link.
         </li>
         <li>
           <strong>Init workspace</strong> — TaskHelm creates a branch + worktree under{' '}
@@ -84,9 +83,6 @@ const SECTIONS: ReadonlyArray<{
         </li>
         <li>
           Default port <code>4100</code> — override with <code>TASKHELM_PORT</code> or <code>PORT</code>.
-        </li>
-        <li>
-          Task capsules live inside each project repo as Markdown/YAML — version them in Git.
         </li>
       </ul>
     ),

@@ -1,11 +1,11 @@
 import type { Command } from 'commander'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import * as readline from 'node:readline'
 import chalk from 'chalk'
 import {
   ProjectRepository,
   TaskRepository,
-  writeCapsule,
   formatBranchName,
   createBranch,
   branchExists,
@@ -13,6 +13,18 @@ import {
   removeWorktree,
 } from '@taskhelm/core'
 import { getDb } from '../db.js'
+import { resolveTaskOrExit } from '../resolver.js'
+
+function promptConfirm(question: string): Promise<boolean> {
+  return new Promise(resolve => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+    rl.question(question, answer => {
+      rl.close()
+      const normalized = answer.trim().toLowerCase()
+      resolve(normalized === 'y' || normalized === 'yes')
+    })
+  })
+}
 
 export function registerWorkspaceCommands(program: Command): void {
   const wsCmd = program.command('workspace').description('Manage task workspaces (branches + worktrees)')
@@ -26,12 +38,7 @@ export function registerWorkspaceCommands(program: Command): void {
         const taskRepo = new TaskRepository(db)
         const projectRepo = new ProjectRepository(db)
 
-        const task = taskRepo.findById(taskId)
-        if (!task) {
-          console.error(chalk.red(`Task not found: ${taskId}`))
-          process.exit(1)
-        }
-
+        const task = resolveTaskOrExit(db, taskId)
         const project = projectRepo.findById(task.project_id)
         if (!project) {
           console.error(chalk.red(`Project not found: ${task.project_id}`))
@@ -61,16 +68,9 @@ export function registerWorkspaceCommands(program: Command): void {
           branchName,
         })
 
-        const updatedTask = taskRepo.update(task.id, {
+        taskRepo.update(task.id, {
           branch_name: branchName,
           worktree_path: worktreePath,
-        })
-
-        writeCapsule({
-          baseDir: repoRoot,
-          projectSlug: project.slug,
-          task: updatedTask,
-          project,
         })
 
         console.log(chalk.green('Workspace initialized:'))
@@ -91,14 +91,7 @@ export function registerWorkspaceCommands(program: Command): void {
     .action((taskId: string) => {
       const db = getDb()
       try {
-        const taskRepo = new TaskRepository(db)
-
-        const task = taskRepo.findById(taskId)
-        if (!task) {
-          console.error(chalk.red(`Task not found: ${taskId}`))
-          process.exit(1)
-        }
-
+        const task = resolveTaskOrExit(db, taskId)
         const worktreeExists =
           task.worktree_path != null && fs.existsSync(task.worktree_path)
 
@@ -126,22 +119,31 @@ export function registerWorkspaceCommands(program: Command): void {
   wsCmd
     .command('cleanup <taskId>')
     .description('Remove worktree and clear workspace fields from task (branch is preserved)')
-    .action((taskId: string) => {
+    .option('-y, --yes', 'Skip the confirmation prompt')
+    .action(async (taskId: string, opts: { yes?: boolean }) => {
       const db = getDb()
       try {
         const taskRepo = new TaskRepository(db)
         const projectRepo = new ProjectRepository(db)
 
-        const task = taskRepo.findById(taskId)
-        if (!task) {
-          console.error(chalk.red(`Task not found: ${taskId}`))
-          process.exit(1)
-        }
-
+        const task = resolveTaskOrExit(db, taskId)
         const project = projectRepo.findById(task.project_id)
         if (!project) {
           console.error(chalk.red(`Project not found: ${task.project_id}`))
           process.exit(1)
+        }
+
+        if (!opts.yes) {
+          const target = task.worktree_path ?? '(no worktree path set)'
+          console.log(chalk.bold('About to clean up workspace:'))
+          console.log(`  Task:     ${task.title} (${task.id})`)
+          console.log(`  Branch:   ${task.branch_name ?? chalk.dim('not set')} ${chalk.dim('(preserved)')}`)
+          console.log(`  Worktree: ${target}`)
+          const ok = await promptConfirm(chalk.yellow('Continue? [y/N] '))
+          if (!ok) {
+            console.log(chalk.dim('Aborted.'))
+            return
+          }
         }
 
         if (task.worktree_path != null && fs.existsSync(task.worktree_path)) {

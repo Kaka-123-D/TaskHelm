@@ -57,7 +57,7 @@ export function formatTasksTable(tasks: readonly Task[]): string {
 
   for (const t of tasks) {
     table.push([
-      t.id.slice(0, 8),
+      t.id,
       t.key ?? '',
       t.title,
       String(t.priority),

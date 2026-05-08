@@ -5,7 +5,6 @@ import * as path from 'node:path'
 import {
   ProjectRepository,
   TaskRepository,
-  writeCapsule,
   formatBranchName,
   createWorktree,
   listWorktrees,
@@ -331,13 +330,6 @@ export async function POST(request: Request, { params }: Params) {
         nestedRepos: subrepoBranches,
       })
     }
-
-    writeCapsule({
-      baseDir: repoRoot,
-      projectSlug: project.slug,
-      task: updatedTask,
-      project,
-    })
 
     return NextResponse.json({
       workspaceName,

@@ -1,9 +1,10 @@
 import type { Command } from 'commander'
 import chalk from 'chalk'
-import { ProjectRepository, TaskRepository, writeCapsule } from '@taskhelm/core'
+import { ProjectRepository, TaskRepository } from '@taskhelm/core'
 import { getDb } from '../db.js'
 import { formatJson } from '../formatters/json.js'
 import { formatTasksTable, formatTaskDetail } from '../formatters/table.js'
+import { resolveTaskOrExit } from '../resolver.js'
 
 export function registerTaskCommands(program: Command): void {
   const taskCmd = program.command('task').description('Manage tasks')
@@ -38,16 +39,8 @@ export function registerTaskCommands(program: Command): void {
           priority: opts.priority as number | undefined,
         })
 
-        const capsuleDir = writeCapsule({
-          baseDir: project.local_repo_root,
-          projectSlug: project.slug,
-          task,
-          project,
-        })
-
         console.log(chalk.green('Task created:'))
         console.log(formatJson(task))
-        console.log(chalk.dim(`Capsule written to: ${capsuleDir}`))
       } catch (error) {
         console.error(chalk.red('Error creating task:'), (error as Error).message)
         process.exit(1)
@@ -96,18 +89,12 @@ export function registerTaskCommands(program: Command): void {
 
   taskCmd
     .command('show <id>')
-    .description('Show task details')
+    .description('Show task details (id can be full id, prefix, slug:key, or title substring)')
     .option('--json', 'Output as JSON')
     .action((id: string, opts) => {
       const db = getDb()
       try {
-        const taskRepo = new TaskRepository(db)
-
-        const task = taskRepo.findById(id)
-        if (!task) {
-          console.error(chalk.red(`Task not found: ${id}`))
-          process.exit(1)
-        }
+        const task = resolveTaskOrExit(db, id)
 
         if (opts.json) {
           console.log(formatJson(task))

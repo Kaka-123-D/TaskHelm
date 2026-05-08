@@ -104,16 +104,6 @@ dashboard pops a modal showing PID / command / user / cwd with a one-click
 </td>
 <td width="50%" valign="top">
 
-### Task context capsules
-Each task has its own folder on disk: `context.md`, `plan.md`, `handoff.md`,
-plus a free-form `artifacts/` tree. Versionable in Git, readable without
-TaskHelm, and survive any crash or restart.
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
 ### Context vault preview
 Link any folder into a task and TaskHelm renders Markdown notes inline
 with embedded images, videos, and diagrams. `[@path]` references resolve
@@ -171,14 +161,12 @@ SQLite file, so you can mix freely.
               ▼
       ┌──────────────┐
       │  SQLite (WAL)│   runtime state — projects, tasks,
-      ├──────────────┤   dev_servers, locks, events, notifications
-      │ Disk capsules│   Markdown + YAML — context, plan, handoff,
-      └──────────────┘   artifacts (per-task folders)
+      └──────────────┘   dev_servers, locks, events, notifications
 ```
 
-Two complementary storage layers — **SQLite** for runtime truth, **Markdown/YAML** for human-readable
-context that survives outside the tool. Every dashboard mutation updates SQLite first; capsule files
-on disk are kept in sync alongside.
+State lives entirely in a single SQLite file at `~/.taskhelm/taskhelm.db` — TaskHelm does not write
+anything into your project repos. Per-task notes can be linked from the **Context Vault** (any folder
+of Markdown files on disk, indexed but not owned by TaskHelm).
 
 | Package | npm | Role |
 |---|---|---|
@@ -200,7 +188,7 @@ Stack: **Next.js 15 + React 19** (dashboard) · **Commander** (CLI) · **better-
 | Allocate ports & start dev servers | Merge or rebase shared branches |
 | Edit code inside worktrees | Open / close PRs |
 | Run local dev / test commands | Mutate external ticket systems |
-| Update task capsules and notes | Anything that touches a remote you didn't explicitly authorize |
+| Update task records in the local SQLite DB | Anything that touches a remote you didn't explicitly authorize |
 
 The line is intentional. TaskHelm is built so you'd trust running it unattended on your laptop, not so
 it can ship to prod for you.
@@ -232,7 +220,6 @@ architectural conventions agents must follow when editing this repo.
 | [`docs/02-v1-architecture.md`](./docs/02-v1-architecture.md) | System layers and boundaries |
 | [`docs/06-domain-model.md`](./docs/06-domain-model.md) | Entities and state machines |
 | [`docs/07-sqlite-schema.md`](./docs/07-sqlite-schema.md) | All runtime tables |
-| [`docs/08-task-capsule-spec.md`](./docs/08-task-capsule-spec.md) | Markdown/YAML capsule format |
 | [`docs/10-cli-spec.md`](./docs/10-cli-spec.md) | CLI command groups |
 | [`docs/11-web-dashboard-spec.md`](./docs/11-web-dashboard-spec.md) | Dashboard screens |
 | [`docs/04-init-roadmap.md`](./docs/04-init-roadmap.md) | Phased implementation plan |

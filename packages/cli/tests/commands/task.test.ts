@@ -7,13 +7,11 @@ import {
   runMigrations,
   ProjectRepository,
   TaskRepository,
-  writeCapsule,
 } from '@taskhelm/core'
 import type Database from 'better-sqlite3'
 import type { Project, Task } from '@taskhelm/core'
 
 const tempFiles: string[] = []
-const tempDirs: string[] = []
 
 function createTempDb(): { db: Database.Database; dbPath: string } {
   const dbPath = path.join(
@@ -26,12 +24,6 @@ function createTempDb(): { db: Database.Database; dbPath: string } {
   return { db, dbPath }
 }
 
-function createTempDir(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'taskhelm-capsule-test-'))
-  tempDirs.push(dir)
-  return dir
-}
-
 afterEach(() => {
   for (const file of tempFiles.splice(0)) {
     for (const ext of ['', '-wal', '-shm']) {
@@ -39,11 +31,6 @@ afterEach(() => {
         fs.unlinkSync(file + ext)
       } catch {}
     }
-  }
-  for (const dir of tempDirs.splice(0)) {
-    try {
-      fs.rmSync(dir, { recursive: true, force: true })
-    } catch {}
   }
 })
 
@@ -97,25 +84,6 @@ describe('Task CLI commands', () => {
       expect(task.priority).toBe(5)
     })
 
-    it('writes capsule directory on task create', () => {
-      const taskRepo = new TaskRepository(db)
-      const baseDir = createTempDir()
-      const task = taskRepo.create({
-        project_id: project.id,
-        title: 'Capsule Task',
-      })
-
-      const capsuleDir = writeCapsule({
-        baseDir,
-        projectSlug: project.slug,
-        task,
-        project,
-      })
-
-      expect(fs.existsSync(capsuleDir)).toBe(true)
-      expect(fs.existsSync(path.join(capsuleDir, 'task.yaml'))).toBe(true)
-      expect(fs.existsSync(path.join(capsuleDir, 'context.md'))).toBe(true)
-    })
   })
 
   describe('task list', () => {
