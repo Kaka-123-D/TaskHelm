@@ -1,0 +1,67 @@
+---
+description: Cursor rule for the TaskHelm CLI — local-first git-worktree workbench. Activates when the user mentions worktrees, port allocation, parallel dev servers, or the `taskhelm` binary.
+globs:
+alwaysApply: false
+---
+
+# TaskHelm CLI
+
+TaskHelm is a local-first workbench for parallel git-worktree work. It manages **projects → tasks → worktrees → ports → dev servers** from one place — replacing the `git worktree add` + `lsof` + four-terminals dance.
+
+Install: `npm install -g taskhelm`. State lives at `~/.taskhelm/taskhelm.db` (SQLite). Logs at `~/.taskhelm/logs/`.
+
+## Mental model
+
+```
+Project           = a git repo (slug, repo path, default dev_command, max concurrent dev servers)
+  └─ Task         = a unit of work tied to one branch + worktree + (optional) preferred port
+       ├─ Branch      = git branch (created automatically by `workspace init`)
+       ├─ Worktree    = ./.worktrees/<branch>/ inside the repo
+       └─ Dev server  = pooled long-running process bound to a port
+```
+
+The CLI never touches the remote: no push, no PR, no merge. It only manipulates local branches, worktrees, ports, and child processes.
+
+## Daily workflow
+
+```bash
+taskhelm project create --name "LoveRec" --slug loverec --repo /Users/me/code/loverec \
+  --dev-command "npm run dev -- -p {{port}}" --install-command "npm i"
+taskhelm task create --project loverec --title "LRC-12752 popup creator" --key LRC-12752
+taskhelm workspace init loverec:LRC-12752
+taskhelm dev start loverec:LRC-12752
+taskhelm dev logs loverec:LRC-12752 -f
+taskhelm dev stop loverec:LRC-12752
+taskhelm workspace cleanup loverec:LRC-12752 -y
+```
+
+## Identifier resolution
+
+Every command that takes `<taskId>` accepts five forms, in priority order:
+1. Full task id (21-char nanoid)
+2. `<slug>:<key>` — `loverec:LRC-12752`
+3. ID prefix ≥ 4 chars
+4. Exact task key (must be globally unique)
+5. Title substring ≥ 3 chars (case-insensitive)
+
+Ambiguous match → exit code 2 with a candidate list. No match → exit 1. Prefer `<slug>:<key>` in scripts.
+
+## Common failure modes
+
+- **`Port X is already in use`** → external process holds the port (`lsof -i :X`).
+- **`Process is alive but port X is not in use`** → dev script crashed silently or binds elsewhere. Check `taskhelm dev logs <taskId>`.
+- **`Max active dev servers (N) reached`** → stop another or raise `max_active_dev_servers` (Web UI).
+- **Dev server runs the wrong port despite `PORT` env** → npm script hard-codes a port. Use `{{port}}` placeholder in `dev_command`.
+
+## Useful flags
+
+- `--port <N>`, `--command "<cmd>"` on `dev start` for per-run overrides.
+- `--json` on every `list`/`show` for piping into `jq`.
+- `dev logs -f -n 100 <taskId>` to follow logs.
+- `workspace cleanup -y` to skip the confirm prompt.
+
+## When NOT to use
+
+Editing remotes (push, PR, ticket sync), bare repos without working trees, or CI. TaskHelm is local-dev only.
+
+Repo: <https://github.com/vantienkhai/TaskHelm> · npm: `taskhelm` · default dashboard: <http://127.0.0.1:4100>

@@ -123,6 +123,23 @@ SQLite file, so you can mix freely.
 
 ---
 
+## AI agent skills
+
+A drop-in skill pack that teaches Claude Code, Cursor, Copilot CLI, Codex, and other AI coding agents
+how to drive TaskHelm — the mental model, the identifier-resolution rules, the failure-mode catalog.
+Without it, agents will fall back to raw `git worktree add` and miss the whole point of TaskHelm.
+
+```bash
+# Claude Code
+mkdir -p ~/.claude/skills/taskhelm
+curl -fsSL https://raw.githubusercontent.com/vantienkhai/TaskHelm/main/skills/taskhelm/SKILL.md \
+  -o ~/.claude/skills/taskhelm/SKILL.md
+```
+
+For Cursor / Copilot CLI / generic agents, see [`skills/`](./skills).
+
+---
+
 ## Screenshots
 
 <table>
