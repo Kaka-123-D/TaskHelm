@@ -2,60 +2,121 @@
 
 **Target:** <https://github.com/hesreallyhim/awesome-claude-code>
 
-**Why this submission has a good chance:**
-- Real, working npm package (`taskhelm`) with multiple released versions
-- Skill is a single self-contained `SKILL.md` with proper Anthropic frontmatter
-- Skill solves a concrete problem (agents hallucinating worktree commands) — not a generic prompt collection
-- Permissive license matches the repo's policy
+> ⚠️ **MUST be submitted manually via the github.com UI.** The repo's issue template and Code of Conduct **explicitly forbid `gh` CLI / programmatic submissions** — automated ones get auto-closed and may flag the submitter's account. Do not attempt the fork+PR route either; the project intakes resources only through their issue form, which auto-creates the PR after maintainer review.
 
-**Section to add it under:** `Skills` (if exists) or `Tools / Workflows`. Check the README first.
+## How to submit (5 minutes)
+
+1. Open <https://github.com/hesreallyhim/awesome-claude-code/issues/new?template=recommend-resource.yml> in a logged-in browser.
+2. Fill the form using the exact answers below — copy-paste, do not re-word (the validation bot pattern-matches).
+3. Tick all checkboxes (you must in good conscience be the one submitting; this is your project, you qualify).
+4. Submit. The validation bot comments within minutes; the maintainer reviews on their schedule.
+
+## Form answers
+
+### Issue title
+```
+[Resource]: TaskHelm
+```
+
+### Display Name
+```
+TaskHelm
+```
+
+### Category
+```
+Agent Skills
+```
+
+### Sub-Category
+```
+General
+```
+
+### Primary Link
+```
+https://github.com/vantienkhai/TaskHelm
+```
+
+### Author Name
+```
+vantienkhai
+```
+
+### Author Link
+```
+https://github.com/vantienkhai
+```
+
+### License
+```
+MIT
+```
+
+### Description
+> 1–3 sentences, descriptive (not promotional), no emojis, doesn't address the reader. The template is strict about this.
+
+```
+TaskHelm is a local-first workbench for parallel git-worktree development. It manages projects, tasks, branches, worktrees, ports, and a pooled set of dev servers from one dashboard, with a CLI mirror. The companion skill teaches Claude Code its mental model, identifier-resolution rules, and failure-mode catalog so the agent uses the CLI correctly instead of falling back to raw `git worktree` commands.
+```
+
+### Validate Claims
+> "Suggest a low-friction way for me, or anyone, to prove it to themselves that what you're claiming is true."
+
+```
+Install TaskHelm with `npm i -g taskhelm` and drop the skill into Claude Code:
+
+  mkdir -p ~/.claude/skills/taskhelm
+  curl -fsSL https://raw.githubusercontent.com/vantienkhai/TaskHelm/main/skills/taskhelm/SKILL.md \
+    -o ~/.claude/skills/taskhelm/SKILL.md
+
+Restart Claude Code. Without the skill, Claude reaches for `git worktree add` and manual port handling. With the skill, it consistently uses `taskhelm workspace init <slug>:<key>` and `taskhelm dev start ... --port N`.
+```
+
+### Specific Task(s)
+```
+Open a project that uses TaskHelm (any git repo registered with `taskhelm project create`) and ask Claude Code to start work on a task that does not have a worktree yet. Observe whether it uses `taskhelm` commands or falls back to `git worktree`.
+```
+
+### Specific Prompt(s)
+```
+Without the skill: "Start work on ticket LRC-12752 in the Loverec project."
+
+With the skill installed, the same prompt should produce:
+  taskhelm workspace init loverec:LRC-12752
+  taskhelm dev start loverec:LRC-12752
+
+instead of raw git worktree commands.
+```
+
+### Additional Comments
+```
+The skill is a single ~7KB SKILL.md with the standard Anthropic frontmatter. The companion CLI is published on npm as `taskhelm` (multiple released versions). The same skill body works as a Cursor `.mdc` rule (see skills/taskhelm/cursor.mdc in the repo).
+```
+
+### Mandatory checkboxes (all required)
+
+- [x] I have checked that this resource hasn't already been submitted
+- [x] It has been over one week since the first public commit to the repo I am recommending
+- [x] All provided links are working and publicly accessible
+- [x] I do NOT have any other open issues in this repository
+- [x] I am primarily composed of human-y stuff and not electrical circuits
 
 ---
 
-## Contributing flow
+## Pre-submission self-check
+
+The repo includes `.claude/commands/evaluate-repository.md` — a Claude Code prompt the maintainer runs on submissions. Suggested: run it locally on TaskHelm before submitting to surface any issues the reviewer will hit.
 
 ```bash
-gh repo fork hesreallyhim/awesome-claude-code --clone --remote
-cd awesome-claude-code
-git checkout -b add-taskhelm-skill
-# Edit README.md — add the entry below in the right section
-git add README.md
-git commit -m "Add TaskHelm CLI skill"
-git push -u origin add-taskhelm-skill
-gh pr create --title "Add TaskHelm CLI skill" --body-file ../taskhelm-pr-body.md
+gh api repos/hesreallyhim/awesome-claude-code/contents/.claude/commands/evaluate-repository.md \
+  --jq '.content' | base64 -d
 ```
 
-## README entry to paste (single line in alphabetical order)
+## Why this submission is unique vs existing entries
 
-```markdown
-- **[TaskHelm CLI](https://github.com/vantienkhai/TaskHelm/tree/main/skills/taskhelm)** — Skill for the TaskHelm CLI (local-first git-worktree workbench: pooled dev servers, port allocation, per-task branches/worktrees). Teaches agents the mental model, identifier-resolution rules, and the failure-mode catalog.
-```
+Looking at existing skill submissions in `THE_RESOURCES_TABLE.csv`:
 
-## PR body
-
-```markdown
-## Summary
-
-Adds an entry for the TaskHelm CLI skill — a single `SKILL.md` (Anthropic format) that teaches Claude Code, Cursor, Copilot CLI, and Codex how to drive [TaskHelm](https://github.com/vantienkhai/TaskHelm), a local-first workbench for parallel git-worktree work.
-
-## Why it's useful
-
-Without this skill, agents fall back to raw `git worktree add` + `lsof` + four terminals — losing the per-task branch/worktree/port abstraction TaskHelm provides. The skill gives the agent:
-
-- Mental model (project → task → worktree → port → pooled dev server)
-- Identifier resolution rules (full id / `<slug>:<key>` / prefix / title substring)
-- Failure-mode catalog (`{{port}}` placeholder for hard-coded ports, IPv6-only Next.js binds, stale `failed` rows in the dev pool, etc.)
-- Exit-code semantics for scripting
-
-## Verification
-
-- TaskHelm is published on npm as `taskhelm` — `npm view taskhelm` shows the live package
-- The skill source is at <https://github.com/vantienkhai/TaskHelm/tree/main/skills/taskhelm>
-- License: same as the parent repo (permissive)
-
-## Test plan
-
-- [ ] Skill loads in Claude Code by dropping it under `~/.claude/skills/taskhelm/SKILL.md`
-- [ ] Frontmatter `name` matches folder name
-- [ ] `description` includes activation examples
-```
+- Most "Agent Skills > General" entries are general-purpose helpers (workflow systems, code-review skills).
+- TaskHelm is a **specific CLI** with a **companion skill**, not a general-purpose framework. The skill exists to make a real npm-published tool work correctly with AI agents.
+- That niche (CLI-with-AI-skill) is currently underrepresented in the list.
