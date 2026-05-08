@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { TaskRepository } from '@taskhelm/core'
 import { getDb } from '@/lib/db'
+import { deleteTaskCascade } from '@/lib/tasks/delete-task'
 
 type Params = { params: Promise<{ taskId: string }> }
 
@@ -64,14 +65,12 @@ export async function DELETE(_request: Request, { params }: Params) {
   try {
     const { taskId } = await params
     const db = getDb()
-    const taskRepo = new TaskRepository(db)
 
-    const task = taskRepo.findById(taskId)
-    if (!task) {
+    const found = deleteTaskCascade(db, taskId)
+    if (!found) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
     }
 
-    taskRepo.delete(taskId)
     return NextResponse.json({ deleted: true })
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 })

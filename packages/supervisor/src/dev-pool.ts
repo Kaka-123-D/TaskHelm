@@ -34,6 +34,40 @@ const LEAKY_ENV_KEYS = new Set(['HOSTNAME', 'KEEP_ALIVE_TIMEOUT'])
 const DEFAULT_HEALTHCHECK_DELAY_MS = 3500
 const ERROR_LOG_TAIL_BYTES = 4096
 
+// Common locations where Node-tooling binaries (yarn / pnpm / bun / corepack
+// shims) live but which a non-interactive launch context (Spotlight, Dock,
+// macOS Login Items, ...) does NOT inherit on PATH. We append these to the
+// child's PATH so dev_command="yarn dev" works even when only `npm` is
+// resolvable from the parent's PATH.
+function fallbackPathCandidates(parentEnv: NodeJS.ProcessEnv): readonly string[] {
+  const home = os.homedir()
+  const explicit = [parentEnv.NVM_BIN]
+  if (parentEnv.VOLTA_HOME) explicit.push(path.join(parentEnv.VOLTA_HOME, 'bin'))
+
+  return [
+    ...explicit,
+    path.join(home, '.volta/bin'),
+    path.join(home, '.yarn/bin'),
+    path.join(home, '.config/yarn/global/node_modules/.bin'),
+    path.join(home, '.bun/bin'),
+    path.join(home, 'Library/pnpm'),
+    path.join(home, '.local/share/pnpm'),
+    path.join(home, '.local/bin'),
+    '/opt/homebrew/bin',
+    '/usr/local/bin',
+    '/usr/bin',
+    '/bin',
+  ].filter((p): p is string => typeof p === 'string' && p.length > 0)
+}
+
+function augmentPath(parentEnv: NodeJS.ProcessEnv): string {
+  const sep = path.delimiter
+  const existing = (parentEnv.PATH ?? '').split(sep).filter(Boolean)
+  const seen = new Set(existing)
+  const appended = fallbackPathCandidates(parentEnv).filter(p => !seen.has(p))
+  return [...existing, ...appended].join(sep)
+}
+
 export function buildChildEnv(
   parentEnv: NodeJS.ProcessEnv,
   port: number,
@@ -52,6 +86,7 @@ export function buildChildEnv(
 
   next.NODE_ENV = 'development'
   next.PORT = String(port)
+  next.PATH = augmentPath(parentEnv)
   return next
 }
 

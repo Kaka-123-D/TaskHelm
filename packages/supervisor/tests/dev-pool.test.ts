@@ -226,9 +226,42 @@ describe('startDevServer', () => {
     expect(childEnv.__NEXT_PRIVATE_PREBUNDLED_REACT).toBeUndefined()
     expect(childEnv.NEXT_RUNTIME).toBeUndefined()
     expect(childEnv.USER_DEFINED).toBe('keep-me')
-    expect(childEnv.PATH).toBe('/usr/bin')
     expect(childEnv.NODE_ENV).toBe('development')
     expect(childEnv.PORT).toBe('4242')
+    // PATH preserves the parent's entry first (so user-preferred binaries win)
+    // and appends the fallback locations where yarn/pnpm/bun typically live.
+    const segments = (childEnv.PATH ?? '').split(path.delimiter)
+    expect(segments[0]).toBe('/usr/bin')
+    expect(segments).toContain('/opt/homebrew/bin')
+    expect(segments).toContain('/usr/local/bin')
+  })
+
+  it('honors NVM_BIN and VOLTA_HOME from the parent env when augmenting PATH', () => {
+    const parentEnv: NodeJS.ProcessEnv = {
+      PATH: '/usr/bin',
+      NVM_BIN: '/Users/test/.nvm/versions/node/v20/bin',
+      VOLTA_HOME: '/Users/test/.volta',
+    }
+
+    const childEnv = buildChildEnv(parentEnv, 4243)
+    const segments = (childEnv.PATH ?? '').split(path.delimiter)
+
+    expect(segments).toContain('/Users/test/.nvm/versions/node/v20/bin')
+    expect(segments).toContain('/Users/test/.volta/bin')
+  })
+
+  it('does not duplicate PATH entries the parent already had', () => {
+    const parentEnv: NodeJS.ProcessEnv = {
+      PATH: ['/usr/bin', '/usr/local/bin', '/opt/homebrew/bin'].join(path.delimiter),
+    }
+
+    const childEnv = buildChildEnv(parentEnv, 4244)
+    const segments = (childEnv.PATH ?? '').split(path.delimiter)
+    const homebrewCount = segments.filter(s => s === '/opt/homebrew/bin').length
+    const usrLocalCount = segments.filter(s => s === '/usr/local/bin').length
+
+    expect(homebrewCount).toBe(1)
+    expect(usrLocalCount).toBe(1)
   })
 
   it('does not leak __NEXT_PRIVATE_STANDALONE_CONFIG into spawned child dev servers', async () => {

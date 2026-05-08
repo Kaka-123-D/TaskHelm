@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { ProjectRepository, TaskRepository } from '@taskhelm/core'
 import { getDb } from '@/lib/db'
+import { deleteTaskCascade } from '@/lib/tasks/delete-task'
 import { Breadcrumb } from '@/components/design-system/breadcrumb'
 import { PortBadge } from '@/components/design-system/port-badge'
 import { TaskDetailPanels } from '@/components/task-detail-panels'
@@ -42,7 +43,7 @@ export default async function TaskPage({ params }: TaskPageProps) {
   async function handleDelete() {
     'use server'
     const db2 = getDb()
-    new TaskRepository(db2).delete(resolvedTaskId)
+    deleteTaskCascade(db2, resolvedTaskId)
   }
 
   return (

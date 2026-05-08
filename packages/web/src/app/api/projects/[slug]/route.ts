@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server'
-import { ProjectRepository, TaskRepository } from '@taskhelm/core'
+import * as fs from 'node:fs'
+import {
+  DevServerRepository,
+  ProjectRepository,
+  TaskRepository,
+  removeWorktree,
+} from '@taskhelm/core'
+import { stopDevServer } from '@taskhelm/supervisor'
 import { getDb } from '@/lib/db'
 
 type Params = { params: Promise<{ slug: string }> }
@@ -60,10 +67,35 @@ export async function DELETE(_request: Request, { params }: Params) {
     const { slug } = await params
     const db = getDb()
     const projectRepo = new ProjectRepository(db)
+    const taskRepo = new TaskRepository(db)
+    const devServerRepo = new DevServerRepository(db)
 
     const project = projectRepo.findBySlug(slug)
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    // Best-effort cleanup of OS-level state (running children, on-disk worktrees)
+    // BEFORE the DB cascade. We do this outside the SQLite transaction because
+    // these calls touch external state (signals, filesystem, git) that can't
+    // be rolled back if the transaction aborts.
+    const tasks = taskRepo.findByProjectId(project.id)
+    for (const task of tasks) {
+      const devServer = devServerRepo.findByTaskId(task.id)
+      if (devServer && devServer.status === 'running') {
+        try {
+          stopDevServer(db, devServer.id)
+        } catch {
+          // ignore — keep going
+        }
+      }
+      if (task.worktree_path != null && fs.existsSync(task.worktree_path)) {
+        try {
+          removeWorktree(project.local_repo_root, task.worktree_path)
+        } catch {
+          // ignore — keep going
+        }
+      }
     }
 
     const deleteProjectCascade = db.transaction((projectId: string) => {

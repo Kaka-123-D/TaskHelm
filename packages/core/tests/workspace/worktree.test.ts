@@ -66,8 +66,44 @@ describe('removeWorktree', () => {
     expect(fs.existsSync(worktreePath)).toBe(false)
   })
 
-  it('throws an error if the worktree path does not exist', () => {
-    expect(() => removeWorktree(tmpDir, path.join(worktreeRoot, 'nonexistent'))).toThrow()
+  it('falls back to prune when the worktree directory was already removed manually', () => {
+    const worktreePath = createWorktree({
+      repoRoot: tmpDir,
+      worktreeRoot,
+      branchName: 'feature-test',
+    })
+    // Simulate `rm -rf` on the worktree dir without using `git worktree remove`.
+    fs.rmSync(worktreePath, { recursive: true, force: true })
+    expect(fs.existsSync(worktreePath)).toBe(false)
+
+    // Should NOT throw — should prune the stale registry entry instead.
+    expect(() => removeWorktree(tmpDir, worktreePath)).not.toThrow()
+    expect(listWorktrees(tmpDir)).not.toContain(worktreePath)
+  })
+})
+
+describe('createWorktree resilience', () => {
+  it('recreates a worktree at the same path after the directory was rm -rf-ed', () => {
+    // User flow that broke before the prune-first fix:
+    //   1. createWorktree → worktree on disk + registered
+    //   2. rm -rf <path> directly (no `git worktree remove`)
+    //   3. createWorktree at the same path again
+    // Without prune, step 3 fails: "fatal: '<path>' is a missing but locked
+    // working tree" or "branch 'X' is already checked out at '<path>'".
+    const worktreePath = createWorktree({
+      repoRoot: tmpDir,
+      worktreeRoot,
+      branchName: 'feature-test',
+    })
+    fs.rmSync(worktreePath, { recursive: true, force: true })
+
+    const recreated = createWorktree({
+      repoRoot: tmpDir,
+      worktreeRoot,
+      branchName: 'feature-test',
+    })
+    expect(recreated).toBe(worktreePath)
+    expect(fs.existsSync(recreated)).toBe(true)
   })
 })
 
