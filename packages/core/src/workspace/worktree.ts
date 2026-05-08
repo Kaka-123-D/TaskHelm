@@ -90,3 +90,32 @@ export function listWorktrees(repoRoot: string): readonly string[] {
     throw new Error(`Failed to list worktrees: ${(error as Error).message}`)
   }
 }
+
+/** Resolve an on-disk path to its canonical (real, symlink-resolved) form. */
+export function canonicalWorktreePath(targetPath: string): string {
+  return fs.existsSync(targetPath)
+    ? fs.realpathSync.native(targetPath)
+    : path.resolve(targetPath)
+}
+
+/** True if `candidate` is a strict descendant of `rootDir`. */
+export function isWithinDir(rootDir: string, candidate: string): boolean {
+  const rel = path.relative(canonicalWorktreePath(rootDir), canonicalWorktreePath(candidate))
+  return rel.length > 0 && !rel.startsWith('..') && !path.isAbsolute(rel)
+}
+
+/** Read the branch currently checked out at the given worktree path. */
+export function getWorktreeBranch(worktreePath: string): string {
+  try {
+    return execSync('git branch --show-current', {
+      cwd: worktreePath,
+      stdio: 'pipe',
+    })
+      .toString()
+      .trim()
+  } catch (error) {
+    throw new Error(
+      `Failed to read branch at worktree "${worktreePath}": ${(error as Error).message}`
+    )
+  }
+}

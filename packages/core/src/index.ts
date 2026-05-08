@@ -9,7 +9,14 @@ export { EventRepository } from './models/event.js'
 export type { CreateEventInput } from './models/event.js'
 export { formatBranchName, createBranch, branchExists } from './workspace/branch.js'
 export type { BranchConfig } from './workspace/branch.js'
-export { createWorktree, removeWorktree, listWorktrees } from './workspace/worktree.js'
+export {
+  createWorktree,
+  removeWorktree,
+  listWorktrees,
+  canonicalWorktreePath,
+  isWithinDir,
+  getWorktreeBranch,
+} from './workspace/worktree.js'
 export type { WorktreeConfig } from './workspace/worktree.js'
 export { DevServerRepository } from './models/dev-server.js'
 export type { CreateDevServerInput } from './models/dev-server.js'

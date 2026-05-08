@@ -84,9 +84,23 @@ If multiple tasks match, the CLI prints them and **exits with code 2**. If nothi
 
 | Command | Notes |
 |---|---|
-| `init <taskId>` | Creates branch (idempotent) + worktree under `<repo>/.worktrees/<branch>/`. Branch name follows project's `branch_naming_pattern` (default `task/{id}`). |
+| `init <taskId>` | Creates branch (idempotent) + worktree under `<repo>/.worktrees/<branch>/`. Branch name follows project's `branch_naming_pattern` (default `task/{id}`). **Always creates a new worktree** — never use this when an on-disk worktree for the target branch already exists. |
+| `attach <taskId> <worktreePath> [-f/--force]` | Attach an **existing** on-disk worktree (already registered via `git worktree add`) to the task. Reads the branch from the worktree, writes `branch_name`/`worktree_path`. Requires the path to be under the project's `worktree_root` (override with `--force`). Use this instead of `init` when the worktree already exists. |
 | `status <taskId>` | Shows branch, worktree path, and whether the worktree exists on disk. |
 | `cleanup <taskId> [-y/--yes]` | Removes the worktree, clears `branch_name`/`worktree_path` on the task. **Branch is preserved** so commits aren't lost. Without `-y` you'll be prompted to confirm. |
+
+**`init` vs `attach` decision tree:**
+
+```
+Is there already a worktree on disk for the branch you want to use?
+├─ NO  → workspace init <taskId>          (creates branch + worktree)
+└─ YES → Is the worktree registered in `git worktree list`?
+         ├─ NO  → register it first: `git worktree add .worktrees/<name> <branch>`
+         │       then: workspace attach <taskId> <path>
+         └─ YES → workspace attach <taskId> <path>
+```
+
+`init` will fail with `git worktree add: '<branch>' is already checked out at '<path>'` if you point it at a branch that's already checked out somewhere. Use `attach` instead — it never duplicates worktrees.
 
 ### `taskhelm dev`
 

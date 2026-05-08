@@ -1,6 +1,6 @@
 {
   "name": "@taskhelm/cli",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "description": "CLI for TaskHelm — manage projects, tasks, worktrees, and dev servers from your terminal.",
   "keywords": [
     "taskhelm",

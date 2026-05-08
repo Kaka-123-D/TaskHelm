@@ -3,7 +3,14 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { execSync } from 'node:child_process'
-import { createWorktree, removeWorktree, listWorktrees } from '../../src/workspace/worktree.js'
+import {
+  createWorktree,
+  removeWorktree,
+  listWorktrees,
+  canonicalWorktreePath,
+  isWithinDir,
+  getWorktreeBranch,
+} from '../../src/workspace/worktree.js'
 
 let tmpDir: string
 let worktreeRoot: string
@@ -123,5 +130,51 @@ describe('listWorktrees', () => {
 
     const worktrees = listWorktrees(tmpDir)
     expect(worktrees).toContain(worktreePath)
+  })
+})
+
+describe('canonicalWorktreePath', () => {
+  it('returns the realpath when the path exists (resolves symlinks)', () => {
+    const worktreePath = createWorktree({
+      repoRoot: tmpDir,
+      worktreeRoot,
+      branchName: 'feature-test',
+    })
+    const symlinkPath = path.join(tmpDir, 'wt-symlink')
+    fs.symlinkSync(worktreePath, symlinkPath)
+
+    expect(canonicalWorktreePath(symlinkPath)).toBe(worktreePath)
+  })
+
+  it('returns a resolved path even when the target does not exist', () => {
+    const ghost = path.join(tmpDir, 'nope', '..', 'still-nope')
+    expect(canonicalWorktreePath(ghost)).toBe(path.resolve(tmpDir, 'still-nope'))
+  })
+})
+
+describe('isWithinDir', () => {
+  it('returns true when candidate is a strict descendant', () => {
+    const worktreePath = createWorktree({
+      repoRoot: tmpDir,
+      worktreeRoot,
+      branchName: 'feature-test',
+    })
+    expect(isWithinDir(worktreeRoot, worktreePath)).toBe(true)
+  })
+
+  it('returns false when candidate is the dir itself or outside', () => {
+    expect(isWithinDir(worktreeRoot, worktreeRoot)).toBe(false)
+    expect(isWithinDir(worktreeRoot, tmpDir)).toBe(false)
+  })
+})
+
+describe('getWorktreeBranch', () => {
+  it('returns the branch name checked out in a worktree', () => {
+    const worktreePath = createWorktree({
+      repoRoot: tmpDir,
+      worktreeRoot,
+      branchName: 'feature-test',
+    })
+    expect(getWorktreeBranch(worktreePath)).toBe('feature-test')
   })
 })

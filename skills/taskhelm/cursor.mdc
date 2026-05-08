@@ -28,12 +28,20 @@ The CLI never touches the remote: no push, no PR, no merge. It only manipulates 
 taskhelm project create --name "LoveRec" --slug loverec --repo /Users/me/code/loverec \
   --dev-command "npm run dev -- -p {{port}}" --install-command "npm i"
 taskhelm task create --project loverec --title "LRC-12752 popup creator" --key LRC-12752
+
+# When NO worktree exists yet for the branch:
 taskhelm workspace init loverec:LRC-12752
+
+# When the worktree was created outside TaskHelm (e.g. `git worktree add`):
+taskhelm workspace attach loverec:LRC-12752 /path/to/.worktrees/existing
+
 taskhelm dev start loverec:LRC-12752
 taskhelm dev logs loverec:LRC-12752 -f
 taskhelm dev stop loverec:LRC-12752
 taskhelm workspace cleanup loverec:LRC-12752 -y
 ```
+
+**`init` vs `attach`**: `init` always creates a new branch + worktree; it fails if the branch is already checked out elsewhere. Use `attach <taskId> <path>` to bind an existing on-disk worktree to a task without recreating it.
 
 ## Identifier resolution
 

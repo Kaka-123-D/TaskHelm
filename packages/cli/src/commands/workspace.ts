@@ -11,6 +11,10 @@ import {
   branchExists,
   createWorktree,
   removeWorktree,
+  listWorktrees,
+  canonicalWorktreePath,
+  isWithinDir,
+  getWorktreeBranch,
 } from '@taskhelm/core'
 import { getDb } from '../db.js'
 import { resolveTaskOrExit } from '../resolver.js'
@@ -79,6 +83,102 @@ export function registerWorkspaceCommands(program: Command): void {
         console.log(`  Worktree:  ${chalk.cyan(worktreePath)}`)
       } catch (error) {
         console.error(chalk.red('Error initializing workspace:'), (error as Error).message)
+        process.exit(1)
+      } finally {
+        db.close()
+      }
+    })
+
+  wsCmd
+    .command('attach <taskId> <worktreePath>')
+    .description('Attach an existing on-disk worktree to a task without creating a new one')
+    .option('-f, --force', 'Override safety checks (path outside project worktree_root, branch in use, task already has a worktree)')
+    .action((taskId: string, rawWorktreePath: string, opts: { force?: boolean }) => {
+      const db = getDb()
+      try {
+        const taskRepo = new TaskRepository(db)
+        const projectRepo = new ProjectRepository(db)
+
+        const task = resolveTaskOrExit(db, taskId)
+        const project = projectRepo.findById(task.project_id)
+        if (!project) {
+          console.error(chalk.red(`Project not found: ${task.project_id}`))
+          process.exit(1)
+        }
+
+        const repoRoot = project.local_repo_root
+        const worktreeRootDir = project.worktree_root ?? path.join(repoRoot, '.worktrees')
+        const targetPath = path.resolve(rawWorktreePath)
+
+        if (!fs.existsSync(targetPath)) {
+          console.error(chalk.red(`Path does not exist: ${targetPath}`))
+          process.exit(1)
+        }
+
+        const canonical = canonicalWorktreePath(targetPath)
+
+        const registered = listWorktrees(repoRoot).map(canonicalWorktreePath)
+        if (!registered.includes(canonical)) {
+          console.error(chalk.red(`Path is not a registered git worktree of ${repoRoot}: ${canonical}`))
+          console.error(chalk.dim('Run `git worktree list` in the project repo to see registered worktrees.'))
+          process.exit(1)
+        }
+
+        if (canonical === canonicalWorktreePath(repoRoot)) {
+          console.error(chalk.red('Cannot attach the project main repo as a task worktree.'))
+          process.exit(1)
+        }
+
+        if (!opts.force && !isWithinDir(worktreeRootDir, canonical)) {
+          console.error(
+            chalk.red(`Worktree path is outside project worktree_root (${worktreeRootDir}): ${canonical}`)
+          )
+          console.error(chalk.dim('Pass --force to attach a worktree from elsewhere.'))
+          process.exit(1)
+        }
+
+        const conflictingTask = taskRepo
+          .findByProjectId(project.id)
+          .find(other => other.id !== task.id && other.worktree_path != null
+            && canonicalWorktreePath(other.worktree_path) === canonical)
+        if (conflictingTask && !opts.force) {
+          console.error(
+            chalk.red(`Worktree already attached to another task: ${conflictingTask.title} (${conflictingTask.id})`)
+          )
+          console.error(chalk.dim('Pass --force to reassign — the other task will lose its worktree_path.'))
+          process.exit(1)
+        }
+
+        if (task.worktree_path != null && !opts.force) {
+          console.error(
+            chalk.red(`Task already has a worktree_path set: ${task.worktree_path}`)
+          )
+          console.error(chalk.dim('Run `workspace cleanup` first, or pass --force to overwrite.'))
+          process.exit(1)
+        }
+
+        const branch = getWorktreeBranch(canonical)
+        if (!branch) {
+          console.error(chalk.red(`Worktree has no current branch (detached HEAD?): ${canonical}`))
+          process.exit(1)
+        }
+
+        if (conflictingTask) {
+          taskRepo.update(conflictingTask.id, { worktree_path: null })
+        }
+
+        taskRepo.update(task.id, {
+          branch_name: branch,
+          workspace_branch: branch,
+          worktree_path: canonical,
+        })
+
+        console.log(chalk.green('Worktree attached:'))
+        console.log(`  Task:     ${chalk.bold(task.title)} (${task.id})`)
+        console.log(`  Branch:   ${chalk.cyan(branch)}`)
+        console.log(`  Worktree: ${chalk.cyan(canonical)}`)
+      } catch (error) {
+        console.error(chalk.red('Error attaching worktree:'), (error as Error).message)
         process.exit(1)
       } finally {
         db.close()
