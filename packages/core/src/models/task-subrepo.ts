@@ -10,6 +10,7 @@ export interface CreateTaskSubrepoInput {
   readonly preferred_port?: number | null
   readonly dev_command?: string | null
   readonly dev_server_state?: DevServerStatusValue | null
+  readonly created_by_taskhelm?: boolean
 }
 
 export interface UpdateTaskSubrepoInput {
@@ -18,6 +19,7 @@ export interface UpdateTaskSubrepoInput {
   readonly preferred_port?: number | null
   readonly dev_command?: string | null
   readonly dev_server_state?: DevServerStatusValue | null
+  readonly created_by_taskhelm?: boolean
 }
 
 type TaskSubrepoRow = {
@@ -29,6 +31,7 @@ type TaskSubrepoRow = {
   preferred_port: number | null
   dev_command: string | null
   dev_server_state: string | null
+  created_by_taskhelm: number
   created_at: string
   updated_at: string
 }
@@ -43,6 +46,7 @@ function rowToTaskSubrepo(row: TaskSubrepoRow): TaskSubrepo {
     preferred_port: row.preferred_port,
     dev_command: row.dev_command,
     dev_server_state: row.dev_server_state as DevServerStatusValue | null,
+    created_by_taskhelm: row.created_by_taskhelm !== 0,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }
@@ -61,11 +65,13 @@ export class TaskSubrepoRepository {
           id, task_id, repo_path,
           branch_name, worktree_path,
           preferred_port, dev_command, dev_server_state,
+          created_by_taskhelm,
           created_at, updated_at
         ) VALUES (
           @id, @task_id, @repo_path,
           @branch_name, @worktree_path,
           @preferred_port, @dev_command, @dev_server_state,
+          @created_by_taskhelm,
           @created_at, @updated_at
         )`
       )
@@ -78,6 +84,7 @@ export class TaskSubrepoRepository {
         preferred_port: input.preferred_port ?? null,
         dev_command: input.dev_command ?? null,
         dev_server_state: input.dev_server_state ?? null,
+        created_by_taskhelm: (input.created_by_taskhelm ?? true) ? 1 : 0,
         created_at: now,
         updated_at: now,
       })
@@ -125,6 +132,7 @@ export class TaskSubrepoRepository {
           preferred_port = @preferred_port,
           dev_command = @dev_command,
           dev_server_state = @dev_server_state,
+          created_by_taskhelm = @created_by_taskhelm,
           updated_at = @updated_at
         WHERE id = @id`
       )
@@ -142,6 +150,12 @@ export class TaskSubrepoRepository {
           input.dev_server_state !== undefined
             ? input.dev_server_state
             : existing.dev_server_state,
+        created_by_taskhelm:
+          (input.created_by_taskhelm !== undefined
+            ? input.created_by_taskhelm
+            : existing.created_by_taskhelm)
+            ? 1
+            : 0,
         updated_at: now,
       })
 

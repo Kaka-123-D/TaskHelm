@@ -66,7 +66,7 @@ describe('runMigrations', () => {
     runMigrations(db)
 
     const rows = db.prepare('SELECT filename FROM _migrations ORDER BY filename').all() as Array<{ filename: string }>
-    expect(rows.length).toBe(16)
+    expect(rows.length).toBe(17)
     expect(rows[0].filename).toMatch(/001_projects/)
     expect(rows[8].filename).toMatch(/009_/)
     expect(rows[9].filename).toMatch(/010_local_context_schema_cleanup/)
@@ -76,10 +76,11 @@ describe('runMigrations', () => {
     expect(rows[13].filename).toMatch(/014_drop_agent_runs_and_review_gates/)
     expect(rows[14].filename).toMatch(/015_dev_server_logs_and_errors/)
     expect(rows[15].filename).toMatch(/016_task_subrepos/)
+    expect(rows[16].filename).toMatch(/017_task_subrepos_attached_flag/)
     db.close()
   })
 
-  it('creates task_subrepos table and adds task_subrepo_id to dev_servers (migration 016)', () => {
+  it('creates task_subrepos table and adds task_subrepo_id to dev_servers (migration 016) plus created_by_taskhelm column (017)', () => {
     const db = createDatabase(TEST_DB_PATH)
     runMigrations(db)
 
@@ -100,6 +101,7 @@ describe('runMigrations', () => {
       'dev_server_state',
       'created_at',
       'updated_at',
+      'created_by_taskhelm',
     ])
 
     const devServerColumns = db.prepare('PRAGMA table_info(dev_servers)').all() as Array<{ name: string }>
@@ -367,7 +369,7 @@ describe('runMigrations', () => {
     expect(taskColumns.map(column => column.name)).not.toContain('source_type')
 
     const rows = db.prepare('SELECT filename FROM _migrations ORDER BY filename').all() as Array<{ filename: string }>
-    expect(rows.at(-1)?.filename).toBe('016_task_subrepos.sql')
+    expect(rows.at(-1)?.filename).toBe('017_task_subrepos_attached_flag.sql')
     db.close()
   })
 })

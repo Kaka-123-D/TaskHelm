@@ -189,6 +189,25 @@ describe('TaskSubrepoRepository', () => {
     expect(repo.findByTaskId(task.id)).toHaveLength(0)
   })
 
+  it('defaults created_by_taskhelm to true and persists explicit false', () => {
+    const { task } = makeTask(db)
+    const repo = new TaskSubrepoRepository(db)
+
+    const defaulted = repo.create({ task_id: task.id, repo_path: 'repos/created' })
+    expect(defaulted.created_by_taskhelm).toBe(true)
+
+    const attached = repo.create({
+      task_id: task.id,
+      repo_path: 'repos/attached',
+      created_by_taskhelm: false,
+    })
+    expect(attached.created_by_taskhelm).toBe(false)
+    expect(repo.findById(attached.id)?.created_by_taskhelm).toBe(false)
+
+    const flipped = repo.update(attached.id, { created_by_taskhelm: true })
+    expect(flipped.created_by_taskhelm).toBe(true)
+  })
+
   it('cascades on task delete (FK ON DELETE CASCADE)', () => {
     const { task } = makeTask(db)
     const subrepoRepo = new TaskSubrepoRepository(db)

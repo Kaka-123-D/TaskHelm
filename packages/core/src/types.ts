@@ -92,6 +92,15 @@ export interface TaskSubrepo {
   readonly preferred_port: number | null
   readonly dev_command: string | null
   readonly dev_server_state: DevServerStatusValue | null
+  /**
+   * Whether TaskHelm itself created the worktree at `worktree_path` (true,
+   * default) or attached a pre-existing worktree that lived on disk before
+   * the user pointed at it via `subrepoAttach` (false). Drives whether
+   * workspace cleanup actually runs `git worktree remove` against the path
+   * — attached-but-not-created paths are left untouched so we never destroy
+   * the user's prior state.
+   */
+  readonly created_by_taskhelm: boolean
   readonly created_at: string
   readonly updated_at: string
 }

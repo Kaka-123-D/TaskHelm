@@ -371,6 +371,187 @@ describe('POST /api/tasks/[taskId]/workspace', () => {
     })
   })
 
+  it('attaches an existing nested-repo worktree via subrepoAttach instead of creating one', async () => {
+    // Pre-create a worktree of `packages/ui` so the attach path exists.
+    const nestedRepo = path.join(repoRoot, 'packages', 'ui')
+    execSync('git branch feat/already-there', { cwd: nestedRepo, stdio: 'pipe' })
+    const preExistingWorktree = path.join(repoRoot, '.worktrees', 'preexisting-ui')
+    fs.mkdirSync(path.dirname(preExistingWorktree), { recursive: true })
+    execSync(`git worktree add "${preExistingWorktree}" feat/already-there`, {
+      cwd: nestedRepo,
+      stdio: 'pipe',
+    })
+    const canonicalAttachPath = fs.realpathSync.native(preExistingWorktree)
+
+    const project = new ProjectRepository(db).create({
+      name: 'Alpha',
+      slug: 'alpha',
+      local_repo_root: repoRoot,
+    })
+    const taskRepo = new TaskRepository(db)
+    const task = taskRepo.create({
+      project_id: project.id,
+      title: 'Attach during init',
+      key: 'ALPHA-ATTACH',
+    })
+
+    const baseBranchName = execSync('git rev-parse --abbrev-ref HEAD', {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: 'pipe',
+    }).trim()
+
+    const { POST } = await import('./route')
+    const response = await POST(
+      new Request('http://localhost', {
+        method: 'POST',
+        body: JSON.stringify({
+          workspaceName: 'alpha-attach',
+          workspaceBranch: 'feature/alpha-attach',
+          baseBranch: baseBranchName,
+          autoPullBaseBranch: false,
+          subrepoBranches: [
+            { repoPath: path.join('packages', 'ui'), branch: 'feat/already-there' },
+          ],
+          subrepoAttach: {
+            [path.join('packages', 'ui')]: canonicalAttachPath,
+          },
+        }),
+      }),
+      { params: Promise.resolve({ taskId: task.id }) },
+    )
+    expect(response.status).toBe(201)
+
+    const subrepoRows = new TaskSubrepoRepository(db).findByTaskId(task.id)
+    expect(subrepoRows).toHaveLength(1)
+    expect(subrepoRows[0].worktree_path).toBe(canonicalAttachPath)
+    expect(subrepoRows[0].branch_name).toBe('feat/already-there')
+
+    // The attached worktree is the pre-existing one, NOT a freshly-created
+    // nested worktree under the outer worktree.
+    const payload = await response.json()
+    expect(fs.existsSync(path.join(payload.worktreePath, 'packages', 'ui', '.git'))).toBe(false)
+  })
+
+  it('DELETE workspace leaves attached nested worktrees on disk', async () => {
+    // Setup an attached worktree of packages/ui, init with subrepoAttach, then
+    // cleanup. The pre-existing worktree must still be on disk and still
+    // registered in the nested repo's worktree list afterward.
+    const nestedRepo = path.join(repoRoot, 'packages', 'ui')
+    execSync('git branch feat/preserve-me', { cwd: nestedRepo, stdio: 'pipe' })
+    const attachPath = path.join(repoRoot, '.worktrees', 'attached-ui')
+    fs.mkdirSync(path.dirname(attachPath), { recursive: true })
+    execSync(`git worktree add "${attachPath}" feat/preserve-me`, {
+      cwd: nestedRepo,
+      stdio: 'pipe',
+    })
+    const canonicalAttachPath = fs.realpathSync.native(attachPath)
+
+    const project = new ProjectRepository(db).create({
+      name: 'Alpha',
+      slug: 'alpha',
+      local_repo_root: repoRoot,
+    })
+    const taskRepo = new TaskRepository(db)
+    const task = taskRepo.create({
+      project_id: project.id,
+      title: 'Preserve attached',
+      key: 'ALPHA-PRESERVE',
+    })
+    const base = execSync('git rev-parse --abbrev-ref HEAD', {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: 'pipe',
+    }).trim()
+
+    const route = await import('./route')
+    const initResponse = await route.POST(
+      new Request('http://localhost', {
+        method: 'POST',
+        body: JSON.stringify({
+          workspaceName: 'preserve-ws',
+          workspaceBranch: 'feature/preserve-ws',
+          baseBranch: base,
+          autoPullBaseBranch: false,
+          subrepoBranches: [
+            { repoPath: path.join('packages', 'ui'), branch: 'feat/preserve-me' },
+          ],
+          subrepoAttach: {
+            [path.join('packages', 'ui')]: canonicalAttachPath,
+          },
+        }),
+      }),
+      { params: Promise.resolve({ taskId: task.id }) },
+    )
+    expect(initResponse.status).toBe(201)
+
+    const subrepoRowsBefore = new TaskSubrepoRepository(db).findByTaskId(task.id)
+    expect(subrepoRowsBefore).toHaveLength(1)
+    expect(subrepoRowsBefore[0].created_by_taskhelm).toBe(false)
+
+    const cleanupResponse = await route.DELETE(new Request('http://localhost', { method: 'DELETE' }), {
+      params: Promise.resolve({ taskId: task.id }),
+    })
+    expect(cleanupResponse.status).toBe(200)
+
+    // The attached worktree must still be on disk + registered.
+    expect(fs.existsSync(canonicalAttachPath)).toBe(true)
+    const remaining = execSync('git worktree list --porcelain', {
+      cwd: nestedRepo,
+      encoding: 'utf8',
+      stdio: 'pipe',
+    })
+    expect(remaining).toContain(canonicalAttachPath)
+  })
+
+  it('rejects subrepoAttach to a path that is not a worktree of the nested repo', async () => {
+    const project = new ProjectRepository(db).create({
+      name: 'Alpha',
+      slug: 'alpha',
+      local_repo_root: repoRoot,
+    })
+    const task = new TaskRepository(db).create({
+      project_id: project.id,
+      title: 'Bad attach',
+      key: 'ALPHA-BADATTACH',
+    })
+
+    const baseBranchName = execSync('git rev-parse --abbrev-ref HEAD', {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: 'pipe',
+    }).trim()
+
+    // A real on-disk path that is NOT a registered worktree of packages/ui.
+    const wrongPath = fs.mkdtempSync(path.join(os.tmpdir(), 'taskhelm-wrong-attach-'))
+
+    const { POST } = await import('./route')
+    const response = await POST(
+      new Request('http://localhost', {
+        method: 'POST',
+        body: JSON.stringify({
+          workspaceName: 'bad-attach',
+          workspaceBranch: 'feature/bad-attach',
+          baseBranch: baseBranchName,
+          autoPullBaseBranch: false,
+          subrepoBranches: [
+            { repoPath: path.join('packages', 'ui'), branch: 'feature/whatever' },
+          ],
+          subrepoAttach: {
+            [path.join('packages', 'ui')]: wrongPath,
+          },
+        }),
+      }),
+      { params: Promise.resolve({ taskId: task.id }) },
+    )
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringContaining('not a registered worktree'),
+    })
+
+    fs.rmSync(wrongPath, { recursive: true, force: true })
+  })
+
   it('persists task_subrepos rows on init and exposes per-subrepo state in GET', async () => {
     const project = new ProjectRepository(db).create({
       name: 'Alpha',

@@ -39,6 +39,14 @@ interface WorkspaceRequestBody {
   readonly forceRefreshBaseBranch?: boolean
   readonly subrepoBranches?: readonly { repoPath: string; branch: string }[]
   readonly existingWorktreePath?: string
+  /**
+   * Per-subrepo attach map. Each entry maps a `repoPath` (must appear in
+   * `detectedSubrepos`) to an absolute path of an existing worktree of
+   * that nested repo. When provided, the API skips `git worktree add` for
+   * that subrepo and instead persists a `task_subrepos` row pointing at
+   * the existing on-disk worktree.
+   */
+  readonly subrepoAttach?: Record<string, string>
 }
 
 function trimOrEmpty(value: string | null | undefined): string {
@@ -429,30 +437,72 @@ export async function POST(request: Request, { params }: Params) {
       worktree_path: worktreePath,
     })
 
-    if (!selectedExistingWorktree && subrepoBranches.length > 0) {
-      materializeNestedRepoWorktrees({
-        repoRoot,
-        worktreePath,
-        nestedRepos: subrepoBranches,
-      })
-    }
-
     if (subrepoBranches.length > 0) {
       const subrepoRepo = new TaskSubrepoRepository(db)
+      const subrepoAttach = body.subrepoAttach ?? {}
+
       for (const entry of subrepoBranches) {
+        const nestedRepoAbsPath = path.join(repoRoot, entry.repoPath)
+        const attachRequest = trimOrEmpty(subrepoAttach[entry.repoPath])
+
+        let targetWorktreePath: string
+        let resolvedBranch = entry.branch
+        let createdByTaskhelm = true
+
+        if (attachRequest) {
+          const canonicalAttach = canonicalPath(attachRequest)
+          if (!fs.existsSync(canonicalAttach)) {
+            return NextResponse.json(
+              { error: `Attach path does not exist for ${entry.repoPath}: ${canonicalAttach}` },
+              { status: 400 },
+            )
+          }
+          const nestedWorktrees = fs.existsSync(path.join(nestedRepoAbsPath, '.git'))
+            ? listWorktrees(nestedRepoAbsPath).map(canonicalPath)
+            : []
+          if (!nestedWorktrees.includes(canonicalAttach)) {
+            return NextResponse.json(
+              {
+                error: `Path is not a registered worktree of ${entry.repoPath}: ${canonicalAttach}`,
+              },
+              { status: 400 },
+            )
+          }
+          targetWorktreePath = canonicalAttach
+          createdByTaskhelm = false
+          try {
+            const detected = readWorktreeBranch(canonicalAttach)
+            if (detected) resolvedBranch = detected
+          } catch {
+            // ignore — keep the user-provided branch as a fallback
+          }
+        } else {
+          if (!selectedExistingWorktree) {
+            // Outer worktree was freshly created above; materialize a nested
+            // worktree under it via `git worktree add` against the nested repo.
+            materializeNestedRepoWorktrees({
+              repoRoot,
+              worktreePath,
+              nestedRepos: [entry],
+            })
+          }
+          targetWorktreePath = path.join(worktreePath, entry.repoPath)
+        }
+
         const existing = subrepoRepo.findByTaskIdAndRepoPath(task.id, entry.repoPath)
-        const targetWorktreePath = path.join(worktreePath, entry.repoPath)
         if (existing) {
           subrepoRepo.update(existing.id, {
-            branch_name: entry.branch,
+            branch_name: resolvedBranch,
             worktree_path: targetWorktreePath,
+            created_by_taskhelm: createdByTaskhelm,
           })
         } else {
           subrepoRepo.create({
             task_id: task.id,
             repo_path: entry.repoPath,
-            branch_name: entry.branch,
+            branch_name: resolvedBranch,
             worktree_path: targetWorktreePath,
+            created_by_taskhelm: createdByTaskhelm,
           })
         }
       }
@@ -500,6 +550,10 @@ export async function DELETE(_request: Request, { params }: Params) {
     const subrepoRepo = new TaskSubrepoRepository(db)
     const subrepoRows = subrepoRepo.findByTaskId(task.id)
     for (const row of subrepoRows) {
+      // Never destroy a worktree the user pointed us at via attach — that
+      // path pre-existed our involvement and removing it would silently
+      // delete their on-disk state.
+      if (!row.created_by_taskhelm) continue
       if (row.worktree_path && fs.existsSync(row.worktree_path)) {
         try {
           const nestedRepoAbsPath = path.join(project.local_repo_root, row.repo_path)
