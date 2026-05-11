@@ -86,21 +86,22 @@ export function SubrepoRow({
         placeholder="feature/subrepo-branch"
       />
 
+      <GlassInput
+        label="Preferred Port"
+        value={editable.portInput}
+        onChange={event => onPortChange(event.target.value)}
+        placeholder="3001"
+        type="number"
+      />
+      <GlassInput
+        label="Dev Command (override)"
+        value={editable.devCommandInput}
+        onChange={event => onDevCommandChange(event.target.value)}
+        placeholder="yarn dev"
+      />
+
       {initialized ? (
         <>
-          <GlassInput
-            label="Preferred Port"
-            value={editable.portInput}
-            onChange={event => onPortChange(event.target.value)}
-            placeholder="3001"
-            type="number"
-          />
-          <GlassInput
-            label="Dev Command (override)"
-            value={editable.devCommandInput}
-            onChange={event => onDevCommandChange(event.target.value)}
-            placeholder="yarn dev"
-          />
           <div className="flex gap-2">
             {running ? (
               <GlassButton

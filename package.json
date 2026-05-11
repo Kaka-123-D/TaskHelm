@@ -1,6 +1,6 @@
 {
   "name": "taskhelm",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Local-first visual workbench for parallel git-worktree work — manage tasks, branches, worktrees, ports, and pooled dev servers from one dashboard on your machine.",
   "keywords": [
     "git-worktree",
@@ -58,9 +58,9 @@
     "typescript": "^5.7.0"
   },
   "dependencies": {
-    "@taskhelm/cli": "0.2.1",
-    "@taskhelm/core": "0.2.1",
-    "@taskhelm/supervisor": "0.2.1",
+    "@taskhelm/cli": "0.2.2",
+    "@taskhelm/core": "0.2.2",
+    "@taskhelm/supervisor": "0.2.2",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^24.8.1",
     "@types/react": "^19.0.0",

@@ -136,8 +136,17 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
       .filter(entry => entry.branch.length > 0 || entry.existingWorktreePath.length > 0)
 
     const subrepoAttach: Record<string, string> = {}
+    const subrepoPorts: Record<string, number | null> = {}
+    const subrepoDevCommands: Record<string, string> = {}
     for (const entry of subrepoEntries) {
       if (entry.existingWorktreePath) subrepoAttach[entry.repoPath] = entry.existingWorktreePath
+      const portRaw = subrepoEditable[entry.repoPath]?.portInput?.trim() ?? ''
+      if (portRaw.length > 0) {
+        const parsed = Number(portRaw)
+        if (Number.isFinite(parsed) && parsed > 0) subrepoPorts[entry.repoPath] = parsed
+      }
+      const cmd = subrepoEditable[entry.repoPath]?.devCommandInput?.trim() ?? ''
+      if (cmd.length > 0) subrepoDevCommands[entry.repoPath] = cmd
     }
 
     return {
@@ -147,6 +156,8 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
       autoPullBaseBranch,
       subrepoBranches: subrepoEntries.map(({ repoPath, branch }) => ({ repoPath, branch })),
       subrepoAttach,
+      subrepoPorts,
+      subrepoDevCommands,
     }
   }, [
     autoPullBaseBranch,

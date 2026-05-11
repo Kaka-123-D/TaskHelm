@@ -47,6 +47,10 @@ interface WorkspaceRequestBody {
    * the existing on-disk worktree.
    */
   readonly subrepoAttach?: Record<string, string>
+  /** Per-subrepo preferred port. Persisted on the task_subrepos row. */
+  readonly subrepoPorts?: Record<string, number | null>
+  /** Per-subrepo dev_command override. Persisted on the task_subrepos row. */
+  readonly subrepoDevCommands?: Record<string, string>
 }
 
 function trimOrEmpty(value: string | null | undefined): string {
@@ -440,6 +444,8 @@ export async function POST(request: Request, { params }: Params) {
     if (subrepoBranches.length > 0) {
       const subrepoRepo = new TaskSubrepoRepository(db)
       const subrepoAttach = body.subrepoAttach ?? {}
+      const subrepoPorts = body.subrepoPorts ?? {}
+      const subrepoDevCommands = body.subrepoDevCommands ?? {}
 
       for (const entry of subrepoBranches) {
         const nestedRepoAbsPath = path.join(repoRoot, entry.repoPath)
@@ -489,11 +495,24 @@ export async function POST(request: Request, { params }: Params) {
           targetWorktreePath = path.join(worktreePath, entry.repoPath)
         }
 
+        const rawPort = subrepoPorts[entry.repoPath]
+        const resolvedPort =
+          typeof rawPort === 'number' && Number.isFinite(rawPort) && rawPort > 0
+            ? Math.trunc(rawPort)
+            : null
+        const rawDevCommand = subrepoDevCommands[entry.repoPath]
+        const resolvedDevCommand =
+          typeof rawDevCommand === 'string' && rawDevCommand.trim().length > 0
+            ? rawDevCommand.trim()
+            : null
+
         const existing = subrepoRepo.findByTaskIdAndRepoPath(task.id, entry.repoPath)
         if (existing) {
           subrepoRepo.update(existing.id, {
             branch_name: resolvedBranch,
             worktree_path: targetWorktreePath,
+            preferred_port: resolvedPort,
+            dev_command: resolvedDevCommand,
             created_by_taskhelm: createdByTaskhelm,
           })
         } else {
@@ -502,6 +521,8 @@ export async function POST(request: Request, { params }: Params) {
             repo_path: entry.repoPath,
             branch_name: resolvedBranch,
             worktree_path: targetWorktreePath,
+            preferred_port: resolvedPort,
+            dev_command: resolvedDevCommand,
             created_by_taskhelm: createdByTaskhelm,
           })
         }
