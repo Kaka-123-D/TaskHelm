@@ -8,6 +8,7 @@ import {
   runMigrations,
   ProjectRepository,
   TaskRepository,
+  TaskSubrepoRepository,
   DevServerRepository,
 } from '@taskhelm/core'
 import type Database from 'better-sqlite3'
@@ -580,5 +581,92 @@ describe('getPoolStatus', () => {
 
   it('throws when project not found', () => {
     expect(() => getPoolStatus(db, 'nonexistent-project')).toThrow('Project not found')
+  })
+})
+
+describe('startDevServer with taskSubrepoId', () => {
+  it('persists task_subrepo_id on the dev_servers row', async () => {
+    const subrepo = new TaskSubrepoRepository(db).create({
+      task_id: task.id,
+      repo_path: 'repos/backend',
+    })
+
+    const devServer = await startDevServer({
+      db,
+      projectId: project.id,
+      taskId: task.id,
+      taskSubrepoId: subrepo.id,
+      devCommand: 'node -e "setTimeout(()=>{},60000)"',
+      cwd: os.tmpdir(),
+      port: 19260,
+      logsDir,
+      healthcheckDelayMs: 0,
+    })
+    if (devServer.pid) spawnedPids.push(devServer.pid)
+
+    expect(devServer.task_subrepo_id).toBe(subrepo.id)
+    expect(new DevServerRepository(db).findByTaskSubrepoId(subrepo.id)?.id).toBe(devServer.id)
+  })
+
+  it('starts two servers for the same task with different subrepos', async () => {
+    const projectRepo = new ProjectRepository(db)
+    const projectWithRoom = projectRepo.create({
+      name: 'roomy',
+      slug: 'roomy',
+      local_repo_root: '/tmp/roomy',
+      max_active_dev_servers: 5,
+    })
+    const subRepoRepo = new TaskSubrepoRepository(db)
+    const subA = subRepoRepo.create({ task_id: task.id, repo_path: 'repos/a' })
+    const subB = subRepoRepo.create({ task_id: task.id, repo_path: 'repos/b' })
+
+    const serverA = await startDevServer({
+      db,
+      projectId: projectWithRoom.id,
+      taskId: task.id,
+      taskSubrepoId: subA.id,
+      devCommand: 'node -e "setTimeout(()=>{},60000)"',
+      cwd: os.tmpdir(),
+      port: 19261,
+      logsDir,
+      healthcheckDelayMs: 0,
+    })
+    if (serverA.pid) spawnedPids.push(serverA.pid)
+
+    const serverB = await startDevServer({
+      db,
+      projectId: projectWithRoom.id,
+      taskId: task.id,
+      taskSubrepoId: subB.id,
+      devCommand: 'node -e "setTimeout(()=>{},60000)"',
+      cwd: os.tmpdir(),
+      port: 19262,
+      logsDir,
+      healthcheckDelayMs: 0,
+    })
+    if (serverB.pid) spawnedPids.push(serverB.pid)
+
+    expect(serverA.id).not.toBe(serverB.id)
+    expect(serverA.task_subrepo_id).toBe(subA.id)
+    expect(serverB.task_subrepo_id).toBe(subB.id)
+
+    const allForTask = new DevServerRepository(db).findAllByTaskId(task.id)
+    expect(allForTask.map(s => s.task_subrepo_id).sort()).toEqual([subA.id, subB.id].sort())
+  })
+
+  it('leaves task_subrepo_id NULL for outer-repo invocations (no flag passed)', async () => {
+    const devServer = await startDevServer({
+      db,
+      projectId: project.id,
+      taskId: task.id,
+      devCommand: 'node -e "setTimeout(()=>{},60000)"',
+      cwd: os.tmpdir(),
+      port: 19263,
+      logsDir,
+      healthcheckDelayMs: 0,
+    })
+    if (devServer.pid) spawnedPids.push(devServer.pid)
+
+    expect(devServer.task_subrepo_id).toBeNull()
   })
 })

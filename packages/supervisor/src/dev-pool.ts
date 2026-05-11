@@ -13,6 +13,13 @@ export interface StartServerOptions {
   readonly db: Database.Database
   readonly projectId: string
   readonly taskId: string
+  /**
+   * When set, the dev_servers row is associated with one nested-repo slot
+   * of the task. The caller resolves `cwd`, `devCommand`, and `port` from
+   * that subrepo's row (or its project-level fallback) before calling here.
+   * Leave undefined for the legacy single-repo / outer-worktree case.
+   */
+  readonly taskSubrepoId?: string
   readonly devCommand: string
   readonly cwd: string
   readonly port: number
@@ -187,6 +194,7 @@ export async function startDevServerWithDiagnostics(
     db,
     projectId,
     taskId,
+    taskSubrepoId,
     devCommand,
     cwd,
     port,
@@ -217,6 +225,7 @@ export async function startDevServerWithDiagnostics(
   let devServer = devServerRepo.create({
     project_id: projectId,
     task_id: taskId,
+    task_subrepo_id: taskSubrepoId,
     port,
     status: 'starting',
     health_url: healthUrl,
