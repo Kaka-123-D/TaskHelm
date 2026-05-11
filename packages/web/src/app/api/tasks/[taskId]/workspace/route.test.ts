@@ -3,7 +3,13 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { execSync } from 'node:child_process'
-import { createDatabase, runMigrations, ProjectRepository, TaskRepository } from '@taskhelm/core'
+import {
+  createDatabase,
+  runMigrations,
+  ProjectRepository,
+  TaskRepository,
+  TaskSubrepoRepository,
+} from '@taskhelm/core'
 
 const TEST_DB = path.join(import.meta.dirname, '__test_workspace_route__.db')
 let db: ReturnType<typeof createDatabase>
@@ -363,6 +369,63 @@ describe('POST /api/tasks/[taskId]/workspace', () => {
       branch_name: 'feature/existing',
       worktree_path: canonicalExistingWorktreePath,
     })
+  })
+
+  it('persists task_subrepos rows on init and exposes per-subrepo state in GET', async () => {
+    const project = new ProjectRepository(db).create({
+      name: 'Alpha',
+      slug: 'alpha',
+      local_repo_root: repoRoot,
+    })
+    const taskRepo = new TaskRepository(db)
+    const task = taskRepo.create({
+      project_id: project.id,
+      title: 'Ship auth',
+      key: 'ALPHA-77',
+    })
+
+    const baseBranchName = execSync('git rev-parse --abbrev-ref HEAD', {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: 'pipe',
+    }).trim()
+
+    const { POST, GET } = await import('./route')
+    const postResponse = await POST(
+      new Request('http://localhost', {
+        method: 'POST',
+        body: JSON.stringify({
+          workspaceName: 'alpha-multi',
+          workspaceBranch: 'feature/alpha-multi',
+          baseBranch: baseBranchName,
+          autoPullBaseBranch: false,
+          subrepoBranches: [{ repoPath: path.join('packages', 'ui'), branch: 'feature/ui-sub' }],
+        }),
+      }),
+      { params: Promise.resolve({ taskId: task.id }) },
+    )
+    expect(postResponse.status).toBe(201)
+
+    const subrepoRows = new TaskSubrepoRepository(db).findByTaskId(task.id)
+    expect(subrepoRows).toHaveLength(1)
+    expect(subrepoRows[0]).toMatchObject({
+      repo_path: path.join('packages', 'ui'),
+      branch_name: 'feature/ui-sub',
+    })
+    expect(subrepoRows[0].worktree_path).toBeTruthy()
+
+    const getResponse = await GET(new Request('http://localhost'), {
+      params: Promise.resolve({ taskId: task.id }),
+    })
+    expect(getResponse.status).toBe(200)
+    const body = await getResponse.json()
+    expect(body.subrepos).toEqual([
+      expect.objectContaining({
+        repoPath: path.join('packages', 'ui'),
+        id: subrepoRows[0].id,
+        branchName: 'feature/ui-sub',
+      }),
+    ])
   })
 
   it('rejects unsafe branch names before running git commands', async () => {

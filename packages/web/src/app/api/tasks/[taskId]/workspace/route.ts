@@ -5,11 +5,13 @@ import * as path from 'node:path'
 import {
   ProjectRepository,
   TaskRepository,
+  TaskSubrepoRepository,
   formatBranchName,
   createWorktree,
   listWorktrees,
   removeWorktree,
 } from '@taskhelm/core'
+import type { TaskSubrepo, DevServerStatusValue } from '@taskhelm/core'
 import { getDb } from '@/lib/db'
 import { discoverSubrepos } from '@/lib/workspace/subrepo-discovery'
 import {
@@ -114,6 +116,100 @@ function getAvailableExistingWorktrees(
     }))
 }
 
+interface SubrepoState {
+  readonly repoPath: string
+  readonly id: string | null
+  readonly branchName: string | null
+  readonly worktreePath: string | null
+  readonly preferredPort: number | null
+  readonly devCommand: string | null
+  readonly devServerState: DevServerStatusValue | null
+  readonly availableExistingWorktrees: readonly ExistingWorktreeOption[]
+}
+
+/**
+ * Build the per-detected-subrepo state array used by the workspace panel.
+ * Rows that exist in `task_subrepos` carry their persisted state; detected
+ * subrepos without a row are returned uninitialized (all nulls) so the UI
+ * can show them as "Configure / Init" candidates.
+ *
+ * For each detected subrepo we ALSO list `git worktree` entries of that
+ * nested repo whose canonical path lives under the project's worktree root
+ * but is not yet attached to any task_subrepos row — those are
+ * attach-able existing worktrees of that subrepo.
+ */
+function buildSubrepoStates(
+  db: ReturnType<typeof getDb>,
+  projectId: string,
+  currentTaskId: string,
+  repoRoot: string,
+  worktreeRootDir: string,
+  detectedSubrepos: readonly string[],
+): readonly SubrepoState[] {
+  const subrepoRepo = new TaskSubrepoRepository(db)
+  const currentRows = subrepoRepo.findByTaskId(currentTaskId)
+  const rowsByPath = new Map<string, TaskSubrepo>()
+  for (const row of currentRows) {
+    rowsByPath.set(row.repo_path, row)
+  }
+
+  const assignedPathsByRepoPath = new Map<string, Set<string>>()
+  for (const repoPath of detectedSubrepos) {
+    assignedPathsByRepoPath.set(repoPath, new Set())
+  }
+  const allRowsThisProject = db
+    .prepare(
+      `SELECT s.id, s.task_id, s.repo_path, s.worktree_path
+       FROM task_subrepos s
+       INNER JOIN tasks t ON t.id = s.task_id
+       WHERE t.project_id = ?`,
+    )
+    .all(projectId) as Array<{
+      id: string
+      task_id: string
+      repo_path: string
+      worktree_path: string | null
+    }>
+  for (const row of allRowsThisProject) {
+    if (row.task_id === currentTaskId) continue
+    if (!row.worktree_path) continue
+    const bucket = assignedPathsByRepoPath.get(row.repo_path)
+    if (bucket) bucket.add(canonicalPath(row.worktree_path))
+  }
+
+  return detectedSubrepos.map(repoPath => {
+    const row = rowsByPath.get(repoPath) ?? null
+    const nestedAbsPath = path.join(repoRoot, repoPath)
+
+    let candidates: readonly ExistingWorktreeOption[] = []
+    if (fs.existsSync(path.join(nestedAbsPath, '.git'))) {
+      const assigned = assignedPathsByRepoPath.get(repoPath) ?? new Set<string>()
+      candidates = listWorktrees(nestedAbsPath)
+        .map(worktreePath => canonicalPath(worktreePath))
+        .filter(worktreePath => fs.existsSync(worktreePath))
+        .filter(worktreePath => isWithinDir(worktreeRootDir, worktreePath))
+        .filter(worktreePath => !assigned.has(worktreePath))
+        .filter(worktreePath => worktreePath !== canonicalPath(nestedAbsPath))
+        .map(worktreePath => ({
+          path: worktreePath,
+          name: path.basename(worktreePath),
+          branch: readWorktreeBranch(worktreePath),
+        }))
+    }
+
+    return {
+      repoPath,
+      id: row?.id ?? null,
+      branchName: row?.branch_name ?? null,
+      worktreePath: row?.worktree_path ?? null,
+      preferredPort: row?.preferred_port ?? null,
+      devCommand: row?.dev_command ?? null,
+      devServerState: (row?.dev_server_state as DevServerStatusValue | null) ?? null,
+      availableExistingWorktrees: candidates,
+    }
+  })
+}
+
 export async function GET(_request: Request, { params }: Params) {
   try {
     const { taskId } = await params
@@ -133,6 +229,8 @@ export async function GET(_request: Request, { params }: Params) {
 
     const worktreeRootDir = project.worktree_root ?? path.join(project.local_repo_root, '.worktrees')
 
+    const detectedSubrepos = discoverSubrepos(project.local_repo_root)
+
     return NextResponse.json({
       settings: {
         workspaceName: task.workspace_name ?? '',
@@ -142,7 +240,7 @@ export async function GET(_request: Request, { params }: Params) {
         preferredPort: task.preferred_port,
         subrepoBranches: parseWorkspaceSubrepoBranches(task.workspace_subrepo_branches_json),
       },
-      detectedSubrepos: discoverSubrepos(project.local_repo_root),
+      detectedSubrepos,
       availableBaseBranches: listAvailableBaseBranches(project.local_repo_root),
       availableExistingWorktrees: getAvailableExistingWorktrees(
         taskRepo,
@@ -150,6 +248,14 @@ export async function GET(_request: Request, { params }: Params) {
         task.id,
         project.local_repo_root,
         worktreeRootDir,
+      ),
+      subrepos: buildSubrepoStates(
+        db,
+        project.id,
+        task.id,
+        project.local_repo_root,
+        worktreeRootDir,
+        detectedSubrepos,
       ),
     })
   } catch (error) {
@@ -331,6 +437,27 @@ export async function POST(request: Request, { params }: Params) {
       })
     }
 
+    if (subrepoBranches.length > 0) {
+      const subrepoRepo = new TaskSubrepoRepository(db)
+      for (const entry of subrepoBranches) {
+        const existing = subrepoRepo.findByTaskIdAndRepoPath(task.id, entry.repoPath)
+        const targetWorktreePath = path.join(worktreePath, entry.repoPath)
+        if (existing) {
+          subrepoRepo.update(existing.id, {
+            branch_name: entry.branch,
+            worktree_path: targetWorktreePath,
+          })
+        } else {
+          subrepoRepo.create({
+            task_id: task.id,
+            repo_path: entry.repoPath,
+            branch_name: entry.branch,
+            worktree_path: targetWorktreePath,
+          })
+        }
+      }
+    }
+
     return NextResponse.json({
       workspaceName,
       branchName,
@@ -369,6 +496,23 @@ export async function DELETE(_request: Request, { params }: Params) {
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
+
+    const subrepoRepo = new TaskSubrepoRepository(db)
+    const subrepoRows = subrepoRepo.findByTaskId(task.id)
+    for (const row of subrepoRows) {
+      if (row.worktree_path && fs.existsSync(row.worktree_path)) {
+        try {
+          const nestedRepoAbsPath = path.join(project.local_repo_root, row.repo_path)
+          if (fs.existsSync(path.join(nestedRepoAbsPath, '.git'))) {
+            removeWorktree(nestedRepoAbsPath, row.worktree_path)
+          }
+        } catch {
+          // Best-effort — registry may already be clean. Continue cleanup so
+          // we don't leave dangling task_subrepos rows.
+        }
+      }
+    }
+    subrepoRepo.deleteByTaskId(task.id)
 
     if (task.worktree_path && fs.existsSync(task.worktree_path)) {
       removeWorktree(project.local_repo_root, task.worktree_path)

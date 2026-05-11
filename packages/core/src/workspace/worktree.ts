@@ -6,6 +6,13 @@ export interface WorktreeConfig {
   readonly repoRoot: string
   readonly worktreeRoot: string
   readonly branchName: string
+  /**
+   * Override for the worktree directory name. When omitted, the branch name
+   * is sanitized (slashes → dashes, non-`[A-Za-z0-9._-]` stripped). Use this
+   * when you need a stable, content-meaningful path — e.g. nested-repo
+   * worktrees that should live at `<root>/<task-key>/<subrepo-name>/`.
+   */
+  readonly worktreeName?: string
 }
 
 function sanitizeWorktreeDirName(branchName: string): string {
@@ -27,8 +34,8 @@ function pruneWorktrees(repoRoot: string): void {
 }
 
 export function createWorktree(config: WorktreeConfig): string {
-  const { repoRoot, worktreeRoot, branchName } = config
-  const dirName = sanitizeWorktreeDirName(branchName)
+  const { repoRoot, worktreeRoot, branchName, worktreeName } = config
+  const dirName = worktreeName ?? sanitizeWorktreeDirName(branchName)
   const worktreePath = path.join(worktreeRoot, dirName)
 
   pruneWorktrees(repoRoot)
