@@ -17,6 +17,7 @@ interface FormState {
   readonly devCommand: string
   readonly installCommand: string
   readonly maxDevServers: string
+  readonly isMultiRepo: boolean
 }
 
 export function EditProjectForm({ project }: EditProjectFormProps) {
@@ -27,6 +28,7 @@ export function EditProjectForm({ project }: EditProjectFormProps) {
     devCommand: project.dev_command ?? '',
     installCommand: project.install_command ?? '',
     maxDevServers: String(project.max_active_dev_servers),
+    isMultiRepo: project.is_multi_repo,
   })
   const [error, setError] = useState<string | null>(null)
   const [isFetching, setIsFetching] = useState(false)
@@ -35,7 +37,7 @@ export function EditProjectForm({ project }: EditProjectFormProps) {
   const router = useRouter()
 
   const updateField = useCallback(
-    (field: keyof FormState, value: string) => {
+    (field: keyof FormState, value: string | boolean) => {
       setForm(prev => ({ ...prev, [field]: value }))
     },
     []
@@ -46,11 +48,12 @@ export function EditProjectForm({ project }: EditProjectFormProps) {
     setError(null)
     setIsFetching(true)
     try {
-      const body: Record<string, string | number> = { name: form.name }
+      const body: Record<string, string | number | boolean> = { name: form.name }
       body.description = form.description || ''
       if (form.devCommand) body.dev_command = form.devCommand
       if (form.installCommand) body.install_command = form.installCommand
       body.max_active_dev_servers = parseInt(form.maxDevServers, 10) || 3
+      body.is_multi_repo = form.isMultiRepo
 
       const res = await fetch(`/api/projects/${project.slug}`, {
         method: 'PATCH',
@@ -97,6 +100,20 @@ export function EditProjectForm({ project }: EditProjectFormProps) {
             </div>
             <GlassInput label="Install Command" value={form.installCommand} onChange={e => updateField('installCommand', e.target.value)} placeholder="npm install" />
             <GlassInput label="Max Dev Servers" type="number" value={form.maxDevServers} onChange={e => updateField('maxDevServers', e.target.value)} placeholder="3" />
+            <label className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+              <input
+                type="checkbox"
+                checked={form.isMultiRepo}
+                onChange={e => updateField('isMultiRepo', e.target.checked)}
+                className="mt-1"
+              />
+              <span>
+                Multi-repo workspace
+                <span className="block text-xs text-[var(--text-muted)]">
+                  Project chứa nested repos (mỗi task có worktree + dev server riêng cho từng subrepo).
+                </span>
+              </span>
+            </label>
           </div>
           <div className="flex justify-end gap-3 mt-6">
             <GlassButton type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</GlassButton>

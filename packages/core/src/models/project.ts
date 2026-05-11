@@ -13,6 +13,7 @@ export interface CreateProjectInput {
   readonly dev_command?: string
   readonly install_command?: string
   readonly max_active_dev_servers?: number
+  readonly is_multi_repo?: boolean
 }
 
 export interface UpdateProjectInput {
@@ -24,6 +25,7 @@ export interface UpdateProjectInput {
   readonly dev_command?: string
   readonly install_command?: string
   readonly max_active_dev_servers?: number
+  readonly is_multi_repo?: boolean
 }
 
 type ProjectRow = {
@@ -38,6 +40,7 @@ type ProjectRow = {
   dev_command: string | null
   install_command: string | null
   max_active_dev_servers: number
+  is_multi_repo: number
   created_at: string
   updated_at: string
 }
@@ -55,6 +58,7 @@ function rowToProject(row: ProjectRow): Project {
     dev_command: row.dev_command,
     install_command: row.install_command,
     max_active_dev_servers: row.max_active_dev_servers,
+    is_multi_repo: row.is_multi_repo !== 0,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }
@@ -73,13 +77,13 @@ export class ProjectRepository {
           id, slug, name, description, local_repo_root,
           default_branch, branch_naming_pattern, worktree_root,
           dev_command, install_command,
-          max_active_dev_servers,
+          max_active_dev_servers, is_multi_repo,
           created_at, updated_at
         ) VALUES (
           @id, @slug, @name, @description, @local_repo_root,
           @default_branch, @branch_naming_pattern, @worktree_root,
           @dev_command, @install_command,
-          @max_active_dev_servers,
+          @max_active_dev_servers, @is_multi_repo,
           @created_at, @updated_at
         )`
       )
@@ -95,6 +99,7 @@ export class ProjectRepository {
         dev_command: input.dev_command ?? null,
         install_command: input.install_command ?? null,
         max_active_dev_servers: input.max_active_dev_servers ?? 1,
+        is_multi_repo: input.is_multi_repo ? 1 : 0,
         created_at: now,
         updated_at: now,
       })
@@ -143,6 +148,7 @@ export class ProjectRepository {
           dev_command = @dev_command,
           install_command = @install_command,
           max_active_dev_servers = @max_active_dev_servers,
+          is_multi_repo = @is_multi_repo,
           updated_at = @updated_at
         WHERE id = @id`
       )
@@ -165,6 +171,10 @@ export class ProjectRepository {
           input.max_active_dev_servers !== undefined
             ? input.max_active_dev_servers
             : existing.max_active_dev_servers,
+        is_multi_repo:
+          (input.is_multi_repo !== undefined ? input.is_multi_repo : existing.is_multi_repo)
+            ? 1
+            : 0,
         updated_at: now,
       })
 

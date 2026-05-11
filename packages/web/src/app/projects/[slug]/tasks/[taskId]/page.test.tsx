@@ -19,6 +19,7 @@ vi.mock('@taskhelm/core', () => ({
       dev_command: null,
       install_command: null,
       max_active_dev_servers: 1,
+    is_multi_repo: false,
     }),
   })),
   TaskRepository: vi.fn().mockImplementation(() => ({

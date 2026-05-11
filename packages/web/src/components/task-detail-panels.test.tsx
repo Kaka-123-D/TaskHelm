@@ -17,6 +17,10 @@ vi.mock('@/components/subrepos-panel', () => ({
   SubreposPanel: () => <div data-slot="subrepos-panel" />,
 }))
 
+vi.mock('@/components/multi-repo-workspace-panel', () => ({
+  MultiRepoWorkspacePanel: () => <div data-slot="multi-repo-workspace-panel" />,
+}))
+
 function createProject(overrides: Partial<Project> = {}): Project {
   return {
     id: 'project-1',
@@ -30,6 +34,7 @@ function createProject(overrides: Partial<Project> = {}): Project {
     dev_command: null,
     install_command: null,
     max_active_dev_servers: 1,
+    is_multi_repo: false,
     created_at: '2026-04-13T00:00:00.000Z',
     updated_at: '2026-04-13T00:00:00.000Z',
     ...overrides,

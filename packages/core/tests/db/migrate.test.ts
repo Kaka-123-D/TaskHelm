@@ -66,7 +66,7 @@ describe('runMigrations', () => {
     runMigrations(db)
 
     const rows = db.prepare('SELECT filename FROM _migrations ORDER BY filename').all() as Array<{ filename: string }>
-    expect(rows.length).toBe(17)
+    expect(rows.length).toBe(18)
     expect(rows[0].filename).toMatch(/001_projects/)
     expect(rows[8].filename).toMatch(/009_/)
     expect(rows[9].filename).toMatch(/010_local_context_schema_cleanup/)
@@ -77,6 +77,23 @@ describe('runMigrations', () => {
     expect(rows[14].filename).toMatch(/015_dev_server_logs_and_errors/)
     expect(rows[15].filename).toMatch(/016_task_subrepos/)
     expect(rows[16].filename).toMatch(/017_task_subrepos_attached_flag/)
+    expect(rows[17].filename).toMatch(/018_projects_is_multi_repo/)
+    db.close()
+  })
+
+  it('adds is_multi_repo column to projects (migration 018), default 0', () => {
+    const db = createDatabase(TEST_DB_PATH)
+    runMigrations(db)
+
+    const columns = db.prepare('PRAGMA table_info(projects)').all() as Array<{
+      name: string
+      dflt_value: string | null
+      notnull: number
+    }>
+    const flag = columns.find(c => c.name === 'is_multi_repo')
+    expect(flag).toBeTruthy()
+    expect(flag?.notnull).toBe(1)
+    expect(flag?.dflt_value).toBe('0')
     db.close()
   })
 
@@ -143,6 +160,7 @@ describe('runMigrations', () => {
       'max_active_dev_servers',
       'created_at',
       'updated_at',
+      'is_multi_repo',
     ])
 
     expect(taskColumns.map((column) => column.name)).toEqual([
@@ -369,7 +387,7 @@ describe('runMigrations', () => {
     expect(taskColumns.map(column => column.name)).not.toContain('source_type')
 
     const rows = db.prepare('SELECT filename FROM _migrations ORDER BY filename').all() as Array<{ filename: string }>
-    expect(rows.at(-1)?.filename).toBe('017_task_subrepos_attached_flag.sql')
+    expect(rows.at(-1)?.filename).toBe('018_projects_is_multi_repo.sql')
     db.close()
   })
 })

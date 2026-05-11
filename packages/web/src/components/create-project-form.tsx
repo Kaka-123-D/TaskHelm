@@ -15,6 +15,7 @@ interface FormState {
   readonly defaultBranch: string
   readonly devCommand: string
   readonly installCommand: string
+  readonly isMultiRepo: boolean
 }
 
 const INITIAL_STATE: FormState = {
@@ -25,6 +26,7 @@ const INITIAL_STATE: FormState = {
   defaultBranch: '',
   devCommand: '',
   installCommand: '',
+  isMultiRepo: false,
 }
 
 function toSlug(name: string): string {
@@ -41,7 +43,7 @@ export function CreateProjectForm() {
   const router = useRouter()
 
   const updateField = useCallback(
-    (field: keyof FormState, value: string) => {
+    (field: keyof FormState, value: string | boolean) => {
       setForm(prev => ({ ...prev, [field]: value }))
     },
     []
@@ -70,10 +72,11 @@ export function CreateProjectForm() {
     setError(null)
     setIsFetching(true)
     try {
-      const body: Record<string, string | undefined> = {
+      const body: Record<string, string | boolean | undefined> = {
         name: form.name,
         slug: form.slug,
         local_repo_root: form.localRepoRoot,
+        is_multi_repo: form.isMultiRepo,
       }
       if (form.description) body.description = form.description
       if (form.defaultBranch) body.default_branch = form.defaultBranch
@@ -136,6 +139,20 @@ export function CreateProjectForm() {
               </p>
             </div>
             <GlassInput label="Install Command" value={form.installCommand} onChange={e => updateField('installCommand', e.target.value)} placeholder="npm install" />
+            <label className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+              <input
+                type="checkbox"
+                checked={form.isMultiRepo}
+                onChange={e => updateField('isMultiRepo', e.target.checked)}
+                className="mt-1"
+              />
+              <span>
+                Multi-repo workspace
+                <span className="block text-xs text-[var(--text-muted)]">
+                  Project chứa các nested repos (mỗi task có worktree + dev server riêng cho từng subrepo). Mặc định tắt cho single-repo project.
+                </span>
+              </span>
+            </label>
           </div>
 
           <div className="mt-6 flex justify-end gap-3">

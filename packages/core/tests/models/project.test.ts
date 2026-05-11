@@ -39,6 +39,7 @@ describe('ProjectRepository', () => {
       expect(project.local_repo_root).toBe('/home/user/my-project')
       expect(project.description).toBeNull()
       expect(project.max_active_dev_servers).toBe(1)
+      expect(project.is_multi_repo).toBe(false)
       expect(project.created_at).toBeTruthy()
       expect(project.updated_at).toBeTruthy()
 
@@ -76,6 +77,35 @@ describe('ProjectRepository', () => {
       expect(project.install_command).toBe('pnpm install')
       expect(project).not.toHaveProperty('test_command')
       expect(project.max_active_dev_servers).toBe(3)
+    })
+
+    it('persists is_multi_repo when passed', () => {
+      const repo = new ProjectRepository(db)
+      const project = repo.create({
+        name: 'Multi-repo',
+        slug: 'multi-repo-test',
+        local_repo_root: '/home/user/multi',
+        is_multi_repo: true,
+      })
+
+      expect(project.is_multi_repo).toBe(true)
+      expect(repo.findById(project.id)?.is_multi_repo).toBe(true)
+    })
+
+    it('update can toggle is_multi_repo', () => {
+      const repo = new ProjectRepository(db)
+      const project = repo.create({
+        name: 'Toggle',
+        slug: 'toggle-test',
+        local_repo_root: '/home/user/toggle',
+      })
+      expect(project.is_multi_repo).toBe(false)
+
+      const updated = repo.update(project.id, { is_multi_repo: true })
+      expect(updated.is_multi_repo).toBe(true)
+
+      const reverted = repo.update(project.id, { is_multi_repo: false })
+      expect(reverted.is_multi_repo).toBe(false)
     })
   })
 

@@ -32,6 +32,13 @@ export interface Project {
   readonly dev_command: string | null
   readonly install_command: string | null
   readonly max_active_dev_servers: number
+  /**
+   * Opt-in flag for multi-repo projects (since migration 018). Default
+   * false. When true: each task owns N nested-repo worktrees under
+   * `.worktrees/<task-key>/<subrepo>/` with their own ports and dev
+   * commands, and the dashboard hides the outer DevServerPanel.
+   */
+  readonly is_multi_repo: boolean
   readonly created_at: string
   readonly updated_at: string
 }

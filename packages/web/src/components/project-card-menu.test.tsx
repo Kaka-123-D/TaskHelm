@@ -73,6 +73,7 @@ const baseProject = {
   dev_command: null,
   install_command: null,
   max_active_dev_servers: 1,
+    is_multi_repo: false,
   created_at: '2026-04-12T00:00:00.000Z',
   updated_at: '2026-04-12T00:00:00.000Z',
 } satisfies Project

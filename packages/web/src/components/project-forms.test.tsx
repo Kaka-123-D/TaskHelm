@@ -52,6 +52,7 @@ const project: Project = {
   dev_command: 'pnpm dev',
   install_command: 'pnpm install',
   max_active_dev_servers: 1,
+    is_multi_repo: false,
   created_at: '2026-04-16T00:00:00.000Z',
   updated_at: '2026-04-16T00:00:00.000Z',
 }
