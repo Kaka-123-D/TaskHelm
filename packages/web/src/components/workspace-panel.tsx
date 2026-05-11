@@ -6,6 +6,7 @@ import type { Task } from '@taskhelm/core'
 import { GlassButton } from '@/components/design-system/glass-button'
 import { GlassInput } from '@/components/design-system/glass-input'
 import { GlassSelect } from '@/components/design-system/glass-select'
+import { SubrepoRow, type SubrepoRowState } from '@/components/workspace-panel/subrepo-row'
 
 interface ExistingWorktreeOption {
   readonly path: string
@@ -25,6 +26,13 @@ interface WorkspaceSettingsResponse {
   readonly detectedSubrepos: readonly string[]
   readonly availableBaseBranches?: readonly string[]
   readonly availableExistingWorktrees: readonly ExistingWorktreeOption[]
+  readonly subrepos?: readonly SubrepoRowState[]
+}
+
+interface SubrepoEditableState {
+  readonly portInput: string
+  readonly devCommandInput: string
+  readonly selectedExistingWorktreePath: string
 }
 
 interface WorkspacePanelProps {
@@ -49,6 +57,9 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
     readonly ExistingWorktreeOption[]
   >([])
   const [selectedExistingWorktreePath, setSelectedExistingWorktreePath] = useState('')
+  const [subrepoStates, setSubrepoStates] = useState<readonly SubrepoRowState[]>([])
+  const [subrepoEditable, setSubrepoEditable] = useState<Record<string, SubrepoEditableState>>({})
+  const [busySubrepoId, setBusySubrepoId] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -74,6 +85,20 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
         setAvailableExistingWorktrees(payload.availableExistingWorktrees)
         setSubrepoBranches(
           Object.fromEntries(payload.settings.subrepoBranches.map(entry => [entry.repoPath, entry.branch])),
+        )
+        const subrepos = payload.subrepos ?? []
+        setSubrepoStates(subrepos)
+        setSubrepoEditable(
+          Object.fromEntries(
+            subrepos.map(subrepo => [
+              subrepo.repoPath,
+              {
+                portInput: subrepo.preferredPort != null ? String(subrepo.preferredPort) : '',
+                devCommandInput: subrepo.devCommand ?? '',
+                selectedExistingWorktreePath: '',
+              },
+            ]),
+          ),
         )
       } catch (err) {
         if (!cancelled) {
@@ -188,6 +213,90 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
     [availableExistingWorktrees],
   )
 
+  const reloadSubrepoState = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/tasks/${task.id}/workspace`)
+      const payload = (await response.json()) as WorkspaceSettingsResponse & { error?: string }
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Failed to reload subrepo state')
+      }
+      const subrepos = payload.subrepos ?? []
+      setSubrepoStates(subrepos)
+      setSubrepoEditable(prev => {
+        const next: Record<string, SubrepoEditableState> = {}
+        for (const subrepo of subrepos) {
+          const previous = prev[subrepo.repoPath]
+          next[subrepo.repoPath] = {
+            portInput:
+              previous?.portInput ??
+              (subrepo.preferredPort != null ? String(subrepo.preferredPort) : ''),
+            devCommandInput: previous?.devCommandInput ?? subrepo.devCommand ?? '',
+            selectedExistingWorktreePath: previous?.selectedExistingWorktreePath ?? '',
+          }
+        }
+        return next
+      })
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }, [task.id])
+
+  const handleStartSubrepoDev = useCallback(
+    async (subrepo: SubrepoRowState) => {
+      if (!subrepo.id) return
+      const editable = subrepoEditable[subrepo.repoPath]
+      setBusySubrepoId(subrepo.id)
+      setError(null)
+      try {
+        const portValue = editable?.portInput.trim()
+        const devCommandValue = editable?.devCommandInput.trim()
+        const res = await fetch(`/api/tasks/${task.id}/subrepos/${subrepo.id}/dev`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            preferredPort: portValue ? Number(portValue) : undefined,
+            devCommand: devCommandValue || undefined,
+          }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({ error: 'Failed to start dev' }))
+          throw new Error(data.error ?? 'Failed to start dev')
+        }
+        await reloadSubrepoState()
+        startTransition(() => router.refresh())
+      } catch (err) {
+        setError((err as Error).message)
+      } finally {
+        setBusySubrepoId(null)
+      }
+    },
+    [reloadSubrepoState, router, subrepoEditable, task.id],
+  )
+
+  const handleStopSubrepoDev = useCallback(
+    async (subrepo: SubrepoRowState) => {
+      if (!subrepo.id) return
+      setBusySubrepoId(subrepo.id)
+      setError(null)
+      try {
+        const res = await fetch(`/api/tasks/${task.id}/subrepos/${subrepo.id}/dev`, {
+          method: 'DELETE',
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({ error: 'Failed to stop dev' }))
+          throw new Error(data.error ?? 'Failed to stop dev')
+        }
+        await reloadSubrepoState()
+        startTransition(() => router.refresh())
+      } catch (err) {
+        setError((err as Error).message)
+      } finally {
+        setBusySubrepoId(null)
+      }
+    },
+    [reloadSubrepoState, router, task.id],
+  )
+
   const handleRetryWithForceRefresh = useCallback(async () => {
     setIsFetching(true)
     setError(null)
@@ -230,6 +339,9 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
       detectedSubrepos={detectedSubrepos}
       availableExistingWorktrees={availableExistingWorktrees}
       selectedExistingWorktreePath={selectedExistingWorktreePath}
+      subrepoStates={subrepoStates}
+      subrepoEditable={subrepoEditable}
+      busySubrepoId={busySubrepoId}
       onWorkspaceNameChange={setWorkspaceName}
       onWorkspaceBranchChange={setWorkspaceBranch}
       onBaseBranchChange={setBaseBranch}
@@ -237,6 +349,35 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
       onSubrepoBranchChange={(repoPath, branch) =>
         setSubrepoBranches(prev => ({ ...prev, [repoPath]: branch }))
       }
+      onSubrepoPortChange={(repoPath, value) =>
+        setSubrepoEditable(prev => ({
+          ...prev,
+          [repoPath]: {
+            ...(prev[repoPath] ?? { portInput: '', devCommandInput: '', selectedExistingWorktreePath: '' }),
+            portInput: value,
+          },
+        }))
+      }
+      onSubrepoDevCommandChange={(repoPath, value) =>
+        setSubrepoEditable(prev => ({
+          ...prev,
+          [repoPath]: {
+            ...(prev[repoPath] ?? { portInput: '', devCommandInput: '', selectedExistingWorktreePath: '' }),
+            devCommandInput: value,
+          },
+        }))
+      }
+      onSubrepoExistingWorktreeChange={(repoPath, value) =>
+        setSubrepoEditable(prev => ({
+          ...prev,
+          [repoPath]: {
+            ...(prev[repoPath] ?? { portInput: '', devCommandInput: '', selectedExistingWorktreePath: '' }),
+            selectedExistingWorktreePath: value,
+          },
+        }))
+      }
+      onSubrepoStartDev={handleStartSubrepoDev}
+      onSubrepoStopDev={handleStopSubrepoDev}
       onSelectedExistingWorktreeChange={handleSelectExistingWorktree}
       onRetryWithForceRefresh={handleRetryWithForceRefresh}
       onSave={handleSave}
@@ -261,11 +402,19 @@ interface WorkspacePanelViewProps {
   readonly detectedSubrepos: readonly string[]
   readonly availableExistingWorktrees: readonly ExistingWorktreeOption[]
   readonly selectedExistingWorktreePath: string
+  readonly subrepoStates?: readonly SubrepoRowState[]
+  readonly subrepoEditable?: Readonly<Record<string, SubrepoEditableState>>
+  readonly busySubrepoId?: string | null
   readonly onWorkspaceNameChange: (value: string) => void
   readonly onWorkspaceBranchChange: (value: string) => void
   readonly onBaseBranchChange: (value: string) => void
   readonly onAutoPullBaseBranchChange: (value: boolean) => void
   readonly onSubrepoBranchChange: (repoPath: string, branch: string) => void
+  readonly onSubrepoPortChange?: (repoPath: string, value: string) => void
+  readonly onSubrepoDevCommandChange?: (repoPath: string, value: string) => void
+  readonly onSubrepoExistingWorktreeChange?: (repoPath: string, value: string) => void
+  readonly onSubrepoStartDev?: (subrepo: SubrepoRowState) => void
+  readonly onSubrepoStopDev?: (subrepo: SubrepoRowState) => void
   readonly onSelectedExistingWorktreeChange: (worktreePath: string) => void
   readonly onRetryWithForceRefresh: () => void
   readonly onSave: () => void
@@ -288,11 +437,19 @@ export function WorkspacePanelView({
   detectedSubrepos,
   availableExistingWorktrees,
   selectedExistingWorktreePath,
+  subrepoStates = [],
+  subrepoEditable = {},
+  busySubrepoId = null,
   onWorkspaceNameChange,
   onWorkspaceBranchChange,
   onBaseBranchChange,
   onAutoPullBaseBranchChange,
   onSubrepoBranchChange,
+  onSubrepoPortChange,
+  onSubrepoDevCommandChange,
+  onSubrepoExistingWorktreeChange,
+  onSubrepoStartDev,
+  onSubrepoStopDev,
   onSelectedExistingWorktreeChange,
   onRetryWithForceRefresh,
   onSave,
@@ -407,15 +564,46 @@ export function WorkspacePanelView({
               <div className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
                 Nested Repos
               </div>
-              {detectedSubrepos.map(repoPath => (
-                <GlassInput
-                  key={repoPath}
-                  label={repoPath}
-                  value={subrepoBranches[repoPath] ?? ''}
-                  onChange={event => onSubrepoBranchChange(repoPath, event.target.value)}
-                  placeholder="feature/subrepo-branch"
-                />
-              ))}
+              {detectedSubrepos.map(repoPath => {
+                const state = subrepoStates.find(s => s.repoPath === repoPath)
+                if (state && state.id !== null) {
+                  const editable = subrepoEditable[repoPath] ?? {
+                    portInput: state.preferredPort != null ? String(state.preferredPort) : '',
+                    devCommandInput: state.devCommand ?? '',
+                    selectedExistingWorktreePath: '',
+                  }
+                  return (
+                    <SubrepoRow
+                      key={repoPath}
+                      state={state}
+                      editable={{
+                        branchInput: subrepoBranches[repoPath] ?? state.branchName ?? '',
+                        portInput: editable.portInput,
+                        devCommandInput: editable.devCommandInput,
+                        selectedExistingWorktreePath: editable.selectedExistingWorktreePath,
+                      }}
+                      busy={busySubrepoId === state.id}
+                      onBranchChange={value => onSubrepoBranchChange(repoPath, value)}
+                      onPortChange={value => onSubrepoPortChange?.(repoPath, value)}
+                      onDevCommandChange={value => onSubrepoDevCommandChange?.(repoPath, value)}
+                      onSelectedExistingWorktreeChange={value =>
+                        onSubrepoExistingWorktreeChange?.(repoPath, value)
+                      }
+                      onStartDev={() => onSubrepoStartDev?.(state)}
+                      onStopDev={() => onSubrepoStopDev?.(state)}
+                    />
+                  )
+                }
+                return (
+                  <GlassInput
+                    key={repoPath}
+                    label={repoPath}
+                    value={subrepoBranches[repoPath] ?? ''}
+                    onChange={event => onSubrepoBranchChange(repoPath, event.target.value)}
+                    placeholder="feature/subrepo-branch"
+                  />
+                )
+              })}
             </div>
           ) : null}
         </div>
