@@ -1,6 +1,6 @@
 {
   "name": "@taskhelm/supervisor",
-  "version": "0.1.19",
+  "version": "0.2.0",
   "description": "Dev-server pool and crash-recovery helpers for TaskHelm.",
   "keywords": [
     "taskhelm",
@@ -30,7 +30,7 @@
     "dev": "tsx watch src/index.ts"
   },
   "dependencies": {
-    "@taskhelm/core": "workspace:*",
+    "@taskhelm/core": "0.2.0",
     "better-sqlite3": "^11.8.0"
   },
   "devDependencies": {

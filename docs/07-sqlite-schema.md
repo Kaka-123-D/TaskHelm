@@ -150,6 +150,33 @@ Indexes:
 - `idx_events_type`
 - `idx_events_created_at`
 
+## task_subrepos (since migration 016)
+
+Child table of `tasks` that gives one task N nested-repo slots, each with
+its own branch / worktree / port / dev_command / dev_server_state.
+
+- `id TEXT PRIMARY KEY`
+- `task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE`
+- `repo_path TEXT NOT NULL` (relative to `projects.local_repo_root`, e.g. `repos/backend`)
+- `branch_name TEXT`
+- `worktree_path TEXT`
+- `preferred_port INTEGER`
+- `dev_command TEXT` (override; falls back to `projects.dev_command`)
+- `dev_server_state TEXT`
+- `created_at TEXT NOT NULL`
+- `updated_at TEXT NOT NULL`
+- `UNIQUE(task_id, repo_path)`
+
+Indexes:
+
+- `idx_task_subrepos_task_id`
+
+Related schema change in migration 016:
+
+- `dev_servers.task_subrepo_id TEXT REFERENCES task_subrepos(id)` (nullable;
+  NULL for outer-repo / single-repo dev servers)
+- `idx_dev_servers_task_subrepo_id`
+
 ## Design Notes
 
 - keep schema boring and explicit

@@ -145,7 +145,24 @@ Statuses:
 - one `Project` has many `Task`
 - one `Task` has many `AgentRun`
 - one `Task` has many `ReviewGate`
-- one `Task` may have zero or one active `DevServer`
+- one `Task` may have zero or one active `DevServer` (legacy single-repo case)
+- one `Task` has zero or more `TaskSubrepo` rows (since migration 016)
+- one `TaskSubrepo` may have zero or one active `DevServer`
+
+## Multi-Repo Tasks (since migration 016)
+
+A `Task` can own N nested-repo slots via the `task_subrepos` child table.
+Each row carries its own branch, worktree path, port, dev_command override,
+and dev_server_state — keyed uniquely on `(task_id, repo_path)`. Tasks with
+zero rows continue to behave like legacy single-repo tasks: outer worktree
+in `tasks.worktree_path`, dev server reads `tasks.preferred_port` /
+`tasks.dev_server_state`. Tasks with ≥1 rows fan out: each subrepo's dev
+server is `dev_servers.task_subrepo_id`-keyed and runs independently
+against the project's `max_active_dev_servers` quota.
+
+`tasks.workspace_subrepo_branches_json` is kept as a legacy settings hint
+for one release of overlap with the new model. Scheduled for removal in
+migration 017.
 
 ## Storage Split
 
