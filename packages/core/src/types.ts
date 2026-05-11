@@ -65,6 +65,7 @@ export interface DevServer {
   readonly id: string
   readonly project_id: string
   readonly task_id: string | null
+  readonly task_subrepo_id: string | null
   readonly port: number
   readonly pid: number | null
   readonly status: DevServerStatusValue
@@ -73,6 +74,26 @@ export interface DevServer {
   readonly error_message: string | null
   readonly started_at: string | null
   readonly stopped_at: string | null
+}
+
+/**
+ * One nested-repo slot owned by a task. Migration 016 introduces this as a
+ * child table of `tasks`. A task with zero rows behaves like a legacy
+ * single-repo task (uses tasks.worktree_path / preferred_port / dev_server_state);
+ * a task with ≥1 row is multi-repo and each subrepo carries its own
+ * branch / worktree / port / dev command / dev server state.
+ */
+export interface TaskSubrepo {
+  readonly id: string
+  readonly task_id: string
+  readonly repo_path: string
+  readonly branch_name: string | null
+  readonly worktree_path: string | null
+  readonly preferred_port: number | null
+  readonly dev_command: string | null
+  readonly dev_server_state: DevServerStatusValue | null
+  readonly created_at: string
+  readonly updated_at: string
 }
 
 export interface Notification {

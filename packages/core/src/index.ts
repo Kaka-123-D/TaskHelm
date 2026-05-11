@@ -20,6 +20,11 @@ export {
 export type { WorktreeConfig } from './workspace/worktree.js'
 export { DevServerRepository } from './models/dev-server.js'
 export type { CreateDevServerInput } from './models/dev-server.js'
+export { TaskSubrepoRepository } from './models/task-subrepo.js'
+export type {
+  CreateTaskSubrepoInput,
+  UpdateTaskSubrepoInput,
+} from './models/task-subrepo.js'
 export { LockRepository } from './models/lock.js'
 export { NotificationRepository } from './models/notification.js'
 export type { CreateNotificationInput } from './models/notification.js'

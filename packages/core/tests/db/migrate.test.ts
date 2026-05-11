@@ -66,7 +66,7 @@ describe('runMigrations', () => {
     runMigrations(db)
 
     const rows = db.prepare('SELECT filename FROM _migrations ORDER BY filename').all() as Array<{ filename: string }>
-    expect(rows.length).toBe(15)
+    expect(rows.length).toBe(16)
     expect(rows[0].filename).toMatch(/001_projects/)
     expect(rows[8].filename).toMatch(/009_/)
     expect(rows[9].filename).toMatch(/010_local_context_schema_cleanup/)
@@ -75,6 +75,36 @@ describe('runMigrations', () => {
     expect(rows[12].filename).toMatch(/013_project_command_and_task_refer_link_cleanup/)
     expect(rows[13].filename).toMatch(/014_drop_agent_runs_and_review_gates/)
     expect(rows[14].filename).toMatch(/015_dev_server_logs_and_errors/)
+    expect(rows[15].filename).toMatch(/016_task_subrepos/)
+    db.close()
+  })
+
+  it('creates task_subrepos table and adds task_subrepo_id to dev_servers (migration 016)', () => {
+    const db = createDatabase(TEST_DB_PATH)
+    runMigrations(db)
+
+    const taskSubreposTable = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='task_subrepos'"
+    ).get()
+    expect(taskSubreposTable).toBeTruthy()
+
+    const subrepoColumns = db.prepare('PRAGMA table_info(task_subrepos)').all() as Array<{ name: string }>
+    expect(subrepoColumns.map(column => column.name)).toEqual([
+      'id',
+      'task_id',
+      'repo_path',
+      'branch_name',
+      'worktree_path',
+      'preferred_port',
+      'dev_command',
+      'dev_server_state',
+      'created_at',
+      'updated_at',
+    ])
+
+    const devServerColumns = db.prepare('PRAGMA table_info(dev_servers)').all() as Array<{ name: string }>
+    expect(devServerColumns.map(column => column.name)).toContain('task_subrepo_id')
+
     db.close()
   })
 
@@ -337,7 +367,7 @@ describe('runMigrations', () => {
     expect(taskColumns.map(column => column.name)).not.toContain('source_type')
 
     const rows = db.prepare('SELECT filename FROM _migrations ORDER BY filename').all() as Array<{ filename: string }>
-    expect(rows.at(-1)?.filename).toBe('015_dev_server_logs_and_errors.sql')
+    expect(rows.at(-1)?.filename).toBe('016_task_subrepos.sql')
     db.close()
   })
 })

@@ -5,6 +5,7 @@ import type { DevServer, DevServerStatusValue } from '../types.js'
 export interface CreateDevServerInput {
   readonly project_id: string
   readonly task_id?: string
+  readonly task_subrepo_id?: string
   readonly port: number
   readonly status?: string
   readonly health_url?: string
@@ -15,6 +16,7 @@ type DevServerRow = {
   id: string
   project_id: string
   task_id: string | null
+  task_subrepo_id: string | null
   port: number
   pid: number | null
   status: string
@@ -30,6 +32,7 @@ function rowToDevServer(row: DevServerRow): DevServer {
     id: row.id,
     project_id: row.project_id,
     task_id: row.task_id,
+    task_subrepo_id: row.task_subrepo_id,
     port: row.port,
     pid: row.pid,
     status: row.status as DevServerStatusValue,
@@ -50,13 +53,14 @@ export class DevServerRepository {
 
     this.db
       .prepare(
-        `INSERT INTO dev_servers (id, project_id, task_id, port, pid, status, health_url, log_path, error_message, started_at, stopped_at)
-         VALUES (@id, @project_id, @task_id, @port, @pid, @status, @health_url, @log_path, @error_message, @started_at, @stopped_at)`
+        `INSERT INTO dev_servers (id, project_id, task_id, task_subrepo_id, port, pid, status, health_url, log_path, error_message, started_at, stopped_at)
+         VALUES (@id, @project_id, @task_id, @task_subrepo_id, @port, @pid, @status, @health_url, @log_path, @error_message, @started_at, @stopped_at)`
       )
       .run({
         id,
         project_id: input.project_id,
         task_id: input.task_id ?? null,
+        task_subrepo_id: input.task_subrepo_id ?? null,
         port: input.port,
         pid: null,
         status: input.status ?? 'starting',
@@ -87,10 +91,29 @@ export class DevServerRepository {
     return rows.map(rowToDevServer)
   }
 
+  /**
+   * Backward-compat lookup: returns the **outer-repo** dev server for a task
+   * (where `task_subrepo_id IS NULL`). Multi-subrepo callers should use
+   * {@link findAllByTaskId} or {@link findByTaskSubrepoId} instead.
+   */
   findByTaskId(taskId: string): DevServer | null {
     const row = this.db
-      .prepare('SELECT * FROM dev_servers WHERE task_id = ?')
+      .prepare('SELECT * FROM dev_servers WHERE task_id = ? AND task_subrepo_id IS NULL')
       .get(taskId) as DevServerRow | undefined
+    return row ? rowToDevServer(row) : null
+  }
+
+  findAllByTaskId(taskId: string): readonly DevServer[] {
+    const rows = this.db
+      .prepare('SELECT * FROM dev_servers WHERE task_id = ? ORDER BY started_at ASC')
+      .all(taskId) as DevServerRow[]
+    return rows.map(rowToDevServer)
+  }
+
+  findByTaskSubrepoId(taskSubrepoId: string): DevServer | null {
+    const row = this.db
+      .prepare('SELECT * FROM dev_servers WHERE task_subrepo_id = ?')
+      .get(taskSubrepoId) as DevServerRow | undefined
     return row ? rowToDevServer(row) : null
   }
 

@@ -4,6 +4,8 @@ import * as path from 'node:path'
 import { createDatabase } from '../../src/db/connection.js'
 import { runMigrations } from '../../src/db/migrate.js'
 import { ProjectRepository } from '../../src/models/project.js'
+import { TaskRepository } from '../../src/models/task.js'
+import { TaskSubrepoRepository } from '../../src/models/task-subrepo.js'
 import { DevServerRepository } from '../../src/models/dev-server.js'
 import type Database from 'better-sqlite3'
 
@@ -126,6 +128,99 @@ describe('DevServerRepository.findByTaskId', () => {
   it('returns null if no server for task', () => {
     const repo = new DevServerRepository(db)
     expect(repo.findByTaskId('nonexistent')).toBeNull()
+  })
+
+  it('returns only the outer-repo server (task_subrepo_id IS NULL)', () => {
+    const task = new TaskRepository(db).create({
+      project_id: projectId,
+      title: 'multi-repo task',
+    })
+    const sub = new TaskSubrepoRepository(db).create({
+      task_id: task.id,
+      repo_path: 'repos/a',
+    })
+    const repo = new DevServerRepository(db)
+    repo.create({ project_id: projectId, task_id: task.id, port: 4000 })
+    const subrepoServer = repo.create({
+      project_id: projectId,
+      task_id: task.id,
+      task_subrepo_id: sub.id,
+      port: 4001,
+    })
+
+    const found = repo.findByTaskId(task.id)
+    expect(found).not.toBeNull()
+    expect(found!.task_subrepo_id).toBeNull()
+    expect(found!.id).not.toBe(subrepoServer.id)
+  })
+})
+
+describe('DevServerRepository.findAllByTaskId', () => {
+  it('returns outer + subrepo servers for a task', () => {
+    const task = new TaskRepository(db).create({
+      project_id: projectId,
+      title: 'multi-repo task',
+    })
+    const subA = new TaskSubrepoRepository(db).create({
+      task_id: task.id,
+      repo_path: 'repos/a',
+    })
+    const subB = new TaskSubrepoRepository(db).create({
+      task_id: task.id,
+      repo_path: 'repos/b',
+    })
+    const repo = new DevServerRepository(db)
+    repo.create({ project_id: projectId, task_id: task.id, port: 5000 })
+    repo.create({
+      project_id: projectId,
+      task_id: task.id,
+      task_subrepo_id: subA.id,
+      port: 5001,
+    })
+    repo.create({
+      project_id: projectId,
+      task_id: task.id,
+      task_subrepo_id: subB.id,
+      port: 5002,
+    })
+
+    const servers = repo.findAllByTaskId(task.id)
+    expect(servers).toHaveLength(3)
+    expect(servers.map(s => s.port).sort()).toEqual([5000, 5001, 5002])
+  })
+
+  it('returns empty array when no servers', () => {
+    const repo = new DevServerRepository(db)
+    expect(repo.findAllByTaskId('nonexistent')).toHaveLength(0)
+  })
+})
+
+describe('DevServerRepository.findByTaskSubrepoId', () => {
+  it('finds server by task_subrepo_id', () => {
+    const task = new TaskRepository(db).create({
+      project_id: projectId,
+      title: 'multi-repo task',
+    })
+    const sub = new TaskSubrepoRepository(db).create({
+      task_id: task.id,
+      repo_path: 'repos/a',
+    })
+    const repo = new DevServerRepository(db)
+    const created = repo.create({
+      project_id: projectId,
+      task_id: task.id,
+      task_subrepo_id: sub.id,
+      port: 6000,
+    })
+
+    const found = repo.findByTaskSubrepoId(sub.id)
+    expect(found).not.toBeNull()
+    expect(found!.id).toBe(created.id)
+  })
+
+  it('returns null if no server for subrepo', () => {
+    const repo = new DevServerRepository(db)
+    expect(repo.findByTaskSubrepoId('unknown-sub')).toBeNull()
   })
 })
 
