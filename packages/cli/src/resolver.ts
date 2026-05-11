@@ -1,8 +1,8 @@
 import chalk from 'chalk'
 import Table from 'cli-table3'
 import type Database from 'better-sqlite3'
-import { ProjectRepository, TaskRepository } from '@taskhelm/core'
-import type { Task } from '@taskhelm/core'
+import { ProjectRepository, TaskRepository, TaskSubrepoRepository } from '@taskhelm/core'
+import type { Task, TaskSubrepo } from '@taskhelm/core'
 
 const ID_PREFIX_MIN = 4
 const TITLE_SUBSTR_MIN = 3
@@ -96,5 +96,32 @@ export function resolveTaskOrExit(db: Database.Database, identifier: string): Ta
       'Try: full task id, <project-slug>:<key>, id-prefix (>=4 chars), exact key, or title substring (>=3 chars)'
     )
   )
+  process.exit(1)
+}
+
+/**
+ * Resolve a `--subrepo <repoPath>` flag against a task's task_subrepos. Exits
+ * 1 if the subrepo is not registered (with a helpful list of valid repo
+ * paths). Repo-path comparison is exact.
+ */
+export function resolveTaskSubrepoOrExit(
+  db: Database.Database,
+  task: Task,
+  repoPath: string,
+): TaskSubrepo {
+  const repo = new TaskSubrepoRepository(db)
+  const match = repo.findByTaskIdAndRepoPath(task.id, repoPath)
+  if (match) return match
+
+  const all = repo.findByTaskId(task.id)
+  console.error(chalk.red(`Subrepo "${repoPath}" is not configured for task ${task.id}`))
+  if (all.length > 0) {
+    console.error(chalk.dim('Configured subrepos for this task:'))
+    for (const row of all) {
+      console.error(chalk.dim(`  - ${row.repo_path}`))
+    }
+  } else {
+    console.error(chalk.dim('This task has no subrepos configured yet.'))
+  }
   process.exit(1)
 }

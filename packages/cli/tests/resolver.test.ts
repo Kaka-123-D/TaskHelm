@@ -7,10 +7,11 @@ import {
   runMigrations,
   ProjectRepository,
   TaskRepository,
+  TaskSubrepoRepository,
 } from '@taskhelm/core'
 import type Database from 'better-sqlite3'
 import type { Project } from '@taskhelm/core'
-import { resolveTaskOrExit } from '../src/resolver.js'
+import { resolveTaskOrExit, resolveTaskSubrepoOrExit } from '../src/resolver.js'
 
 const tempFiles: string[] = []
 
@@ -164,6 +165,62 @@ describe('resolveTaskOrExit', () => {
     try {
       // 'ab' is shorter than the prefix (4) and substring (3) thresholds.
       resolveTaskOrExit(db, 'ab')
+      expect(exitSpy).toHaveBeenCalledWith(1)
+    } finally {
+      exitSpy.mockRestore()
+      errSpy.mockRestore()
+    }
+  })
+})
+
+describe('resolveTaskSubrepoOrExit', () => {
+  let db: Database.Database
+
+  beforeEach(() => {
+    db = createTempDb()
+  })
+
+  afterEach(() => {
+    db.close()
+  })
+
+  it('returns the matching subrepo row', () => {
+    const project = new ProjectRepository(db).create({
+      name: 'multi',
+      slug: 'multi',
+      local_repo_root: '/tmp/multi',
+    })
+    const task = new TaskRepository(db).create({
+      project_id: project.id,
+      title: 'multi-repo task',
+    })
+    const subrepoRepo = new TaskSubrepoRepository(db)
+    const a = subrepoRepo.create({ task_id: task.id, repo_path: 'repos/a' })
+    subrepoRepo.create({ task_id: task.id, repo_path: 'repos/b' })
+
+    const resolved = resolveTaskSubrepoOrExit(db, task, 'repos/a')
+    expect(resolved.id).toBe(a.id)
+  })
+
+  it('exits 1 when subrepo not configured', () => {
+    const project = new ProjectRepository(db).create({
+      name: 'multi',
+      slug: 'multi',
+      local_repo_root: '/tmp/multi',
+    })
+    const task = new TaskRepository(db).create({
+      project_id: project.id,
+      title: 'multi-repo task',
+    })
+    new TaskSubrepoRepository(db).create({ task_id: task.id, repo_path: 'repos/a' })
+
+    const exitSpy = vi
+      .spyOn(process, 'exit')
+      .mockImplementation((() => undefined) as unknown as typeof process.exit)
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    try {
+      resolveTaskSubrepoOrExit(db, task, 'repos/never-configured')
       expect(exitSpy).toHaveBeenCalledWith(1)
     } finally {
       exitSpy.mockRestore()

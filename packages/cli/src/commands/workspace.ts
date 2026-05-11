@@ -6,6 +6,7 @@ import chalk from 'chalk'
 import {
   ProjectRepository,
   TaskRepository,
+  TaskSubrepoRepository,
   formatBranchName,
   createBranch,
   branchExists,
@@ -187,11 +188,13 @@ export function registerWorkspaceCommands(program: Command): void {
 
   wsCmd
     .command('status <taskId>')
-    .description('Show workspace status for a task')
+    .description('Show workspace status for a task (including any configured subrepos)')
     .action((taskId: string) => {
       const db = getDb()
       try {
         const task = resolveTaskOrExit(db, taskId)
+        const subrepoRepo = new TaskSubrepoRepository(db)
+        const subrepos = subrepoRepo.findByTaskId(task.id)
         const worktreeExists =
           task.worktree_path != null && fs.existsSync(task.worktree_path)
 
@@ -208,6 +211,32 @@ export function registerWorkspaceCommands(program: Command): void {
               : chalk.yellow('missing from disk')
           }`
         )
+
+        if (subrepos.length > 0) {
+          console.log(chalk.bold('  Subrepos:'))
+          for (const subrepo of subrepos) {
+            const subWorktreeExists =
+              subrepo.worktree_path != null && fs.existsSync(subrepo.worktree_path)
+            console.log(`    ${chalk.cyan(subrepo.repo_path)}`)
+            console.log(`      Branch:      ${subrepo.branch_name ?? chalk.dim('not set')}`)
+            console.log(`      Worktree:    ${subrepo.worktree_path ?? chalk.dim('not set')}`)
+            console.log(
+              `      On disk:     ${
+                subrepo.worktree_path == null
+                  ? chalk.dim('n/a')
+                  : subWorktreeExists
+                  ? chalk.green('yes')
+                  : chalk.yellow('missing')
+              }`,
+            )
+            console.log(
+              `      Port:        ${subrepo.preferred_port ?? chalk.dim('not set')}`,
+            )
+            console.log(
+              `      Dev state:   ${subrepo.dev_server_state ?? chalk.dim('stopped')}`,
+            )
+          }
+        }
       } catch (error) {
         console.error(chalk.red('Error getting workspace status:'), (error as Error).message)
         process.exit(1)
