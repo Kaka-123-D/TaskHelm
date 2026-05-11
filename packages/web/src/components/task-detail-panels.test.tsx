@@ -13,6 +13,10 @@ vi.mock('@/components/dev-server-panel', () => ({
   DevServerPanel: () => <div data-slot="dev-server-panel" />,
 }))
 
+vi.mock('@/components/subrepos-panel', () => ({
+  SubreposPanel: () => <div data-slot="subrepos-panel" />,
+}))
+
 function createProject(overrides: Partial<Project> = {}): Project {
   return {
     id: 'project-1',

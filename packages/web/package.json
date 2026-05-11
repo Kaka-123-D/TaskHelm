@@ -1,6 +1,6 @@
 {
   "name": "@taskhelm/web",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "scripts": {
     "build": "node scripts/clean-runtime.mjs && next build && node scripts/package-runtime.mjs",
@@ -11,8 +11,8 @@
     "typecheck": "node scripts/clean-runtime.mjs && next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@taskhelm/core": "0.2.2",
-    "@taskhelm/supervisor": "0.2.2",
+    "@taskhelm/core": "0.2.3",
+    "@taskhelm/supervisor": "0.2.3",
     "mermaid": "^11.12.0",
     "motion": "^12.38.0",
     "next": "^15.2.0",

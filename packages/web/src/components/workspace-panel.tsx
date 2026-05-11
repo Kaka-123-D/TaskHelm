@@ -119,56 +119,15 @@ export function WorkspacePanel({ task }: WorkspacePanelProps) {
   }, [task.id])
 
   const buildWorkspacePayload = useCallback(() => {
-    // For each detected subrepo: figure out the branch the user has chosen
-    // (explicit input, or inferred from the attach selection) and whether
-    // they want to attach a specific existing worktree.
-    const subrepoEntries = detectedSubrepos
-      .map(repoPath => {
-        const attachedPath = subrepoEditable[repoPath]?.selectedExistingWorktreePath?.trim() ?? ''
-        const state = subrepoStates.find(s => s.repoPath === repoPath)
-        const inferredAttachBranch = attachedPath
-          ? state?.availableExistingWorktrees.find(opt => opt.path === attachedPath)?.branch ?? ''
-          : ''
-        const explicitBranch = subrepoBranches[repoPath]?.trim() ?? ''
-        const branch = explicitBranch || inferredAttachBranch
-        return { repoPath, branch, existingWorktreePath: attachedPath }
-      })
-      .filter(entry => entry.branch.length > 0 || entry.existingWorktreePath.length > 0)
-
-    const subrepoAttach: Record<string, string> = {}
-    const subrepoPorts: Record<string, number | null> = {}
-    const subrepoDevCommands: Record<string, string> = {}
-    for (const entry of subrepoEntries) {
-      if (entry.existingWorktreePath) subrepoAttach[entry.repoPath] = entry.existingWorktreePath
-      const portRaw = subrepoEditable[entry.repoPath]?.portInput?.trim() ?? ''
-      if (portRaw.length > 0) {
-        const parsed = Number(portRaw)
-        if (Number.isFinite(parsed) && parsed > 0) subrepoPorts[entry.repoPath] = parsed
-      }
-      const cmd = subrepoEditable[entry.repoPath]?.devCommandInput?.trim() ?? ''
-      if (cmd.length > 0) subrepoDevCommands[entry.repoPath] = cmd
-    }
-
+    // Subrepo init/attach/save now live in the standalone SubreposPanel;
+    // the outer Workspace flow only persists the outer worktree state.
     return {
       workspaceName,
       workspaceBranch,
       baseBranch,
       autoPullBaseBranch,
-      subrepoBranches: subrepoEntries.map(({ repoPath, branch }) => ({ repoPath, branch })),
-      subrepoAttach,
-      subrepoPorts,
-      subrepoDevCommands,
     }
-  }, [
-    autoPullBaseBranch,
-    baseBranch,
-    detectedSubrepos,
-    subrepoBranches,
-    subrepoEditable,
-    subrepoStates,
-    workspaceBranch,
-    workspaceName,
-  ])
+  }, [autoPullBaseBranch, baseBranch, workspaceBranch, workspaceName])
 
   const handleSave = useCallback(async () => {
     setIsFetching(true)
@@ -597,55 +556,6 @@ export function WorkspacePanelView({
             />
           ) : null}
 
-          {settingsLoading ? (
-            <p className="text-xs text-[var(--text-muted)]">Loading repository map...</p>
-          ) : detectedSubrepos.length > 0 ? (
-            <div className="space-y-3">
-              <div className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
-                Nested Repos
-              </div>
-              {detectedSubrepos.map(repoPath => {
-                const state =
-                  subrepoStates.find(s => s.repoPath === repoPath) ??
-                  ({
-                    repoPath,
-                    id: null,
-                    branchName: null,
-                    worktreePath: null,
-                    preferredPort: null,
-                    devCommand: null,
-                    devServerState: null,
-                    availableExistingWorktrees: [],
-                  } satisfies SubrepoRowState)
-                const editable = subrepoEditable[repoPath] ?? {
-                  portInput: state.preferredPort != null ? String(state.preferredPort) : '',
-                  devCommandInput: state.devCommand ?? '',
-                  selectedExistingWorktreePath: '',
-                }
-                return (
-                  <SubrepoRow
-                    key={repoPath}
-                    state={state}
-                    editable={{
-                      branchInput: subrepoBranches[repoPath] ?? state.branchName ?? '',
-                      portInput: editable.portInput,
-                      devCommandInput: editable.devCommandInput,
-                      selectedExistingWorktreePath: editable.selectedExistingWorktreePath,
-                    }}
-                    busy={state.id != null && busySubrepoId === state.id}
-                    onBranchChange={value => onSubrepoBranchChange(repoPath, value)}
-                    onPortChange={value => onSubrepoPortChange?.(repoPath, value)}
-                    onDevCommandChange={value => onSubrepoDevCommandChange?.(repoPath, value)}
-                    onSelectedExistingWorktreeChange={value =>
-                      onSubrepoExistingWorktreeChange?.(repoPath, value)
-                    }
-                    onStartDev={() => onSubrepoStartDev?.(state)}
-                    onStopDev={() => onSubrepoStopDev?.(state)}
-                  />
-                )
-              })}
-            </div>
-          ) : null}
         </div>
       </div>
 

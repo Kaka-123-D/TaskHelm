@@ -6,6 +6,7 @@ import { ContextFileList } from '@/components/context-file-list'
 import { ContextFilePreview } from '@/components/context-file-preview'
 import { ContextVaultExplorer } from '@/components/context-vault-explorer'
 import { DevServerPanel } from '@/components/dev-server-panel'
+import { SubreposPanel } from '@/components/subrepos-panel'
 import { GlassButton } from '@/components/design-system/glass-button'
 import { WorkspacePanel } from '@/components/workspace-panel'
 import {
@@ -331,6 +332,7 @@ export function TaskDetailPanelsView({
       <div className="task-detail-sidebar" data-slot="task-detail-sidebar">
         <WorkspacePanel task={task} />
         <DevServerPanel task={task} />
+        <SubreposPanel task={task} />
       </div>
       {fullscreen ? (
         <div
