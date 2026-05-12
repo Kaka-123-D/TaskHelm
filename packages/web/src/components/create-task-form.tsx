@@ -6,9 +6,11 @@ import { GlassModal } from '@/components/design-system/glass-modal'
 import { GlassInput } from '@/components/design-system/glass-input'
 import { GlassSelect } from '@/components/design-system/glass-select'
 import { GlassButton } from '@/components/design-system/glass-button'
+import { assertSafeWorktreeGroupKey } from '@/lib/tasks/worktree-group-key'
 
 interface CreateTaskFormProps {
   readonly projectId: string
+  readonly isMultiRepo?: boolean
 }
 
 interface FormState {
@@ -16,6 +18,7 @@ interface FormState {
   readonly goal: string
   readonly referLink: string
   readonly priority: string
+  readonly worktreeGroupKey: string
 }
 
 const INITIAL_STATE: FormState = {
@@ -23,6 +26,7 @@ const INITIAL_STATE: FormState = {
   goal: '',
   referLink: '',
   priority: '3',
+  worktreeGroupKey: '',
 }
 
 const PRIORITY_OPTIONS = [
@@ -39,7 +43,7 @@ function normalizeReferLink(value: string): string | null {
   return new URL(trimmed).toString()
 }
 
-export function CreateTaskForm({ projectId }: CreateTaskFormProps) {
+export function CreateTaskForm({ projectId, isMultiRepo = false }: CreateTaskFormProps) {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<FormState>(INITIAL_STATE)
   const [error, setError] = useState<string | null>(null)
@@ -74,6 +78,15 @@ export function CreateTaskForm({ projectId }: CreateTaskFormProps) {
       }
       if (form.goal) body.goal = form.goal
       if (referLink) body.refer_link = referLink
+
+      if (isMultiRepo) {
+        // Required: becomes the single-segment folder under .worktrees/<key>/.
+        body.key = assertSafeWorktreeGroupKey(form.worktreeGroupKey)
+      } else if (form.worktreeGroupKey.trim().length > 0) {
+        // Optional for single-repo projects — same validation rules apply
+        // whenever the user chose to set one explicitly.
+        body.key = assertSafeWorktreeGroupKey(form.worktreeGroupKey)
+      }
 
       const res = await fetch('/api/tasks', {
         method: 'POST',
@@ -124,11 +137,26 @@ export function CreateTaskForm({ projectId }: CreateTaskFormProps) {
               onChange={e => updateField('referLink', e.target.value)}
               placeholder="https://example.com/tickets/42"
             />
+            <GlassInput
+              label={isMultiRepo ? 'Worktree folder name *' : 'Worktree folder name'}
+              value={form.worktreeGroupKey}
+              onChange={e => updateField('worktreeGroupKey', e.target.value)}
+              placeholder={isMultiRepo ? 'LRCC-2139' : 'Optional — defaults to a generated id'}
+              helperText={
+                isMultiRepo
+                  ? 'Becomes the folder under .worktrees/<name>/ for this multi-repo task. Letters, digits, dot, hyphen, underscore.'
+                  : 'Optional. When empty, TaskHelm uses an internal id for the worktree folder.'
+              }
+            />
           </div>
 
           <div className="flex justify-end gap-3 mt-6">
             <GlassButton type="button" variant="ghost" onClick={handleClose}>Cancel</GlassButton>
-            <GlassButton type="submit" loading={submitting} disabled={!form.title}>
+            <GlassButton
+              type="submit"
+              loading={submitting}
+              disabled={!form.title || (isMultiRepo && form.worktreeGroupKey.trim().length === 0)}
+            >
               Create Task
             </GlassButton>
           </div>

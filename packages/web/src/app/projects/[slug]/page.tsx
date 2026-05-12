@@ -41,7 +41,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             </div>
             <div className="workbench-hero-actions">
               <EditProjectForm project={project} />
-              <CreateTaskForm projectId={project.id} />
+              <CreateTaskForm projectId={project.id} isMultiRepo={project.is_multi_repo} />
             </div>
           </div>
 

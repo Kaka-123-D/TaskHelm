@@ -16,12 +16,18 @@ vi.mock('@/components/design-system/glass-modal', () => ({
 vi.mock('@/components/design-system/glass-input', () => ({
   GlassInput: ({
     label,
+    helperText,
     value,
     ...props
-  }: React.ComponentPropsWithoutRef<'input'> & { label?: string; value?: string }) => (
+  }: React.ComponentPropsWithoutRef<'input'> & {
+    label?: string
+    helperText?: string
+    value?: string
+  }) => (
     <label>
       <span>{label}</span>
       <input value={value} {...props} />
+      {helperText ? <small>{helperText}</small> : null}
     </label>
   ),
 }))
@@ -95,6 +101,21 @@ describe('task forms', () => {
     expect(markup).toContain('Refer Link')
     expect(markup).not.toContain('Source Type')
     expect(markup).not.toContain('Source Ref')
+  })
+
+  it('marks the Worktree folder name field required when CreateTaskForm is multi-repo', async () => {
+    const { CreateTaskForm } = await import('./create-task-form')
+    const singleRepoMarkup = renderToStaticMarkup(
+      <CreateTaskForm projectId="project-1" />
+    )
+    const multiRepoMarkup = renderToStaticMarkup(
+      <CreateTaskForm projectId="project-1" isMultiRepo />
+    )
+
+    expect(singleRepoMarkup).toContain('Worktree folder name')
+    expect(singleRepoMarkup).not.toContain('Worktree folder name *')
+    expect(multiRepoMarkup).toContain('Worktree folder name *')
+    expect(multiRepoMarkup).toContain('.worktrees/&lt;name&gt;/')
   })
 
   it('renders Refer Link and removes legacy source fields in EditTaskForm', async () => {
