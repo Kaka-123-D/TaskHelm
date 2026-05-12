@@ -1,9 +1,11 @@
 import * as fs from 'node:fs'
+import * as path from 'node:path'
 import {
   createDatabase,
   DevServerRepository,
   ProjectRepository,
   TaskRepository,
+  TaskSubrepoRepository,
   releasePort,
   removeWorktree,
 } from '@taskhelm/core'
@@ -24,18 +26,51 @@ export function deleteTaskCascade(db: Db, taskId: string): boolean {
   const taskRepo = new TaskRepository(db)
   const projectRepo = new ProjectRepository(db)
   const devServerRepo = new DevServerRepository(db)
+  const subrepoRepo = new TaskSubrepoRepository(db)
 
   const task = taskRepo.findById(taskId)
   if (!task) return false
 
   const project = projectRepo.findById(task.project_id)
 
-  const devServer = devServerRepo.findByTaskId(taskId)
-  if (devServer && devServer.status === 'running') {
+  // 1. Stop + drop all dev_servers tied to this task (outer + every subrepo
+  //    slot). `dev_servers.task_subrepo_id` has no ON DELETE clause, so the
+  //    task_subrepos cascade from `taskRepo.delete` below would otherwise be
+  //    blocked by any lingering dev_server row.
+  for (const server of devServerRepo.findAllByTaskId(taskId)) {
+    if (server.status === 'running' || server.status === 'starting') {
+      try {
+        stopDevServer(db, server.id)
+      } catch {
+        // ignore
+      }
+    }
     try {
-      stopDevServer(db, devServer.id)
+      devServerRepo.delete(server.id)
     } catch {
       // ignore
+    }
+  }
+
+  // 2. Remove per-subrepo worktrees that TaskHelm created. Attached subrepos
+  //    point at user-managed paths that pre-existed our involvement; never
+  //    touch those.
+  if (project) {
+    for (const subrepo of subrepoRepo.findByTaskId(taskId)) {
+      if (
+        subrepo.created_by_taskhelm &&
+        subrepo.worktree_path &&
+        fs.existsSync(subrepo.worktree_path)
+      ) {
+        const nestedRepoAbsPath = path.join(project.local_repo_root, subrepo.repo_path)
+        if (fs.existsSync(path.join(nestedRepoAbsPath, '.git'))) {
+          try {
+            removeWorktree(nestedRepoAbsPath, subrepo.worktree_path)
+          } catch {
+            // ignore
+          }
+        }
+      }
     }
   }
 
@@ -55,6 +90,8 @@ export function deleteTaskCascade(db: Db, taskId: string): boolean {
     }
   }
 
+  // task_subrepos rows cascade automatically once the dev_servers FK
+  // references above are gone.
   taskRepo.delete(taskId)
   return true
 }

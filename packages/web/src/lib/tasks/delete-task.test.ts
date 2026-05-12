@@ -7,8 +7,10 @@ import {
   createDatabase,
   createWorktree,
   runMigrations,
+  DevServerRepository,
   ProjectRepository,
   TaskRepository,
+  TaskSubrepoRepository,
 } from '@taskhelm/core'
 import type { Project, Task } from '@taskhelm/core'
 import { deleteTaskCascade } from './delete-task'
@@ -108,5 +110,39 @@ describe('deleteTaskCascade', () => {
     const result = deleteTaskCascade(db, task.id)
     expect(result).toBe(true)
     expect(new TaskRepository(db).findById(task.id)).toBeNull()
+  })
+
+  it('deletes a multi-repo task even when a subrepo still has a dev_servers row', () => {
+    // Regression test for the FOREIGN KEY failure shown on task delete:
+    //   tasks → ON DELETE CASCADE → task_subrepos, but dev_servers.task_subrepo_id
+    //   has no ON DELETE clause, so the cascade fails whenever a subrepo ever
+    //   hosted a dev server. deleteTaskCascade must drop the dev_servers row
+    //   itself before touching the task.
+    const taskRepo = new TaskRepository(db)
+    const subrepoRepo = new TaskSubrepoRepository(db)
+    const devServerRepo = new DevServerRepository(db)
+
+    const task = taskRepo.create({ project_id: project.id, title: 'multi-repo' })
+    const subrepo = subrepoRepo.create({
+      task_id: task.id,
+      repo_path: 'repos/backend',
+      branch_name: null,
+      worktree_path: null,
+      preferred_port: null,
+      dev_command: null,
+    })
+    devServerRepo.create({
+      project_id: project.id,
+      task_id: task.id,
+      task_subrepo_id: subrepo.id,
+      port: 4321,
+      status: 'failed',
+    })
+
+    const result = deleteTaskCascade(db, task.id)
+
+    expect(result).toBe(true)
+    expect(taskRepo.findById(task.id)).toBeNull()
+    expect(subrepoRepo.findById(subrepo.id)).toBeNull()
   })
 })
