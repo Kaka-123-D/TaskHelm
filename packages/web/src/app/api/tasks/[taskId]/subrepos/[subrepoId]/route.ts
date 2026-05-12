@@ -99,6 +99,9 @@ export async function DELETE(_request: Request, { params }: Params) {
       } catch {
         // ignore — proceeding to cleanup the row regardless
       }
+      // Drop the dev_servers row too — otherwise its task_subrepo_id FK
+      // would block subrepoRepo.delete() below.
+      devServerRepo.delete(server.id)
     }
 
     if (

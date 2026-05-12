@@ -6,12 +6,14 @@ import {
   ProjectRepository,
   TaskRepository,
   TaskSubrepoRepository,
+  DevServerRepository,
   formatBranchName,
   createWorktree,
   listWorktrees,
   removeWorktree,
 } from '@taskhelm/core'
 import type { TaskSubrepo, DevServerStatusValue } from '@taskhelm/core'
+import { stopDevServer } from '@taskhelm/supervisor'
 import { getDb } from '@/lib/db'
 import { discoverSubrepos } from '@/lib/workspace/subrepo-discovery'
 import {
@@ -569,8 +571,22 @@ export async function DELETE(_request: Request, { params }: Params) {
     }
 
     const subrepoRepo = new TaskSubrepoRepository(db)
+    const devServerRepo = new DevServerRepository(db)
     const subrepoRows = subrepoRepo.findByTaskId(task.id)
     for (const row of subrepoRows) {
+      // Drop dev_servers rows first — they FK-reference task_subrepos.id
+      // and would block the cascade delete below.
+      const server = devServerRepo.findByTaskSubrepoId(row.id)
+      if (server) {
+        try {
+          if (server.status === 'running' || server.status === 'starting') {
+            stopDevServer(db, server.id)
+          }
+        } catch {
+          // ignore
+        }
+        devServerRepo.delete(server.id)
+      }
       // Never destroy a worktree the user pointed us at via attach — that
       // path pre-existed our involvement and removing it would silently
       // delete their on-disk state.

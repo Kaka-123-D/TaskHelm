@@ -1,9 +1,12 @@
 name: Publish Packages
 
+# Auto-publish on tag push is temporarily disabled — releases are being
+# cut manually via `pnpm publish` until further notice. Re-enable by
+# uncommenting the `push:` block when CI publishing should resume.
 on:
-  push:
-    tags:
-      - 'v*'
+  # push:
+  #   tags:
+  #     - 'v*'
   workflow_dispatch:
 
 concurrency:
