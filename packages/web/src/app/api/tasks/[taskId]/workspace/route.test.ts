@@ -642,3 +642,58 @@ describe('POST /api/tasks/[taskId]/workspace', () => {
     })
   })
 })
+
+describe('GET /api/tasks/[taskId]/workspace — multi-repo container without outer .git', () => {
+  it('still returns detected nested subrepos when the workspace root is not a git repo', async () => {
+    // Regression: when the project root is a bare container (no `.git`),
+    // currentBranch / listAvailableBaseBranches / listWorktrees throw on it,
+    // making the whole GET 400 and hiding every detected subrepo from the UI.
+    const containerRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'taskhelm-multi-container-'))
+    try {
+      const nestedA = path.join(containerRoot, 'repos', 'backend')
+      const nestedB = path.join(containerRoot, 'repos', 'frontend')
+      for (const nested of [nestedA, nestedB]) {
+        fs.mkdirSync(nested, { recursive: true })
+        execSync('git init', { cwd: nested, stdio: 'pipe' })
+        execSync('git config user.email "test@test.com"', { cwd: nested, stdio: 'pipe' })
+        execSync('git config user.name "Test"', { cwd: nested, stdio: 'pipe' })
+        execSync('git commit --allow-empty -m "init"', { cwd: nested, stdio: 'pipe' })
+      }
+
+      const project = new ProjectRepository(db).create({
+        name: 'Multi',
+        slug: 'multi',
+        local_repo_root: containerRoot,
+        is_multi_repo: true,
+      })
+      const task = new TaskRepository(db).create({
+        project_id: project.id,
+        title: 'Ship auth',
+      })
+
+      const { GET } = await import('./route')
+      const response = await GET(new Request('http://localhost'), {
+        params: Promise.resolve({ taskId: task.id }),
+      })
+
+      expect(response.status).toBe(200)
+      const body = (await response.json()) as {
+        detectedSubrepos: readonly string[]
+        availableBaseBranches: readonly string[]
+        availableExistingWorktrees: readonly unknown[]
+        settings: { baseBranch: string }
+        subrepos: readonly { repoPath: string }[]
+      }
+      expect(body.detectedSubrepos).toEqual([
+        path.join('repos', 'backend'),
+        path.join('repos', 'frontend'),
+      ])
+      expect(body.subrepos.map(s => s.repoPath)).toEqual(body.detectedSubrepos)
+      expect(body.settings.baseBranch).toBe('')
+      expect(body.availableBaseBranches).toEqual([])
+      expect(body.availableExistingWorktrees).toEqual([])
+    } finally {
+      fs.rmSync(containerRoot, { recursive: true, force: true })
+    }
+  })
+})

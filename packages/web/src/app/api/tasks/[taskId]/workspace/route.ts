@@ -245,24 +245,44 @@ export async function GET(_request: Request, { params }: Params) {
 
     const detectedSubrepos = discoverSubrepos(project.local_repo_root)
 
+    // The outer git calls below are only meaningful for the legacy single-repo
+    // flow (project root IS a git repo). In multi-repo mode the workspace
+    // root is typically just a container for nested repos — no .git of its
+    // own. Make them best-effort so detected subrepos still surface when the
+    // outer root isn't a git repo.
+    const outerIsGitRepo = fs.existsSync(path.join(project.local_repo_root, '.git'))
+    const safeCurrentBranch = outerIsGitRepo
+      ? safeCall(() => currentBranch(project.local_repo_root), '')
+      : ''
+    const safeAvailableBaseBranches = outerIsGitRepo
+      ? safeCall(() => listAvailableBaseBranches(project.local_repo_root), [])
+      : []
+    const safeAvailableExistingWorktrees = outerIsGitRepo
+      ? safeCall(
+          () =>
+            getAvailableExistingWorktrees(
+              taskRepo,
+              project.id,
+              task.id,
+              project.local_repo_root,
+              worktreeRootDir,
+            ),
+          [],
+        )
+      : []
+
     return NextResponse.json({
       settings: {
         workspaceName: task.workspace_name ?? '',
         workspaceBranch: task.workspace_branch ?? '',
-        baseBranch: currentBranch(project.local_repo_root),
+        baseBranch: safeCurrentBranch,
         autoPullBaseBranch: true,
         preferredPort: task.preferred_port,
         subrepoBranches: parseWorkspaceSubrepoBranches(task.workspace_subrepo_branches_json),
       },
       detectedSubrepos,
-      availableBaseBranches: listAvailableBaseBranches(project.local_repo_root),
-      availableExistingWorktrees: getAvailableExistingWorktrees(
-        taskRepo,
-        project.id,
-        task.id,
-        project.local_repo_root,
-        worktreeRootDir,
-      ),
+      availableBaseBranches: safeAvailableBaseBranches,
+      availableExistingWorktrees: safeAvailableExistingWorktrees,
       subrepos: buildSubrepoStates(
         db,
         project.id,
@@ -274,6 +294,14 @@ export async function GET(_request: Request, { params }: Params) {
     })
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 })
+  }
+}
+
+function safeCall<T>(fn: () => T, fallback: T): T {
+  try {
+    return fn()
+  } catch {
+    return fallback
   }
 }
 
