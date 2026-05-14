@@ -17,6 +17,13 @@ interface ContextFilePreviewProps {
   readonly taskId: string
   /** Blob URLs from the native picker, keyed by relativePath. */
   readonly blobUrls?: ReadonlyMap<string, string>
+  /**
+   * Monotonic counter bumped on each polling tick. Threaded into the serve
+   * URL so `<img>` / `<video>` and the markdown text fetch re-validate
+   * against the server (304 if unchanged, 200 with fresh bytes if the file
+   * was edited on disk).
+   */
+  readonly refreshKey?: number
 }
 
 function isLegacyTextContent(file: PersistedContextVaultFile): boolean {
@@ -34,6 +41,7 @@ function useFileTextContent(
   options: {
     readonly taskId: string
     readonly blobUrls?: ReadonlyMap<string, string>
+    readonly refreshKey?: number
   },
 ): { text: string | null; loading: boolean; error: string | null } {
   const [text, setText] = useState<string | null>(null)
@@ -88,7 +96,7 @@ function useFileTextContent(
     return () => {
       cancelled = true
     }
-  }, [file, options.taskId, options.blobUrls])
+  }, [file, options.taskId, options.blobUrls, options.refreshKey])
 
   return { text, loading, error }
 }
@@ -274,12 +282,14 @@ function MarkdownPreview({
   onSelectFile,
   taskId,
   blobUrls,
+  refreshKey,
 }: {
   readonly content: string
   readonly files: readonly PersistedContextVaultFile[]
   readonly onSelectFile?: (relativePath: string) => void
   readonly taskId: string
   readonly blobUrls?: ReadonlyMap<string, string>
+  readonly refreshKey?: number
 }) {
   const segments = splitMarkdownAssetReferences(content, files)
 
@@ -288,7 +298,7 @@ function MarkdownPreview({
       {segments.map((segment, index) => {
         if (segment.type === 'asset' && segment.file) {
           const category = segment.file.category ?? classifyContextVaultFile(segment.file.relativePath).category
-          const assetSrc = resolvePreviewSrc(segment.file, { taskId, blobUrls })
+          const assetSrc = resolvePreviewSrc(segment.file, { taskId, blobUrls, refreshKey })
           if (!assetSrc) {
             return null
           }
@@ -416,14 +426,15 @@ export function ContextFilePreview({
   onSelectFile,
   taskId,
   blobUrls,
+  refreshKey,
 }: ContextFilePreviewProps) {
   const preview = file ? classifyContextVaultFile(file.relativePath) : null
   const resolvedCategory = file?.category ?? preview?.category ?? 'unsupported'
   const isTextCategory = resolvedCategory === 'markdown' || resolvedCategory === 'text'
-  const mediaSrc = file ? resolvePreviewSrc(file, { taskId, blobUrls }) : null
+  const mediaSrc = file ? resolvePreviewSrc(file, { taskId, blobUrls, refreshKey }) : null
   const { text: fetchedText, loading: textLoading, error: textError } = useFileTextContent(
     isTextCategory ? file : null,
-    { taskId, blobUrls },
+    { taskId, blobUrls, refreshKey },
   )
   // For markdown/text we want the actual string; for image/video we want a
   // URL the browser can load. Both paths still honour legacy `file.content`
@@ -493,6 +504,7 @@ export function ContextFilePreview({
                   onSelectFile={onSelectFile}
                   taskId={taskId}
                   blobUrls={blobUrls}
+                  refreshKey={refreshKey}
                 />
               </div>
             ) : resolvedCategory === 'image' && mediaSrc ? (

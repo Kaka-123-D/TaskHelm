@@ -32,6 +32,30 @@ describe('resolvePreviewSrc', () => {
     )
   })
 
+  it('appends a refresh key so the browser re-validates after each poll tick', () => {
+    const result = resolvePreviewSrc(baseFile, { taskId: 'task-1', refreshKey: 42 })
+    expect(result).toBe(
+      '/api/files/serve?taskId=task-1&path=%2FUsers%2Fme%2Fproj%2Fmedia%2Fdemo.png&v=42',
+    )
+  })
+
+  it('does NOT mutate legacy data URLs or blob URLs with the refresh key', () => {
+    expect(
+      resolvePreviewSrc(
+        { ...baseFile, content: 'data:image/png;base64,...' },
+        { taskId: 'task-1', refreshKey: 42 },
+      ),
+    ).toBe('data:image/png;base64,...')
+
+    expect(
+      resolvePreviewSrc(baseFile, {
+        taskId: 'task-1',
+        refreshKey: 42,
+        blobUrls: new Map([['media/demo.png', 'blob:abc']]),
+      }),
+    ).toBe('blob:abc')
+  })
+
   it('prefers legacy content over blob URL when both are present', () => {
     // Pre-existing data-URL rows should keep working even if a brand-new
     // native picker session also exposes a blob URL.

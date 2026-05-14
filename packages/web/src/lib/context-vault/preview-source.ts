@@ -19,6 +19,13 @@ export function resolvePreviewSrc(
   options: {
     readonly taskId: string
     readonly blobUrls?: ReadonlyMap<string, string>
+    /**
+     * Increment to force the browser to re-issue a conditional GET. The
+     * value is folded into the query string of the serve URL only — legacy
+     * `data:` content and `blob:` native URLs are returned untouched so we
+     * don't accidentally invalidate them.
+     */
+    readonly refreshKey?: number
   },
 ): string | null {
   if (file.content) {
@@ -38,5 +45,8 @@ export function resolvePreviewSrc(
     taskId: options.taskId,
     path: file.absolutePath,
   })
+  if (options.refreshKey !== undefined && options.refreshKey > 0) {
+    params.set('v', String(options.refreshKey))
+  }
   return `/api/files/serve?${params.toString()}`
 }

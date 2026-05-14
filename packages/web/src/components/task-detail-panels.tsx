@@ -87,6 +87,7 @@ export interface TaskDetailPanelsViewProps {
   readonly error?: string | null
   readonly forceFullscreen?: boolean
   readonly nativeBlobUrls?: ReadonlyMap<string, string>
+  readonly previewRefreshKey?: number
   readonly onSelectFile: (name: string) => void
   readonly onToggleFileListCollapse: () => void
   readonly onOpenExplorer: () => void
@@ -111,6 +112,7 @@ export function TaskDetailPanelsView({
   error = null,
   forceFullscreen,
   nativeBlobUrls,
+  previewRefreshKey,
   onSelectFile,
   onToggleFileListCollapse,
   onOpenExplorer,
@@ -349,6 +351,7 @@ export function TaskDetailPanelsView({
                   onSelectFile={onSelectFile}
                   taskId={task.id}
                   blobUrls={nativeBlobUrls}
+                  refreshKey={previewRefreshKey}
                 />
               </div>
             </div>
@@ -416,6 +419,7 @@ export function TaskDetailPanelsView({
                 onSelectFile={onSelectFile}
                 taskId={task.id}
                 blobUrls={nativeBlobUrls}
+                refreshKey={previewRefreshKey}
               />
             </div>
           </div>
@@ -439,6 +443,11 @@ export function TaskDetailPanels({ task, project }: TaskDetailPanelsProps) {
   const [liveNativeSelection, setLiveNativeSelection] = useState<NativeLiveSelection | null>(null)
   const [fileListCollapsed, setFileListCollapsed] = useState(false)
   const [nativeBlobUrls, setNativeBlobUrls] = useState<ReadonlyMap<string, string>>(() => new Map())
+  // Monotonic tick incremented on every polling cycle. Threaded into the
+  // preview pane so `<img>` / `<video>` src URLs get a fresh query param,
+  // forcing the browser to fire a conditional GET against the serve route
+  // (cheap 304 unless the file actually changed on disk).
+  const [vaultRevision, setVaultRevision] = useState(0)
   const selectedFileRef = useRef<string | null>(task.context_vault_selected_file)
   const prevBlobUrlsRef = useRef<ReadonlyMap<string, string>>(new Map())
 
@@ -557,6 +566,11 @@ export function TaskDetailPanels({ task, project }: TaskDetailPanelsProps) {
     let cancelled = false
 
     const interval = window.setInterval(() => {
+      // Bump first so the preview pane re-validates its currently rendered
+      // file alongside the list polling, regardless of which branch below
+      // refreshes the metadata.
+      setVaultRevision(rev => rev + 1)
+
       if (liveNativeSelection) {
         void discoverMarkdownFromNativeSelection(liveNativeSelection)
           .then(async discovered => {
@@ -726,6 +740,7 @@ export function TaskDetailPanels({ task, project }: TaskDetailPanelsProps) {
         loading={surfaceLoading}
         error={surfaceError}
         nativeBlobUrls={nativeBlobUrls}
+        previewRefreshKey={vaultRevision}
         onSelectFile={handleSelectFile}
         onToggleFileListCollapse={() => setFileListCollapsed(current => !current)}
         onOpenExplorer={() => {
