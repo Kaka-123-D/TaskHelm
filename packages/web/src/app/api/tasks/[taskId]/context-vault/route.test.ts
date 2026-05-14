@@ -187,7 +187,9 @@ describe('GET /api/tasks/[taskId]/context-vault', () => {
         {
           relativePath: 'context.md',
           absolutePath: markdownPath,
-          content: '# Fresh Context\n',
+          // Discovery is metadata-only; the client fetches text via
+          // /api/files/serve when the user opens the preview.
+          content: null,
         },
       ],
     })

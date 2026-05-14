@@ -23,7 +23,7 @@ describe('ContextFilePreview', () => {
     }
 
     const markup = renderToStaticMarkup(
-      <ContextFilePreview file={file} />,
+      <ContextFilePreview taskId="task-test" file={file} />,
     )
 
     expect(markup).toContain('<h1>Context</h1>')
@@ -63,7 +63,7 @@ describe('ContextFilePreview', () => {
     ]
 
     const markup = renderToStaticMarkup(
-      <ContextFilePreview file={file} files={files} />,
+      <ContextFilePreview taskId="task-test" file={file} files={files} />,
     )
 
     expect(markup).toContain('context-preview-referenced-asset')
@@ -94,7 +94,7 @@ describe('ContextFilePreview', () => {
     ]
 
     const markup = renderToStaticMarkup(
-      <ContextFilePreview file={file} files={files} />,
+      <ContextFilePreview taskId="task-test" file={file} files={files} />,
     )
 
     expect(markup).toContain('src="data:image/png;base64,SUFFIX-MATCH"')
@@ -121,7 +121,7 @@ describe('ContextFilePreview', () => {
     ]
 
     const markup = renderToStaticMarkup(
-      <ContextFilePreview file={file} files={files} />,
+      <ContextFilePreview taskId="task-test" file={file} files={files} />,
     )
 
     expect(markup).toContain('src="data:image/png;base64,SHORT-REF"')
@@ -154,7 +154,7 @@ describe('ContextFilePreview', () => {
     ]
 
     const markup = renderToStaticMarkup(
-      <ContextFilePreview file={file} files={files} />,
+      <ContextFilePreview taskId="task-test" file={file} files={files} />,
     )
 
     expect(markup).toContain('src="data:video/mp4;base64,VVV"')
@@ -173,7 +173,7 @@ describe('ContextFilePreview', () => {
     }
 
     const markup = renderToStaticMarkup(
-      <ContextFilePreview file={file} />,
+      <ContextFilePreview taskId="task-test" file={file} />,
     )
 
     expect(markup).toContain('<img')
@@ -190,7 +190,7 @@ describe('ContextFilePreview', () => {
     }
 
     const markup = renderToStaticMarkup(
-      <ContextFilePreview file={file} />,
+      <ContextFilePreview taskId="task-test" file={file} />,
     )
 
     expect(markup).toContain('<video')

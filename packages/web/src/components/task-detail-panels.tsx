@@ -12,6 +12,7 @@ import { GlassButton } from '@/components/design-system/glass-button'
 import { WorkspacePanel } from '@/components/workspace-panel'
 import {
   discoverMarkdownFromNativeSelection,
+  type NativeDiscoveredFile,
   type NativeSelection,
 } from '@/lib/context-vault/native-picker'
 import type { PersistedContextVaultFile } from '@/lib/context-vault/persisted-vault'
@@ -44,6 +45,28 @@ const CONTEXT_VAULT_POLL_MS = 30000
 
 type NativeLiveSelection = NativeSelection
 
+/**
+ * Walk a native-picker discovery result and mint a blob URL per binary
+ * file. The map is keyed by `relativePath` so the preview component can
+ * look it up via `resolvePreviewSrc`. The caller is responsible for
+ * revoking the URLs (see prevBlobUrlsRef effect below).
+ */
+async function buildNativeBlobUrls(
+  files: readonly NativeDiscoveredFile[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>()
+  for (const file of files) {
+    if (!file.getBlob) continue
+    try {
+      const blob = await file.getBlob()
+      map.set(file.relativePath, URL.createObjectURL(blob))
+    } catch {
+      // Skip — preview will fall through to the "unavailable" message.
+    }
+  }
+  return map
+}
+
 interface TaskDetailPanelsProps {
   readonly task: Task
   readonly project: Project
@@ -63,6 +86,7 @@ export interface TaskDetailPanelsViewProps {
   readonly loading?: boolean
   readonly error?: string | null
   readonly forceFullscreen?: boolean
+  readonly nativeBlobUrls?: ReadonlyMap<string, string>
   readonly onSelectFile: (name: string) => void
   readonly onToggleFileListCollapse: () => void
   readonly onOpenExplorer: () => void
@@ -86,6 +110,7 @@ export function TaskDetailPanelsView({
   loading = false,
   error = null,
   forceFullscreen,
+  nativeBlobUrls,
   onSelectFile,
   onToggleFileListCollapse,
   onOpenExplorer,
@@ -322,6 +347,8 @@ export function TaskDetailPanelsView({
                   isFullscreen={fullscreen}
                   onToggleFullscreen={toggleFullscreen}
                   onSelectFile={onSelectFile}
+                  taskId={task.id}
+                  blobUrls={nativeBlobUrls}
                 />
               </div>
             </div>
@@ -387,6 +414,8 @@ export function TaskDetailPanelsView({
                 isFullscreen
                 onToggleFullscreen={toggleFullscreen}
                 onSelectFile={onSelectFile}
+                taskId={task.id}
+                blobUrls={nativeBlobUrls}
               />
             </div>
           </div>
@@ -409,11 +438,34 @@ export function TaskDetailPanels({ task, project }: TaskDetailPanelsProps) {
   const [explorerError, setExplorerError] = useState<string | null>(null)
   const [liveNativeSelection, setLiveNativeSelection] = useState<NativeLiveSelection | null>(null)
   const [fileListCollapsed, setFileListCollapsed] = useState(false)
+  const [nativeBlobUrls, setNativeBlobUrls] = useState<ReadonlyMap<string, string>>(() => new Map())
   const selectedFileRef = useRef<string | null>(task.context_vault_selected_file)
+  const prevBlobUrlsRef = useRef<ReadonlyMap<string, string>>(new Map())
 
   useEffect(() => {
     selectedFileRef.current = selectedFile
   }, [selectedFile])
+
+  // Revoke previous blob URLs whenever the map changes — without this each
+  // poll-cycle re-walk would leak megabytes of blob storage per image.
+  useEffect(() => {
+    const previous = prevBlobUrlsRef.current
+    prevBlobUrlsRef.current = nativeBlobUrls
+    for (const [key, url] of previous) {
+      if (nativeBlobUrls.get(key) !== url) {
+        URL.revokeObjectURL(url)
+      }
+    }
+  }, [nativeBlobUrls])
+
+  // Final cleanup when the task page unmounts.
+  useEffect(() => {
+    return () => {
+      for (const url of prevBlobUrlsRef.current.values()) {
+        URL.revokeObjectURL(url)
+      }
+    }
+  }, [])
 
   const applyVaultPayload = useCallback(
     (payload: ContextVaultResponse, options?: { preferredSelectedFile?: string | null }) => {
@@ -507,8 +559,14 @@ export function TaskDetailPanels({ task, project }: TaskDetailPanelsProps) {
     const interval = window.setInterval(() => {
       if (liveNativeSelection) {
         void discoverMarkdownFromNativeSelection(liveNativeSelection)
-          .then(discovered => {
+          .then(async discovered => {
             if (cancelled) {
+              return
+            }
+
+            const nextBlobUrls = await buildNativeBlobUrls(discovered.files)
+            if (cancelled) {
+              for (const url of nextBlobUrls.values()) URL.revokeObjectURL(url)
               return
             }
 
@@ -517,6 +575,7 @@ export function TaskDetailPanels({ task, project }: TaskDetailPanelsProps) {
               discovered.files[0]?.relativePath ??
               null
 
+            setNativeBlobUrls(nextBlobUrls)
             return persistVaultSnapshot({
               rootPath: discovered.rootPath,
               sources: [],
@@ -577,6 +636,9 @@ export function TaskDetailPanels({ task, project }: TaskDetailPanelsProps) {
         })
 
         setLiveNativeSelection(null)
+        // Manual fallback never serves blobs; drop any URLs lingering from
+        // a previous native picker session so memory is reclaimed promptly.
+        setNativeBlobUrls(new Map())
         setExplorerOpen(false)
         setStatusMessage(
           persisted.files.length === 0
@@ -606,6 +668,11 @@ export function TaskDetailPanels({ task, project }: TaskDetailPanelsProps) {
 
       try {
         const selectedRelativePath = discovered.files[0]?.relativePath ?? null
+        const blobUrls = await buildNativeBlobUrls(
+          discovered.files as readonly NativeDiscoveredFile[],
+        )
+        setNativeBlobUrls(blobUrls)
+
         const persisted = await persistVaultSnapshot({
           rootPath: discovered.rootPath,
           sources: [],
@@ -658,6 +725,7 @@ export function TaskDetailPanels({ task, project }: TaskDetailPanelsProps) {
         fileListCollapsed={fileListCollapsed}
         loading={surfaceLoading}
         error={surfaceError}
+        nativeBlobUrls={nativeBlobUrls}
         onSelectFile={handleSelectFile}
         onToggleFileListCollapse={() => setFileListCollapsed(current => !current)}
         onOpenExplorer={() => {

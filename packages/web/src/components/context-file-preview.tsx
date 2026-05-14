@@ -6,6 +6,7 @@ import ReactMarkdown, { defaultUrlTransform, type UrlTransform } from 'react-mar
 import remarkGfm from 'remark-gfm'
 import { classifyContextVaultFile } from '@/lib/context-vault/file-preview'
 import type { PersistedContextVaultFile } from '@/lib/context-vault/persisted-vault'
+import { resolvePreviewSrc } from '@/lib/context-vault/preview-source'
 
 interface ContextFilePreviewProps {
   readonly file: PersistedContextVaultFile | null
@@ -13,6 +14,83 @@ interface ContextFilePreviewProps {
   readonly isFullscreen?: boolean
   readonly onToggleFullscreen?: () => void
   readonly onSelectFile?: (relativePath: string) => void
+  readonly taskId: string
+  /** Blob URLs from the native picker, keyed by relativePath. */
+  readonly blobUrls?: ReadonlyMap<string, string>
+}
+
+function isLegacyTextContent(file: PersistedContextVaultFile): boolean {
+  const content = file.content
+  if (!content) return false
+  return !content.startsWith('data:')
+}
+
+function isLegacyAssetContent(file: PersistedContextVaultFile): boolean {
+  return Boolean(file.content?.startsWith('data:'))
+}
+
+function useFileTextContent(
+  file: PersistedContextVaultFile | null,
+  options: {
+    readonly taskId: string
+    readonly blobUrls?: ReadonlyMap<string, string>
+  },
+): { text: string | null; loading: boolean; error: string | null } {
+  const [text, setText] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!file) {
+      setText(null)
+      setError(null)
+      setLoading(false)
+      return
+    }
+
+    if (isLegacyTextContent(file)) {
+      setText(file.content ?? null)
+      setError(null)
+      setLoading(false)
+      return
+    }
+
+    const src = resolvePreviewSrc(file, options)
+    if (!src) {
+      setText(null)
+      setError(null)
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    fetch(src)
+      .then(async response => {
+        if (!response.ok) {
+          throw new Error(`Failed to fetch (${response.status})`)
+        }
+        return response.text()
+      })
+      .then(content => {
+        if (cancelled) return
+        setText(content)
+        setLoading(false)
+      })
+      .catch(fetchError => {
+        if (cancelled) return
+        setText(null)
+        setError((fetchError as Error).message)
+        setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [file, options.taskId, options.blobUrls])
+
+  return { text, loading, error }
 }
 
 const VAULT_LINK_PROTOCOL = 'taskhelm-vault:'
@@ -102,13 +180,18 @@ function splitMarkdownAssetReferences(
     const referencedCategory = referencedFile?.category ?? (
       referencedFile ? classifyContextVaultFile(referencedFile.relativePath).category : 'unsupported'
     )
-    const isInlineAsset =
-      Boolean(referencedFile?.content) &&
-      (referencedCategory === 'image' || referencedCategory === 'video')
+    // Inline image/video references render via <img>/<video> using a resolved
+    // src URL (legacy data URL, native blob URL, or serve route). Anything
+    // without an absolute path or legacy content stays a markdown link so the
+    // reader can still click to focus the file in the list.
+    const canInlineAsset =
+      Boolean(referencedFile) &&
+      (referencedCategory === 'image' || referencedCategory === 'video') &&
+      Boolean(referencedFile?.content || referencedFile?.absolutePath)
 
     buffer += content.slice(cursor, matchIndex)
 
-    if (isInlineAsset && referencedFile) {
+    if (canInlineAsset && referencedFile) {
       if (buffer.length > 0) {
         segments.push({ type: 'markdown', value: buffer })
         buffer = ''
@@ -189,24 +272,32 @@ function MarkdownPreview({
   content,
   files,
   onSelectFile,
+  taskId,
+  blobUrls,
 }: {
   readonly content: string
   readonly files: readonly PersistedContextVaultFile[]
   readonly onSelectFile?: (relativePath: string) => void
+  readonly taskId: string
+  readonly blobUrls?: ReadonlyMap<string, string>
 }) {
   const segments = splitMarkdownAssetReferences(content, files)
 
   return (
     <div className="context-preview-markdown-body">
       {segments.map((segment, index) => {
-        if (segment.type === 'asset' && segment.file?.content) {
+        if (segment.type === 'asset' && segment.file) {
           const category = segment.file.category ?? classifyContextVaultFile(segment.file.relativePath).category
+          const assetSrc = resolvePreviewSrc(segment.file, { taskId, blobUrls })
+          if (!assetSrc) {
+            return null
+          }
 
           if (category === 'image') {
             return (
               <figure className="context-preview-referenced-asset" key={`${segment.file.relativePath}-${index}`}>
                 <img
-                  src={segment.file.content}
+                  src={assetSrc}
                   alt={segment.file.relativePath}
                   className="context-preview-markdown-image"
                 />
@@ -218,7 +309,7 @@ function MarkdownPreview({
           return (
             <figure className="context-preview-referenced-asset" key={`${segment.file.relativePath}-${index}`}>
               <video
-                src={segment.file.content}
+                src={assetSrc}
                 className="context-preview-video"
                 controls
                 playsInline
@@ -323,10 +414,27 @@ export function ContextFilePreview({
   isFullscreen = false,
   onToggleFullscreen,
   onSelectFile,
+  taskId,
+  blobUrls,
 }: ContextFilePreviewProps) {
   const preview = file ? classifyContextVaultFile(file.relativePath) : null
   const resolvedCategory = file?.category ?? preview?.category ?? 'unsupported'
-  const content = file?.content ?? null
+  const isTextCategory = resolvedCategory === 'markdown' || resolvedCategory === 'text'
+  const mediaSrc = file ? resolvePreviewSrc(file, { taskId, blobUrls }) : null
+  const { text: fetchedText, loading: textLoading, error: textError } = useFileTextContent(
+    isTextCategory ? file : null,
+    { taskId, blobUrls },
+  )
+  // For markdown/text we want the actual string; for image/video we want a
+  // URL the browser can load. Both paths still honour legacy `file.content`
+  // baked into older DB rows.
+  const textForPreview = isTextCategory
+    ? fetchedText ?? (isLegacyTextContent(file ?? ({} as PersistedContextVaultFile)) ? file?.content ?? null : null)
+    : null
+  const hasAnyContent =
+    Boolean(textForPreview) ||
+    (!isTextCategory && Boolean(mediaSrc)) ||
+    isLegacyAssetContent(file ?? ({} as PersistedContextVaultFile))
 
   return (
     <div
@@ -367,28 +475,44 @@ export function ContextFilePreview({
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
           >
-            {!file || !content ? (
+            {!file || !hasAnyContent ? (
               <div className="context-vault-empty flex h-full items-center justify-center">
-                <p className="text-sm text-[var(--text-muted)]">Select a context file to preview</p>
+                <p className="text-sm text-[var(--text-muted)]">
+                  {textLoading
+                    ? 'Loading preview…'
+                    : textError
+                      ? `Preview failed: ${textError}`
+                      : 'Select a context file to preview'}
+                </p>
               </div>
-            ) : resolvedCategory === 'markdown' ? (
+            ) : resolvedCategory === 'markdown' && textForPreview ? (
               <div className="context-preview-markdown">
-                <MarkdownPreview content={content} files={files} onSelectFile={onSelectFile} />
+                <MarkdownPreview
+                  content={textForPreview}
+                  files={files}
+                  onSelectFile={onSelectFile}
+                  taskId={taskId}
+                  blobUrls={blobUrls}
+                />
               </div>
-            ) : resolvedCategory === 'image' ? (
+            ) : resolvedCategory === 'image' && mediaSrc ? (
               <div className="context-preview-image-frame">
                 <img
-                  src={content}
+                  src={mediaSrc}
                   alt={file.relativePath}
                   className="context-preview-image"
                 />
               </div>
-            ) : resolvedCategory === 'video' ? (
+            ) : resolvedCategory === 'video' && mediaSrc ? (
               <div className="context-preview-video-frame">
-                <video src={content} className="context-preview-video" controls playsInline />
+                <video src={mediaSrc} className="context-preview-video" controls playsInline />
               </div>
-            ) : resolvedCategory === 'text' ? (
-              <pre className="context-preview-code">{content}</pre>
+            ) : resolvedCategory === 'text' && textForPreview ? (
+              <pre className="context-preview-code">{textForPreview}</pre>
+            ) : textLoading ? (
+              <div className="context-vault-empty flex h-full items-center justify-center">
+                <p className="text-sm text-[var(--text-muted)]">Loading preview…</p>
+              </div>
             ) : (
               <div className="context-vault-empty flex h-full items-center justify-center">
                 <p className="text-sm text-[var(--text-muted)]">Preview unavailable for this file type</p>

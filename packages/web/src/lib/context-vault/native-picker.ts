@@ -1,10 +1,17 @@
 import type { PersistedContextVaultFile } from '@/lib/context-vault/persisted-vault'
 import { classifyContextVaultFile, supportedContextVaultFile } from '@/lib/context-vault/file-preview'
 
+export interface NativeFileBlob {
+  readonly text: () => Promise<string>
+  readonly arrayBuffer?: () => Promise<ArrayBuffer>
+  readonly size?: number
+  readonly type?: string
+}
+
 export interface NativeFileHandleLike {
   readonly kind: 'file'
   readonly name: string
-  getFile(): Promise<{ text(): Promise<string>; arrayBuffer?: () => Promise<ArrayBuffer> }>
+  getFile(): Promise<NativeFileBlob>
 }
 
 export interface NativeDirectoryHandleLike {
@@ -25,62 +32,65 @@ export type NativeSelection =
       readonly handle: NativeDirectoryHandleLike
     }
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer)
-  let binary = ''
-
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte)
-  }
-
-  return btoa(binary)
+export interface NativeDiscoveredFile extends PersistedContextVaultFile {
+  /**
+   * Lazy accessor for the original Blob. Native picker handles cannot be
+   * persisted (browser security), so the preview layer uses these blobs to
+   * mint `URL.createObjectURL` URLs at render time instead of base64.
+   * Cleared when the file handle is released.
+   */
+  readonly getBlob?: () => Promise<Blob>
 }
 
-async function readMarkdownFileHandle(
+async function readNativeFile(
   handle: NativeFileHandleLike,
   segments: readonly string[],
   rootLabel: string,
   includeRootLabel = true,
-): Promise<PersistedContextVaultFile[]> {
+): Promise<NativeDiscoveredFile[]> {
   if (!supportedContextVaultFile(handle.name)) {
     return []
   }
 
-  const file = await handle.getFile()
+  const blob = await handle.getFile()
   const relativePath = [...segments, handle.name].join('/')
   const preview = classifyContextVaultFile(handle.name)
-  const content =
-    (preview.category === 'image' || preview.category === 'video') && file.arrayBuffer
-      ? `data:${preview.mediaType};base64,${arrayBufferToBase64(await file.arrayBuffer())}`
-      : await file.text()
+  const isBinary = preview.category === 'image' || preview.category === 'video'
+
+  // Text files are usually small (markdown, code) — keep them inline so the
+  // preview hook can render them without an extra fetch. Binaries are left
+  // as metadata + blob accessor; the preview layer builds a blob URL.
+  const inlineText = !isBinary ? await blob.text() : null
 
   return [
     {
       relativePath,
       absolutePath: includeRootLabel ? [rootLabel, ...segments, handle.name].join('/') : relativePath,
-      content,
+      content: inlineText,
       category: preview.category,
       mediaType: preview.mediaType,
+      size: typeof blob.size === 'number' ? blob.size : undefined,
+      getBlob: isBinary ? async () => (await handle.getFile()) as unknown as Blob : undefined,
     },
   ]
 }
 
-async function readMarkdownDirectoryHandle(
+async function readNativeDirectory(
   handle: NativeDirectoryHandleLike,
   segments: readonly string[],
   rootLabel: string,
-): Promise<PersistedContextVaultFile[]> {
-  const files: PersistedContextVaultFile[] = []
+): Promise<NativeDiscoveredFile[]> {
+  const files: NativeDiscoveredFile[] = []
 
   for await (const [, childHandle] of handle.entries()) {
     if (childHandle.kind === 'directory') {
       files.push(
-        ...(await readMarkdownDirectoryHandle(childHandle, [...segments, childHandle.name], rootLabel)),
+        ...(await readNativeDirectory(childHandle, [...segments, childHandle.name], rootLabel)),
       )
       continue
     }
 
-    files.push(...(await readMarkdownFileHandle(childHandle, segments, rootLabel)))
+    files.push(...(await readNativeFile(childHandle, segments, rootLabel)))
   }
 
   return files.sort((left, right) => left.relativePath.localeCompare(right.relativePath))
@@ -88,17 +98,17 @@ async function readMarkdownDirectoryHandle(
 
 export async function discoverMarkdownFromNativeSelection(selection: NativeSelection): Promise<{
   readonly rootPath: string
-  readonly files: readonly PersistedContextVaultFile[]
+  readonly files: readonly NativeDiscoveredFile[]
 }> {
   if (selection.kind === 'file') {
     return {
       rootPath: selection.handle.name,
-      files: await readMarkdownFileHandle(selection.handle, [], selection.handle.name, false),
+      files: await readNativeFile(selection.handle, [], selection.handle.name, false),
     }
   }
 
   return {
     rootPath: selection.handle.name,
-    files: await readMarkdownDirectoryHandle(selection.handle, [], selection.handle.name),
+    files: await readNativeDirectory(selection.handle, [], selection.handle.name),
   }
 }

@@ -7,20 +7,29 @@ function normalizeRelativePath(relativePath: string): string {
   return relativePath.split(path.sep).join('/')
 }
 
-function readSupportedFile(filePath: string, basePath: string): PersistedContextVaultFile {
+/**
+ * Read metadata only — never the file bytes. The preview component fetches
+ * content on demand via `/api/files/serve`, which keeps the discover
+ * response small (KB instead of MB-to-GB) and avoids V8's
+ * `RangeError: Invalid string length` when a folder contains many images
+ * or videos.
+ */
+function readSupportedFileMetadata(filePath: string, basePath: string): PersistedContextVaultFile {
   const preview = classifyContextVaultFile(filePath)
-  const buffer = fs.readFileSync(filePath)
-  const content =
-    preview.category === 'image' || preview.category === 'video'
-      ? `data:${preview.mediaType};base64,${buffer.toString('base64')}`
-      : buffer.toString('utf8')
+  let size: number | undefined
+  try {
+    size = fs.statSync(filePath).size
+  } catch {
+    size = undefined
+  }
 
   return {
     absolutePath: filePath,
     relativePath: normalizeRelativePath(path.relative(basePath, filePath)),
-    content,
+    content: null,
     category: preview.category,
     mediaType: preview.mediaType,
+    size,
   }
 }
 
@@ -37,7 +46,7 @@ function walkSupportedFiles(rootPath: string, currentPath: string, files: Persis
     }
 
     if (entry.isFile() && supportedContextVaultFile(entry.name)) {
-      files.push(readSupportedFile(fullPath, rootPath))
+      files.push(readSupportedFileMetadata(fullPath, rootPath))
     }
   }
 }
@@ -61,7 +70,7 @@ export function discoverMarkdownFiles(inputPath: string): {
     const parentDir = path.dirname(resolvedPath)
     return {
       rootPath: parentDir,
-      files: [readSupportedFile(resolvedPath, parentDir)],
+      files: [readSupportedFileMetadata(resolvedPath, parentDir)],
     }
   }
 
